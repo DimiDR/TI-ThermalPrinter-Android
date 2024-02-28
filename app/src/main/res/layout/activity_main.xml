@@ -33,7 +33,9 @@
                 android:id="@+id/button_bluetooth"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Print by bluetooth !" />
+                android:text="Print by bluetooth !"
+                android:enabled="false"/>
+
         </LinearLayout>
 
         <Button
@@ -41,7 +43,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="20dp"
-            android:text="Print by USB !" />
+            android:text="Print by USB !"
+            android:enabled="false"/>
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -60,7 +63,8 @@
                 android:layout_width="170dp"
                 android:layout_height="wrap_content"
                 android:digits="0123456789."
-                android:inputType="number" />
+                android:inputType="number"
+                android:enabled="false"/>
 
             <TextView
                 android:layout_width="wrap_content"
@@ -73,7 +77,8 @@
                 android:id="@+id/edittext_tcp_port"
                 android:layout_width="80dp"
                 android:layout_height="wrap_content"
-                android:inputType="number" />
+                android:inputType="number"
+                android:enabled="false"/>
         </LinearLayout>
 
         <Button
@@ -81,6 +86,23 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="20dp"
-            android:text="Print by TCP !" />
+            android:text="Print by TCP !"
+            android:enabled="false"/>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginBottom="20dp"
+        android:textAlignment="center"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/button_ti_print_monitoring"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Print by bluetooth !" />
+    </LinearLayout>
 
 </LinearLayout>

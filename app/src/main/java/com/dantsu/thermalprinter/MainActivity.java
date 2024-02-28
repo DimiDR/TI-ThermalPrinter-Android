@@ -1,10 +1,5 @@
 package com.dantsu.thermalprinter;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
@@ -16,11 +11,20 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
@@ -35,11 +39,30 @@ import com.dantsu.thermalprinter.async.AsyncEscPosPrinter;
 import com.dantsu.thermalprinter.async.AsyncTcpEscPosPrint;
 import com.dantsu.thermalprinter.async.AsyncUsbEscPosPrint;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.SimpleDateFormat;
+import java.text.ParseException;
 import java.util.Date;
+import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.TimeZone;
+import java.util.HashSet;
+import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
 
+    //set of orders IDs, which already been printed
+    private static Set<String> printedOrders = new HashSet<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +76,8 @@ public class MainActivity extends AppCompatActivity {
         button.setOnClickListener(view -> printUsb());
         button = (Button) this.findViewById(R.id.button_tcp);
         button.setOnClickListener(view -> printTcp());
-
+        button = (Button) this.findViewById(R.id.button_ti_print_monitoring);
+        button.setOnClickListener(view -> tiPrintMonitoring());
     }
 
 
@@ -301,5 +325,289 @@ public class MainActivity extends AppCompatActivity {
                 "[L]\n" +
                 "[C]<qrcode size='20'>https://dantsu.com/</qrcode>\n"
         );
+    }
+
+    /*==============================================================================================
+    ===================================Tasty Igniter Part=========================================
+    ==============================================================================================*/
+    private boolean isServiceActive = false;
+    private Timer timer;
+
+    public void tiPrintMonitoring() {
+        if (!isServiceActive) {
+            startService();
+        } else {
+            stopService();
+        }
+    }
+
+    private void startService() {
+        timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                new WebServiceTask().execute("https://dimitrir14.sg-host.com/api/orders?sort=order_id desc&pageLimit=2");
+            }
+        }, 0, 60000); // Execute every minute (60,000 milliseconds)
+
+        isServiceActive = true;
+        showToast("Service activated");
+    }
+
+    private void stopService() {
+        if (timer != null) {
+            timer.cancel();
+            timer.purge();
+        }
+
+        isServiceActive = false;
+        showToast("Service deactivated");
+    }
+
+    private void showToast(String message) {
+        new Handler(Looper.getMainLooper()).post(() ->
+                Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
+    }
+
+    private class WebServiceTask extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(String... urls) {
+            HttpURLConnection urlConnection = null;
+            BufferedReader reader = null;
+            String resultJson = null;
+
+            try {
+                URL url = new URL(urls[0]);
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setRequestMethod("GET");
+                urlConnection.connect();
+
+                InputStream inputStream = urlConnection.getInputStream();
+                StringBuilder buffer = new StringBuilder();
+                if (inputStream == null) {
+                    return null;
+                }
+                reader = new BufferedReader(new InputStreamReader(inputStream));
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    buffer.append(line).append("\n");
+                }
+
+                if (buffer.length() == 0) {
+                    return null;
+                }
+                resultJson = buffer.toString();
+            } catch (IOException e) {
+                Log.e("MainActivity", "Error ", e);
+                return null;
+            } finally {
+                if (urlConnection != null) {
+                    urlConnection.disconnect();
+                }
+                if (reader != null) {
+                    try {
+                        reader.close();
+                    } catch (final IOException e) {
+                        Log.e("MainActivity", "Error closing stream", e);
+                    }
+                }
+            }
+            return resultJson;
+        }
+        @Override
+        protected void onPostExecute(String result) {
+            // Process the result here
+            if (result != null) {
+                // Do something with the result
+                Log.d("WebServiceResponse", result);
+
+                // Call printDocketCustomerReceipt method
+                printDocketCustomerReceipt(result);
+            } else {
+                Log.e("WebServiceResponse", "Failed to fetch data from web service");
+            }
+        }
+    }
+
+    private void printDocketCustomerReceipt(String json) {
+        String printOutput = "";
+        String printHeader = "";
+        String printOrder = "";
+        String printAllCosts = "";
+        String printCustomer = "";
+        String printPayment = "";
+
+        try {
+            JSONObject jsonObject = new JSONObject(json);
+            JSONArray dataArray = filterPrintableOrders(jsonObject.getJSONArray("data"));
+            if (dataArray.length() == 0){
+                showToast("Nothing to Print");
+                return;
+            }
+            // main data object with single orders
+            for (int i = 0; i < dataArray.length(); i++) {
+                //TODO: validierung ob das schonmal ausgedruckt wurde
+                JSONObject dataObject = dataArray.getJSONObject(i);
+                String oderID = dataObject.getString("id");
+                JSONObject orderAttributes = dataObject.getJSONObject("attributes");
+                String payment = orderAttributes.getString("payment");//stripe, cod, paypalexpress
+                String order_type = orderAttributes.getString("order_type");
+                String order_date_time = FormatDate(orderAttributes.getString("order_date_time"));
+                String orderId = String.valueOf(orderAttributes.getInt("order_id"));
+                String orderTotal = String.valueOf(orderAttributes.getDouble("order_total"));
+                //payment translation
+                if (payment.equals("cod")) {
+                    payment = "Barzahlung";
+                } else if (payment.equals("stripe")) {
+                    payment = "Bezahlt mit Kreditkarte";
+                } else if (payment.equals("paypalexpress")) {
+                    payment = "Bezahlt mit PayPal";
+                }
+                //delivery translation
+                if (order_type == "delivery"){
+                    order_type = "Lieferung";
+                } else {
+                    order_type = "Abholung";
+                }
+                printHeader = "[C]<u><font size='big'> Primavera </font></u>\n"+
+                        "[L]<font size='big'>Bestellung Nr." + orderId + "</font>\n" +
+                        "[L]\n" +
+                        "[C]<b>" + order_type + " - " + payment + " - <u type='double'>" +
+                            orderTotal + "€ </u></b>\n" +
+                        "[C]" + order_type + " am " + order_date_time + "\n" +
+                        "[C]\n" +
+                        "[C]================================\n" +
+                        "[L]\n";
+
+                // menu entries
+                JSONArray order_menus_array = orderAttributes.getJSONArray("order_menus");
+                for (int j = 0; j < order_menus_array.length(); j++) {
+                    JSONObject order_menus_object = order_menus_array.getJSONObject(j);
+                    String menusName = order_menus_object.getString("name");
+                    String menusSubtotal = FormatStringValue(order_menus_object.getString("subtotal"));
+                    String menusQuantity = order_menus_object.getString("quantity");
+                    printOrder +="[L]<b>" + menusQuantity + "x - "+ menusName + ", Preis "
+                            + menusSubtotal + "€</b> \n";
+                        // menu options
+                        JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
+                        for (int k = 0; k < menu_options_array.length(); k++) {
+                            JSONObject menu_option_object = menu_options_array.getJSONObject(k);
+                            String order_option_name = menu_option_object.getString("order_option_name");
+                            String order_option_price = FormatStringValue(menu_option_object.getString("order_option_price"));
+                            printOrder += "[L]"+ order_option_name + ", Preis " + order_option_price +"€\n"
+                                    + "[L]\n";
+                        }
+                }
+                //all costs
+                JSONArray order_totals_array = orderAttributes.getJSONArray("order_totals");
+                for (int j = 0; j < order_totals_array.length(); j++) {
+                    JSONObject order_totals_object = order_totals_array.getJSONObject(j);
+                    // assumption, that the JSON is already sorted by priority. The same sequence will be taken
+                    String title = order_totals_object.getString("title");
+                    String value = FormatStringValue(order_totals_object.getString("value"));
+                    printAllCosts += "[L]" + title + "[R]" + value + "€\n";
+                }
+                //customer information
+                String customer_name = orderAttributes.getString("customer_name");
+                String telephone = orderAttributes.getString("telephone");
+                String comment = orderAttributes.getString("comment");
+                //TODO: Comment to driver is not part of the interface
+                String formatted_address = orderAttributes.getString("formatted_address")
+                        .replaceAll("\\s+", " ").replaceAll(",\\s*,", ",");
+                String google_api_url = "https://www.google.com/maps?q=" +
+                        orderAttributes.getString("formatted_address").replaceAll("[,\\s]+", "+");
+
+                printCustomer += "[L]Name: " + customer_name +"\n" +
+                        "[L]Telefon: " + telephone +"\n" +
+                        "[L]Adresse: "+ formatted_address + "\n" +
+                        "[L]Kommentar: "+ comment + "\n" +
+                        "[L]Google Adresse Scannen \n" +
+                        "[C]<qrcode size='20'>" + google_api_url + "</qrcode>";
+            }
+
+            // create print String
+            printOutput = printHeader +
+                    printOrder +
+                    printAllCosts +
+                    printPayment +
+                    "[C]================================\n" +
+                    "[L]Kundeninformation\n" +
+                    printCustomer;
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        //TIJobPrintBluetooth(printOutput); //TODO: activate to start printing
+    }
+
+    private String FormatStringValue(String value) {
+        String output = value.substring(0, value.length()-2);
+        return output;
+    }
+
+    private static JSONArray filterPrintableOrders(JSONArray dataArray) throws JSONException {
+        JSONArray printableOrders = new JSONArray();
+
+        for (int i = 0; i < dataArray.length(); i++) {
+            JSONObject order = dataArray.getJSONObject(i);
+            String orderId = order.getString("id");
+
+            if (!printedOrders.contains(orderId)) {
+                JSONObject attributes = order.getJSONObject("attributes");
+                JSONObject status = attributes.getJSONObject("status");
+                int statusId = status.getInt("status_id");
+
+                if (statusId == 1) {
+                    printableOrders.put(order);
+                    printedOrders.add(orderId); // Add to printed orders set
+                }
+            }
+        }
+
+        return printableOrders;
+    }
+
+    private String FormatDate(String inputDateString) {
+        String outputDateString = "";
+        try {
+            SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US);
+            inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            Date date = inputFormat.parse(inputDateString);
+            SimpleDateFormat outputFormat = new SimpleDateFormat("EEE, MMM d, yyyy HH:mm", Locale.GERMANY);
+            outputFormat.setTimeZone(TimeZone.getTimeZone("Europe/Berlin"));
+            outputDateString = outputFormat.format(date);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return outputDateString;
+    }
+
+    public void TIJobPrintBluetooth(String print_info) {
+        this.checkBluetoothPermissions(() -> {
+            new AsyncBluetoothEscPosPrint(
+                    this,
+                    new AsyncEscPosPrint.OnPrintFinished() {
+                        @Override
+                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
+                        }
+
+                        @Override
+                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+                        }
+                    }
+            )
+                    .execute(this.TIgetAsyncEscPosPrinter(selectedDevice, print_info));
+        });
+    }
+
+    @SuppressLint("SimpleDateFormat")
+    public AsyncEscPosPrinter TIgetAsyncEscPosPrinter(DeviceConnection printerConnection, String print_info) {
+        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
+        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
+        return printer.addTextToPrint(print_info);
     }
 }
