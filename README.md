@@ -16,15 +16,16 @@ Libraries I tried:
 "react-native-bluetooth-escpos-printer"
 "react-native-thermal-printer"
 "react-native-thermal-receipt-printer"
-As those are popular in the POS printer space, I'm not sure if any React Native app can work,
-or is not outdated after a couple Java patches for the Android app generation.
+As those are popular in the POS printer space, I'm not sure if any React Native app can work.
+Most of them are outdated and probably will break after a couple Java patches for the Android 
+app generation. So better to stick with native.
 
 Another solution would be to connect to the Printing add-on.
 https://tastyigniter.com/marketplace/item/thoughtco-printer
 However, the web would call the App on the device, and the App would not switch back to Chrome afterward.
 The implementation of this kind of solution would be difficult and require a lot of maintenance.
 
-The API Orders implementation provided by Tasty Igniter is fast, but lacks settings.
+The API Orders implementation provided by Tasty Igniter is fast, but lacks extensive filter settings.
 This is why I'm getting the last 50 Orders. If you know better ways to filter the request, please open an issue.
 
 # CORS Problems
