@@ -542,8 +542,8 @@ public class MainActivity extends AppCompatActivity {
                         "[L]Kundeninformation\n" +
                         printCustomer;
                 //execute
-                //TIJobPrintBluetooth(printOutput); //TODO: activate for printing
-                //clear
+                TIJobPrintBluetooth(printOutput);
+                //clear texts
                 printOutput = "";
                 printHeader = "";
                 printOrder = "";

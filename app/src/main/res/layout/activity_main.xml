@@ -20,7 +20,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Ausdrucke Neustarten" />
+            android:text="Reset Print" />
     </LinearLayout>
 
     <TextView
@@ -43,7 +43,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginRight="5dp"
-            android:text="Default printer"/>
+            android:text="Select printer"/>
 
         <Button
             android:id="@+id/button_bluetooth"
