@@ -12,12 +12,14 @@ IP printers require multiple steps to be set up correctly. Logging in to differe
 # Restrictions
 It's a native Android app, so no IoS support is in place.
 I tried the React Native EXPO implementation, but it is not working properly.
+
 Libraries I tried:
-"react-native-bluetooth-escpos-printer"
-"react-native-thermal-printer"
-"react-native-thermal-receipt-printer"
+- "react-native-bluetooth-escpos-printer"
+- "react-native-thermal-printer"
+- "react-native-thermal-receipt-printer"
+
 As those are popular in the POS printer space, I'm not sure if any React Native app can work.
-Most of them are outdated and probably will break after a couple Java patches for the Android 
+Most of them are outdated and probably will break after a couple Java patches for the Android
 app generation. So better to stick with native.
 
 Another solution would be to connect to the Printing add-on.
@@ -30,6 +32,9 @@ This is why I'm getting the last 50 Orders. If you know better ways to filter th
 
 # CORS Problems
 In cases of cross-origin errors, I added the following lines at the top of the file ".htaccess"
+
 Header set Access-Control-Allow-Origin "*"
 Header set Access-Control-Allow-Headers "origin, x-requested-with, content-type"
 Header set Access-Control-Allow-Methods "GET"
+
+Also set the API for Order in admin dashboard API/Orders - All Resources Get to all and not employee.

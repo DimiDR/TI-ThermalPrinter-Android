@@ -11,3 +11,5 @@ Next Updates:
 - better UI
 - USB / TCP support
 - manual "reprint" option on another activity
+- GET setting in API is on all. Maybe implement Username / PW for employee authentification
+- recolor the print button, so you can see if the service is running

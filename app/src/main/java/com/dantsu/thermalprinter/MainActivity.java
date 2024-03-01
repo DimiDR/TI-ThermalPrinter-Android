@@ -58,11 +58,13 @@ import java.util.TimerTask;
 import java.util.TimeZone;
 import java.util.HashSet;
 import java.util.Set;
+import com.dantsu.thermalprinter.helpClasses.IdManager;
 
 public class MainActivity extends AppCompatActivity {
 
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
+    private static Context context;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,6 +80,11 @@ public class MainActivity extends AppCompatActivity {
         button.setOnClickListener(view -> printTcp());
         button = (Button) this.findViewById(R.id.button_ti_print_monitoring);
         button.setOnClickListener(view -> tiPrintMonitoring());
+        button  = (Button) this.findViewById(R.id.button_ti_clear_ids);
+        button.setOnClickListener(view -> tiClearIds());
+
+        context = this;
+        printedOrders = IdManager.getIds(context);
     }
 
 
@@ -143,17 +150,17 @@ public class MainActivity extends AppCompatActivity {
                 AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
                 alertDialog.setTitle("Bluetooth printer selection");
                 alertDialog.setItems(
-                    items,
-                    (dialogInterface, i1) -> {
-                        int index = i1 - 1;
-                        if (index == -1) {
-                            selectedDevice = null;
-                        } else {
-                            selectedDevice = bluetoothDevicesList[index];
+                        items,
+                        (dialogInterface, i1) -> {
+                            int index = i1 - 1;
+                            if (index == -1) {
+                                selectedDevice = null;
+                            } else {
+                                selectedDevice = bluetoothDevicesList[index];
+                            }
+                            Button button = (Button) findViewById(R.id.button_bluetooth_browse);
+                            button.setText(items[i1]);
                         }
-                        Button button = (Button) findViewById(R.id.button_bluetooth_browse);
-                        button.setText(items[i1]);
-                    }
                 );
 
                 AlertDialog alert = alertDialog.create();
@@ -167,20 +174,20 @@ public class MainActivity extends AppCompatActivity {
     public void printBluetooth() {
         this.checkBluetoothPermissions(() -> {
             new AsyncBluetoothEscPosPrint(
-                this,
-                new AsyncEscPosPrint.OnPrintFinished() {
-                    @Override
-                    public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
-                        Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
-                    }
+                    this,
+                    new AsyncEscPosPrint.OnPrintFinished() {
+                        @Override
+                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
+                        }
 
-                    @Override
-                    public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
-                        Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+                        @Override
+                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+                        }
                     }
-                }
             )
-                .execute(this.getAsyncEscPosPrinter(selectedDevice));
+                    .execute(this.getAsyncEscPosPrinter(selectedDevice));
         });
     }
 
@@ -199,20 +206,20 @@ public class MainActivity extends AppCompatActivity {
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                         if (usbManager != null && usbDevice != null) {
                             new AsyncUsbEscPosPrint(
-                                context,
-                                new AsyncEscPosPrint.OnPrintFinished() {
-                                    @Override
-                                    public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
-                                        Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
-                                    }
+                                    context,
+                                    new AsyncEscPosPrint.OnPrintFinished() {
+                                        @Override
+                                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
+                                        }
 
-                                    @Override
-                                    public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
-                                        Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+                                        @Override
+                                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+                                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+                                        }
                                     }
-                                }
                             )
-                                .execute(getAsyncEscPosPrinter(new UsbConnection(usbManager, usbDevice)));
+                                    .execute(getAsyncEscPosPrinter(new UsbConnection(usbManager, usbDevice)));
                         }
                     }
                 }
@@ -226,17 +233,17 @@ public class MainActivity extends AppCompatActivity {
 
         if (usbConnection == null || usbManager == null) {
             new AlertDialog.Builder(this)
-                .setTitle("USB Connection")
-                .setMessage("No USB printer found.")
-                .show();
+                    .setTitle("USB Connection")
+                    .setMessage("No USB printer found.")
+                    .show();
             return;
         }
 
         PendingIntent permissionIntent = PendingIntent.getBroadcast(
-            this,
-            0,
-            new Intent(MainActivity.ACTION_USB_PERMISSION),
-            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0
+                this,
+                0,
+                new Intent(MainActivity.ACTION_USB_PERMISSION),
+                android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0
         );
         IntentFilter filter = new IntentFilter(MainActivity.ACTION_USB_PERMISSION);
         registerReceiver(this.usbReceiver, filter);
@@ -253,32 +260,32 @@ public class MainActivity extends AppCompatActivity {
 
         try {
             new AsyncTcpEscPosPrint(
-                this,
-                new AsyncEscPosPrint.OnPrintFinished() {
-                    @Override
-                    public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
-                        Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
-                    }
+                    this,
+                    new AsyncEscPosPrint.OnPrintFinished() {
+                        @Override
+                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
+                        }
 
-                    @Override
-                    public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
-                        Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+                        @Override
+                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+                        }
                     }
-                }
             )
-                .execute(
-                    this.getAsyncEscPosPrinter(
-                        new TcpConnection(
-                            ipAddress.getText().toString(),
-                            Integer.parseInt(portAddress.getText().toString())
-                        )
-                    )
-                );
+                    .execute(
+                            this.getAsyncEscPosPrinter(
+                                    new TcpConnection(
+                                            ipAddress.getText().toString(),
+                                            Integer.parseInt(portAddress.getText().toString())
+                                    )
+                            )
+                    );
         } catch (NumberFormatException e) {
             new AlertDialog.Builder(this)
-                .setTitle("Invalid TCP port address")
-                .setMessage("Port field must be an integer.")
-                .show();
+                    .setTitle("Invalid TCP port address")
+                    .setMessage("Port field must be an integer.")
+                    .show();
             e.printStackTrace();
         }
     }
@@ -295,35 +302,35 @@ public class MainActivity extends AppCompatActivity {
         SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
         AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
         return printer.addTextToPrint(
-            "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
-                "[L]\n" +
-                "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
-                "[L]\n" +
-                "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
-                "[C]\n" +
-                "[C]================================\n" +
-                "[L]\n" +
-                "[L]<b>BEAUTIFUL SHIRT</b>[R]9.99€\n" +
-                "[L]  + Size : S\n" +
-                "[L]\n" +
-                "[L]<b>AWESOME HAT</b>[R]24.99€\n" +
-                "[L]  + Size : 57/58\n" +
-                "[L]\n" +
-                "[C]--------------------------------\n" +
-                "[R]TOTAL PRICE :[R]34.98€\n" +
-                "[R]TAX :[R]4.23€\n" +
-                "[L]\n" +
-                "[C]================================\n" +
-                "[L]\n" +
-                "[L]<u><font color='bg-black' size='tall'>Customer :</font></u>\n" +
-                "[L]Raymond DUPONT\n" +
-                "[L]5 rue des girafes\n" +
-                "[L]31547 PERPETES\n" +
-                "[L]Tel : +33801201456\n" +
-                "\n" +
-                "[C]<barcode type='ean13' height='10'>831254784551</barcode>\n" +
-                "[L]\n" +
-                "[C]<qrcode size='20'>https://dantsu.com/</qrcode>\n"
+                "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
+                        "[L]\n" +
+                        "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
+                        "[L]\n" +
+                        "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
+                        "[C]\n" +
+                        "[C]================================\n" +
+                        "[L]\n" +
+                        "[L]<b>BEAUTIFUL SHIRT</b>[R]9.99€\n" +
+                        "[L]  + Size : S\n" +
+                        "[L]\n" +
+                        "[L]<b>AWESOME HAT</b>[R]24.99€\n" +
+                        "[L]  + Size : 57/58\n" +
+                        "[L]\n" +
+                        "[C]--------------------------------\n" +
+                        "[R]TOTAL PRICE :[R]34.98€\n" +
+                        "[R]TAX :[R]4.23€\n" +
+                        "[L]\n" +
+                        "[C]================================\n" +
+                        "[L]\n" +
+                        "[L]<u><font color='bg-black' size='tall'>Customer :</font></u>\n" +
+                        "[L]Raymond DUPONT\n" +
+                        "[L]5 rue des girafes\n" +
+                        "[L]31547 PERPETES\n" +
+                        "[L]Tel : +33801201456\n" +
+                        "\n" +
+                        "[C]<barcode type='ean13' height='10'>831254784551</barcode>\n" +
+                        "[L]\n" +
+                        "[C]<qrcode size='20'>https://dantsu.com/</qrcode>\n"
         );
     }
 
@@ -346,7 +353,7 @@ public class MainActivity extends AppCompatActivity {
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                new WebServiceTask().execute("https://dimitrir14.sg-host.com/api/orders?sort=order_id desc&pageLimit=2");
+                new WebServiceTask().execute("https://bestellen.primavera-pizza-wickede.de/api/orders?sort=order_id desc&pageLimit=50");
             }
         }, 0, 60000); // Execute every minute (60,000 milliseconds)
 
@@ -475,7 +482,7 @@ public class MainActivity extends AppCompatActivity {
                         "[L]<font size='big'>Bestellung Nr." + orderId + "</font>\n" +
                         "[L]\n" +
                         "[C]<b>" + order_type + " - " + payment + " - <u type='double'>" +
-                            orderTotal + "€ </u></b>\n" +
+                        orderTotal + "€ </u></b>\n" +
                         "[C]" + order_type + " am " + order_date_time + "\n" +
                         "[C]\n" +
                         "[C]================================\n" +
@@ -490,15 +497,15 @@ public class MainActivity extends AppCompatActivity {
                     String menusQuantity = order_menus_object.getString("quantity");
                     printOrder +="[L]<b>" + menusQuantity + "x - "+ menusName + ", Preis "
                             + menusSubtotal + "€</b> \n";
-                        // menu options
-                        JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
-                        for (int k = 0; k < menu_options_array.length(); k++) {
-                            JSONObject menu_option_object = menu_options_array.getJSONObject(k);
-                            String order_option_name = menu_option_object.getString("order_option_name");
-                            String order_option_price = FormatStringValue(menu_option_object.getString("order_option_price"));
-                            printOrder += "[L]"+ order_option_name + ", Preis " + order_option_price +"€\n"
-                                    + "[L]\n";
-                        }
+                    // menu options
+                    JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
+                    for (int k = 0; k < menu_options_array.length(); k++) {
+                        JSONObject menu_option_object = menu_options_array.getJSONObject(k);
+                        String order_option_name = menu_option_object.getString("order_option_name");
+                        String order_option_price = FormatStringValue(menu_option_object.getString("order_option_price"));
+                        printOrder += "[L]"+ order_option_name + ", Preis " + order_option_price +"€\n"
+                                + "[L]\n";
+                    }
                 }
                 //all costs
                 JSONArray order_totals_array = orderAttributes.getJSONArray("order_totals");
@@ -525,21 +532,30 @@ public class MainActivity extends AppCompatActivity {
                         "[L]Kommentar: "+ comment + "\n" +
                         "[L]Google Adresse Scannen \n" +
                         "[C]<qrcode size='20'>" + google_api_url + "</qrcode>";
-            }
 
-            // create print String
-            printOutput = printHeader +
-                    printOrder +
-                    printAllCosts +
-                    printPayment +
-                    "[C]================================\n" +
-                    "[L]Kundeninformation\n" +
-                    printCustomer;
+                // create print String
+                printOutput = printHeader +
+                        printOrder +
+                        printAllCosts +
+                        printPayment +
+                        "[C]================================\n" +
+                        "[L]Kundeninformation\n" +
+                        printCustomer;
+                //execute
+                //TIJobPrintBluetooth(printOutput); //TODO: activate for printing
+                //clear
+                printOutput = "";
+                printHeader = "";
+                printOrder = "";
+                printAllCosts = "";
+                printCustomer = "";
+                printPayment = "";
+            }
 
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        //TIJobPrintBluetooth(printOutput); //TODO: activate to start printing
+
     }
 
     private String FormatStringValue(String value) {
@@ -562,6 +578,7 @@ public class MainActivity extends AppCompatActivity {
                 if (statusId == 1) {
                     printableOrders.put(order);
                     printedOrders.add(orderId); // Add to printed orders set
+                    IdManager.saveIds(context, printedOrders);
                 }
             }
         }
@@ -602,6 +619,12 @@ public class MainActivity extends AppCompatActivity {
             )
                     .execute(this.TIgetAsyncEscPosPrinter(selectedDevice, print_info));
         });
+    }
+
+    private void tiClearIds(){
+        //clear the id, so that the printing of open orders can be restarted
+        IdManager.clearIds(context);
+        printedOrders.clear();
     }
 
     @SuppressLint("SimpleDateFormat")
