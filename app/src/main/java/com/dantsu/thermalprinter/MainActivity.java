@@ -59,12 +59,14 @@ import java.util.TimeZone;
 import java.util.HashSet;
 import java.util.Set;
 import com.dantsu.thermalprinter.helpClasses.IdManager;
+import android.graphics.Color;
 
 public class MainActivity extends AppCompatActivity {
 
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
     private static Context context;
+    private Button button_ti_print;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,11 +80,12 @@ public class MainActivity extends AppCompatActivity {
         button.setOnClickListener(view -> printUsb());
         button = (Button) this.findViewById(R.id.button_tcp);
         button.setOnClickListener(view -> printTcp());
-        button = (Button) this.findViewById(R.id.button_ti_print_monitoring);
-        button.setOnClickListener(view -> tiPrintMonitoring());
+        button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
+        button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
         button  = (Button) this.findViewById(R.id.button_ti_clear_ids);
         button.setOnClickListener(view -> tiClearIds());
 
+        //get the already printed IDs or orders
         context = this;
         printedOrders = IdManager.getIds(context);
     }
@@ -341,9 +344,16 @@ public class MainActivity extends AppCompatActivity {
     private Timer timer;
 
     public void tiPrintMonitoring() {
+        int buttonColor;
         if (!isServiceActive) {
+            buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
+            button_ti_print.setBackgroundColor(buttonColor);
+            button_ti_print.setText("Drucker ist Aktiv");
             startService();
         } else {
+            buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
+            button_ti_print.setBackgroundColor(buttonColor);
+            button_ti_print.setText("Drucker ist Inaktiv");
             stopService();
         }
     }
@@ -358,7 +368,7 @@ public class MainActivity extends AppCompatActivity {
         }, 0, 60000); // Execute every minute (60,000 milliseconds)
 
         isServiceActive = true;
-        showToast("Service activated");
+        //showToast("Service activated");
     }
 
     private void stopService() {
@@ -368,7 +378,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         isServiceActive = false;
-        showToast("Service deactivated");
+        //showToast("Service deactivated");
     }
 
     private void showToast(String message) {
