@@ -363,6 +363,7 @@ public class MainActivity extends AppCompatActivity {
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
+
                 new WebServiceTask().execute("https://bestellen.primavera-pizza-wickede.de/api/orders?sort=order_id desc&pageLimit=50");
             }
         }, 0, 60000); // Execute every minute (60,000 milliseconds)
@@ -460,14 +461,13 @@ public class MainActivity extends AppCompatActivity {
             JSONObject jsonObject = new JSONObject(json);
             JSONArray dataArray = filterPrintableOrders(jsonObject.getJSONArray("data"));
             if (dataArray.length() == 0){
-                showToast("Nothing to Print");
+                //showToast("Nothing to Print");
                 return;
             }
             // main data object with single orders
             for (int i = 0; i < dataArray.length(); i++) {
-                //TODO: validierung ob das schonmal ausgedruckt wurde
                 JSONObject dataObject = dataArray.getJSONObject(i);
-                String oderID = dataObject.getString("id");
+                String orderID = dataObject.getString("id");
                 JSONObject orderAttributes = dataObject.getJSONObject("attributes");
                 String payment = orderAttributes.getString("payment");//stripe, cod, paypalexpress
                 String order_type = orderAttributes.getString("order_type");
@@ -530,7 +530,6 @@ public class MainActivity extends AppCompatActivity {
                 String customer_name = orderAttributes.getString("customer_name");
                 String telephone = orderAttributes.getString("telephone");
                 String comment = orderAttributes.getString("comment");
-                //TODO: Comment to driver is not part of the interface
                 String formatted_address = orderAttributes.getString("formatted_address")
                         .replaceAll("\\s+", " ").replaceAll(",\\s*,", ",");
                 String google_api_url = "https://www.google.com/maps?q=" +
@@ -551,8 +550,8 @@ public class MainActivity extends AppCompatActivity {
                         "[C]================================\n" +
                         "[L]Kundeninformation\n" +
                         printCustomer;
-                //execute
-                TIJobPrintBluetooth(printOutput);
+                //execute print
+                TIJobPrintBluetooth(printOutput, orderID);
                 //clear texts
                 printOutput = "";
                 printHeader = "";
@@ -583,12 +582,10 @@ public class MainActivity extends AppCompatActivity {
             if (!printedOrders.contains(orderId)) {
                 JSONObject attributes = order.getJSONObject("attributes");
                 JSONObject status = attributes.getJSONObject("status");
-                int statusId = status.getInt("status_id");
+                int statusId = status.getInt("status_id"); // initial order
 
                 if (statusId == 1) {
                     printableOrders.put(order);
-                    printedOrders.add(orderId); // Add to printed orders set
-                    IdManager.saveIds(context, printedOrders);
                 }
             }
         }
@@ -611,7 +608,7 @@ public class MainActivity extends AppCompatActivity {
         return outputDateString;
     }
 
-    public void TIJobPrintBluetooth(String print_info) {
+    public void TIJobPrintBluetooth(String print_info, String orderId) {
         this.checkBluetoothPermissions(() -> {
             new AsyncBluetoothEscPosPrint(
                     this,
@@ -624,6 +621,9 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
                             Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+                            // save the printed order IDs, to prevent reprinting
+                            printedOrders.add(orderId); // Add to printed orders set
+                            IdManager.saveIds(context, printedOrders);
                         }
                     }
             )
