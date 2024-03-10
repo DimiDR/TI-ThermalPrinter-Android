@@ -17,6 +17,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.widget.Button;
@@ -376,6 +377,10 @@ public class MainActivity extends AppCompatActivity {
 
 
     public void tiPrintMonitoring() {
+        // app should be running if the screen is off
+        PowerManager mgr = (PowerManager)context.getSystemService(Context.POWER_SERVICE);
+        PowerManager.WakeLock wakeLock = mgr.newWakeLock(PowerManager.FULL_WAKE_LOCK, "MyWakeLock");
+        //TODO: https://stackoverflow.com/questions/6091270/how-can-i-keep-my-android-service-running-when-the-screen-is-turned-off
         int buttonColor;
         if (!isServiceActive) { //start printing
             //start in Foreground
@@ -386,6 +391,7 @@ public class MainActivity extends AppCompatActivity {
                 Intent serviceIntent = new Intent(this, BackgroundService.class);
                 startService(serviceIntent);
             }
+            wakeLock.acquire();
             buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
             button_ti_print.setBackgroundColor(buttonColor);
             button_ti_print.setText("Drucker ist Aktiv");
@@ -399,7 +405,7 @@ public class MainActivity extends AppCompatActivity {
                 Intent serviceIntent = new Intent(this, BackgroundService.class);
                 stopService(serviceIntent);
             }
-
+            wakeLock.release();
             buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
             button_ti_print.setBackgroundColor(buttonColor);
             button_ti_print.setText("Drucker ist Inaktiv");
