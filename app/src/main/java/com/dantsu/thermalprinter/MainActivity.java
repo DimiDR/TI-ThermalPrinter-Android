@@ -2,6 +2,7 @@ package com.dantsu.thermalprinter;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -12,6 +13,7 @@ import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -58,8 +60,12 @@ import java.util.TimerTask;
 import java.util.TimeZone;
 import java.util.HashSet;
 import java.util.Set;
+
+import com.dantsu.thermalprinter.helpClasses.BackgroundService;
+import com.dantsu.thermalprinter.helpClasses.ForegroundService;
 import com.dantsu.thermalprinter.helpClasses.IdManager;
-import android.graphics.Color;
+
+import android.net.Uri;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -68,26 +74,49 @@ public class MainActivity extends AppCompatActivity {
     private static Context context;
     private Button button_ti_print;
 
+    private String tiOrdersEndpointURL = "https://bestellen.primavera-pizza-wickede.de/api/orders?sort=order_id desc&pageLimit=50";
+    private String tiDashboardURL = "https://bestellen.primavera-pizza-wickede.de/admin";
+    private String tiKitchenViewURL = "https://bestellen.primavera-pizza-wickede.de/admin/thoughtco/kitchendisplay/summary/view/1";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Button button = (Button) this.findViewById(R.id.button_bluetooth_browse);
         button.setOnClickListener(view -> browseBluetoothDevice());
-        button = (Button) findViewById(R.id.button_bluetooth);
-        button.setOnClickListener(view -> printBluetooth());
-        button = (Button) this.findViewById(R.id.button_usb);
-        button.setOnClickListener(view -> printUsb());
-        button = (Button) this.findViewById(R.id.button_tcp);
-        button.setOnClickListener(view -> printTcp());
+        // TCP & USB printing deactivated
+        //button = (Button) findViewById(R.id.button_bluetooth);
+        //button.setOnClickListener(view -> printBluetooth());
+        //button = (Button) this.findViewById(R.id.button_usb);
+        //button.setOnClickListener(view -> printUsb());
+        //button = (Button) this.findViewById(R.id.button_tcp);
+        //button.setOnClickListener(view -> printTcp());
         button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
         button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
         button  = (Button) this.findViewById(R.id.button_ti_clear_ids);
         button.setOnClickListener(view -> tiClearIds());
+        button  = (Button) this.findViewById(R.id.button_ti_kitchen_view);
+        button.setOnClickListener(view -> tiKitchenView());
+        button  = (Button) this.findViewById(R.id.button_ti_dashboard);
+        button.setOnClickListener(view -> tiDashboard());
 
         //get the already printed IDs or orders
         context = this;
         printedOrders = IdManager.getIds(context);
+
+        // running service for printing
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {   //min API 33
+            ActivityCompat.requestPermissions(
+                    this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0
+            );
+        }
+
+    }
+
+    private String[] arrayOf(String postNotifications) {
+        String[] strArray= new String[1];
+        strArray[0] = postNotifications;
+        return  strArray;
     }
 
 
@@ -302,6 +331,7 @@ public class MainActivity extends AppCompatActivity {
      */
     @SuppressLint("SimpleDateFormat")
     public AsyncEscPosPrinter getAsyncEscPosPrinter(DeviceConnection printerConnection) {
+
         SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
         AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
         return printer.addTextToPrint(
@@ -343,14 +373,33 @@ public class MainActivity extends AppCompatActivity {
     private boolean isServiceActive = false;
     private Timer timer;
 
+
+
     public void tiPrintMonitoring() {
         int buttonColor;
-        if (!isServiceActive) {
+        if (!isServiceActive) { //start printing
+            //start in Foreground
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {   //min API 26
+                Intent serviceIntent = new Intent(ForegroundService.Actions.START.toString());
+                startForegroundService(serviceIntent);
+            } else { //start in background
+                Intent serviceIntent = new Intent(this, BackgroundService.class);
+                startService(serviceIntent);
+            }
             buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
             button_ti_print.setBackgroundColor(buttonColor);
             button_ti_print.setText("Drucker ist Aktiv");
             startService();
-        } else {
+        } else { // Stop printing
+            //Stop in Foreground
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {   //min API 26
+                Intent serviceIntent = new Intent(ForegroundService.Actions.STOP.toString());
+                startService(serviceIntent);
+            }else { //Stop in background
+                Intent serviceIntent = new Intent(this, BackgroundService.class);
+                stopService(serviceIntent);
+            }
+
             buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
             button_ti_print.setBackgroundColor(buttonColor);
             button_ti_print.setText("Drucker ist Inaktiv");
@@ -364,9 +413,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
 
-                new WebServiceTask().execute("https://bestellen.primavera-pizza-wickede.de/api/orders?sort=order_id desc&pageLimit=50");
+                new WebServiceTask().execute(tiOrdersEndpointURL);
             }
-        }, 0, 60000); // Execute every minute (60,000 milliseconds)
+        }, 0, 10000); // Execute every minute (60,000 milliseconds) TODO: change to 60000
 
         isServiceActive = true;
         //showToast("Service activated");
@@ -450,6 +499,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void printDocketCustomerReceipt(String json) {
+        showToast("Service activated");
         String printOutput = "";
         String printHeader = "";
         String printOrder = "";
@@ -551,7 +601,7 @@ public class MainActivity extends AppCompatActivity {
                         "[L]Kundeninformation\n" +
                         printCustomer;
                 //execute print
-                TIJobPrintBluetooth(printOutput, orderID);
+                //TIJobPrintBluetooth(printOutput, orderID); //TODO Activate
                 //clear texts
                 printOutput = "";
                 printHeader = "";
@@ -609,6 +659,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void TIJobPrintBluetooth(String print_info, String orderId) {
+        // moved to PrintMonitoringService
         this.checkBluetoothPermissions(() -> {
             new AsyncBluetoothEscPosPrint(
                     this,
@@ -643,4 +694,21 @@ public class MainActivity extends AppCompatActivity {
         AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
         return printer.addTextToPrint(print_info);
     }
+
+    private void tiKitchenView(){
+        String url = tiKitchenViewURL;
+        if (!url.startsWith("http://") && !url.startsWith("https://"))
+            url = "http://" + url;
+        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        startActivity(browserIntent);
+    }
+
+    private void tiDashboard(){
+        String url = tiDashboardURL;
+        if (!url.startsWith("http://") && !url.startsWith("https://"))
+            url = "http://" + url;
+        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        startActivity(browserIntent);
+    }
+
 }

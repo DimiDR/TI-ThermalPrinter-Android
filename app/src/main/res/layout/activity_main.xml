@@ -3,70 +3,64 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity"
     android:gravity="center"
     android:orientation="vertical">
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginBottom="20dp"
-        android:textAlignment="center"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/button_ti_clear_ids"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Reset Print" />
-    </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="20dp"
-        android:text="Click to print !" />
-
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginBottom="20dp"
-        android:textAlignment="center"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/button_bluetooth_browse"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginRight="5dp"
-            android:text="Select printer"/>
-
-        <Button
-            android:id="@+id/button_bluetooth"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Print by bluetooth !"
-            android:enabled="false"/>
-
-    </LinearLayout>
+        android:layout_marginTop="20dp"
+        android:textSize="30sp"
+        android:text="Zur Website" />
 
     <Button
-        android:id="@+id/button_usb"
+        android:id="@+id/button_ti_kitchen_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="20dp"
-        android:text="Print by USB !"
-        android:enabled="false"/>
+        android:layout_marginVertical="10dp"
+        android:text="Kitchen View" />
+
+    <Button
+        android:id="@+id/button_ti_dashboard"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="10dp"
+        android:text="Dashboard" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:textSize="30sp"
+        android:text="Bluetooth Drucker" />
+
+    <Button
+        android:id="@+id/button_bluetooth_browse"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="10dp"
+        android:text="Drucker wählen" />
+
+    <Button
+        android:id="@+id/button_ti_clear_ids"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="10dp"
+        android:text="Druck Neustart" />
+
+    <Button
+        android:id="@+id/button_ti_print_monitoring"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="10dp"
+        android:text="Drucker Service" />
 
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:visibility="gone">
 
         <TextView
             android:layout_width="wrap_content"
@@ -79,8 +73,8 @@
             android:layout_width="170dp"
             android:layout_height="wrap_content"
             android:digits="0123456789."
-            android:inputType="number"
-            android:enabled="false"/>
+            android:enabled="false"
+            android:inputType="number" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -93,8 +87,7 @@
             android:id="@+id/edittext_tcp_port"
             android:layout_width="80dp"
             android:layout_height="wrap_content"
-            android:inputType="number"
-            android:enabled="false"/>
+            android:inputType="number" />
     </LinearLayout>
 
     <Button
@@ -103,22 +96,27 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="20dp"
         android:text="Print by TCP !"
-        android:enabled="false"/>
+        android:visibility="gone"/>
 
     <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginBottom="20dp"
-        android:textAlignment="center"
-        android:orientation="horizontal">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:visibility="gone">
 
         <Button
-            android:id="@+id/button_ti_print_monitoring"
+            android:id="@+id/button_bluetooth"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="Print by bluetooth !" />
+
+        <Button
+            android:id="@+id/button_usb"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:text="Print by USB !" />
+
     </LinearLayout>
 
 </LinearLayout>
