@@ -3,6 +3,7 @@ package com.dantsu.thermalprinter;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -19,14 +20,18 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.DialogFragment;
 
 import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
@@ -104,12 +109,6 @@ public class MainActivity extends AppCompatActivity {
         context = this;
         printedOrders = IdManager.getIds(context);
 
-        // running service for printing
-//        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {   //min API 33
-//            ActivityCompat.requestPermissions(
-//                    this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0
-//            );
-//        }
     }
 
     private String[] arrayOf(String postNotifications) {
@@ -412,11 +411,6 @@ public class MainActivity extends AppCompatActivity {
         isServiceActive = false;
     }
 
-    private void showToast(String message) {
-        new Handler(Looper.getMainLooper()).post(() ->
-                Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
-    }
-
     private class WebServiceTask extends AsyncTask<String, Void, String> {
 
         @Override
@@ -598,11 +592,6 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private String FormatStringValue(String value) {
-        String output = value.substring(0, value.length()-2);
-        return output;
-    }
-
     private static JSONArray filterPrintableOrders(JSONArray dataArray) throws JSONException {
         JSONArray printableOrders = new JSONArray();
 
@@ -620,28 +609,10 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
-
         return printableOrders;
     }
 
-    private String FormatDate(String inputDateString) {
-        String outputDateString = "";
-        try {
-            SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US);
-            inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-            Date date = inputFormat.parse(inputDateString);
-            SimpleDateFormat outputFormat = new SimpleDateFormat("EEE, MMM d, yyyy HH:mm", Locale.GERMANY);
-            outputFormat.setTimeZone(TimeZone.getTimeZone("Europe/Berlin"));
-            outputDateString = outputFormat.format(date);
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        return outputDateString;
-    }
-
-
     public void TIJobPrintBluetooth(String print_info, String orderId) {
-        // moved to PrintMonitoringService
         this.checkBluetoothPermissions(() -> {
             new AsyncBluetoothEscPosPrint(
                     this,
@@ -665,12 +636,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void tiClearIds(){
-        //clear the id, so that the printing of open orders can be restarted
-        IdManager.clearIds(context);
-        printedOrders.clear();
-    }
-
     @SuppressLint("SimpleDateFormat")
     public AsyncEscPosPrinter TIgetAsyncEscPosPrinter(DeviceConnection printerConnection, String print_info) {
         SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
@@ -678,7 +643,7 @@ public class MainActivity extends AppCompatActivity {
         return printer.addTextToPrint(print_info);
     }
 
-    private void tiKitchenView(){
+    private void tiKitchenView(){ // open kitchen view URL
         String url = tiKitchenViewURL;
         if (!url.startsWith("http://") && !url.startsWith("https://"))
             url = "http://" + url;
@@ -694,4 +659,68 @@ public class MainActivity extends AppCompatActivity {
         startActivity(browserIntent);
     }
 
+    private void tiClearIds(){
+        //clear the id, so that the printing of open orders can be restarted
+        ResetPrintFragment dialog = new ResetPrintFragment();
+        dialog.show(getSupportFragmentManager(), "CustomDialogFragment");
+    }
+
+
+    private String FormatDate(String inputDateString) {
+        String outputDateString = "";
+        try {
+            SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US);
+            inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            Date date = inputFormat.parse(inputDateString);
+            SimpleDateFormat outputFormat = new SimpleDateFormat("EEE, MMM d, yyyy HH:mm", Locale.GERMANY);
+            outputFormat.setTimeZone(TimeZone.getTimeZone("Europe/Berlin"));
+            outputDateString = outputFormat.format(date);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return outputDateString;
+    }
+
+    private String FormatStringValue(String value) {
+        String output = value.substring(0, value.length()-2);
+        return output;
+    }
+
+    private void showToast(String message) {
+        new Handler(Looper.getMainLooper()).post(() ->
+                Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
+    }
+
+    public static class ResetPrintFragment extends DialogFragment {
+
+        @NonNull
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            LayoutInflater inflater = requireActivity().getLayoutInflater();
+            View view = inflater.inflate(R.layout.popup_reset_print, null);
+
+            Button okButton = view.findViewById(R.id.button_ok);
+            okButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    //clear the id, so that the printing of open orders can be restarted
+                    IdManager.clearIds(context);
+                    printedOrders.clear();
+                    dismiss();
+                }
+            });
+
+            Button cancelButton = view.findViewById(R.id.button_cancel);
+            cancelButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    dismiss(); // Close the dialog when Cancel button is clicked
+                }
+            });
+
+            builder.setView(view);
+            return builder.create();
+        }
+    }
 }
