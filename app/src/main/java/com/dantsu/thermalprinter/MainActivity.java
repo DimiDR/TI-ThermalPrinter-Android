@@ -2,7 +2,6 @@ package com.dantsu.thermalprinter;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -62,8 +61,6 @@ import java.util.TimeZone;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.dantsu.thermalprinter.helpClasses.BackgroundService;
-import com.dantsu.thermalprinter.helpClasses.ForegroundService;
 import com.dantsu.thermalprinter.helpClasses.IdManager;
 
 import android.net.Uri;
@@ -78,6 +75,8 @@ public class MainActivity extends AppCompatActivity {
     private String tiOrdersEndpointURL = "https://bestellen.primavera-pizza-wickede.de/api/orders?sort=order_id desc&pageLimit=50";
     private String tiDashboardURL = "https://bestellen.primavera-pizza-wickede.de/admin";
     private String tiKitchenViewURL = "https://bestellen.primavera-pizza-wickede.de/admin/thoughtco/kitchendisplay/summary/view/1";
+
+    long period = 5*1000; // set to 60000 for 1 minute
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,12 +105,11 @@ public class MainActivity extends AppCompatActivity {
         printedOrders = IdManager.getIds(context);
 
         // running service for printing
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {   //min API 33
-            ActivityCompat.requestPermissions(
-                    this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0
-            );
-        }
-
+//        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {   //min API 33
+//            ActivityCompat.requestPermissions(
+//                    this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0
+//            );
+//        }
     }
 
     private String[] arrayOf(String postNotifications) {
@@ -204,211 +202,187 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public void printBluetooth() {
-        this.checkBluetoothPermissions(() -> {
-            new AsyncBluetoothEscPosPrint(
-                    this,
-                    new AsyncEscPosPrint.OnPrintFinished() {
-                        @Override
-                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
-                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
-                        }
+//    public void printBluetooth() {
+//        this.checkBluetoothPermissions(() -> {
+//            new AsyncBluetoothEscPosPrint(
+//                    this,
+//                    new AsyncEscPosPrint.OnPrintFinished() {
+//                        @Override
+//                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+//                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
+//                        }
+//
+//                        @Override
+//                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+//                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+//                        }
+//                    }
+//            )
+//                    .execute(this.getAsyncEscPosPrinter(selectedDevice));
+//        });
+//    }
 
-                        @Override
-                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
-                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
-                        }
-                    }
-            )
-                    .execute(this.getAsyncEscPosPrinter(selectedDevice));
-        });
-    }
-
-    /*==============================================================================================
-    ===========================================USB PART=============================================
-    ==============================================================================================*/
-
-    private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
-    private final BroadcastReceiver usbReceiver = new BroadcastReceiver() {
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (MainActivity.ACTION_USB_PERMISSION.equals(action)) {
-                synchronized (this) {
-                    UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-                    UsbDevice usbDevice = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        if (usbManager != null && usbDevice != null) {
-                            new AsyncUsbEscPosPrint(
-                                    context,
-                                    new AsyncEscPosPrint.OnPrintFinished() {
-                                        @Override
-                                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
-                                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
-                                        }
-
-                                        @Override
-                                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
-                                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
-                                        }
-                                    }
-                            )
-                                    .execute(getAsyncEscPosPrinter(new UsbConnection(usbManager, usbDevice)));
-                        }
-                    }
-                }
-            }
-        }
-    };
-
-    public void printUsb() {
-        UsbConnection usbConnection = UsbPrintersConnections.selectFirstConnected(this);
-        UsbManager usbManager = (UsbManager) this.getSystemService(Context.USB_SERVICE);
-
-        if (usbConnection == null || usbManager == null) {
-            new AlertDialog.Builder(this)
-                    .setTitle("USB Connection")
-                    .setMessage("No USB printer found.")
-                    .show();
-            return;
-        }
-
-        PendingIntent permissionIntent = PendingIntent.getBroadcast(
-                this,
-                0,
-                new Intent(MainActivity.ACTION_USB_PERMISSION),
-                android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0
-        );
-        IntentFilter filter = new IntentFilter(MainActivity.ACTION_USB_PERMISSION);
-        registerReceiver(this.usbReceiver, filter);
-        usbManager.requestPermission(usbConnection.getDevice(), permissionIntent);
-    }
-
-    /*==============================================================================================
-    =========================================TCP PART===============================================
-    ==============================================================================================*/
-
-    public void printTcp() {
-        final EditText ipAddress = (EditText) this.findViewById(R.id.edittext_tcp_ip);
-        final EditText portAddress = (EditText) this.findViewById(R.id.edittext_tcp_port);
-
-        try {
-            new AsyncTcpEscPosPrint(
-                    this,
-                    new AsyncEscPosPrint.OnPrintFinished() {
-                        @Override
-                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
-                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
-                        }
-
-                        @Override
-                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
-                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
-                        }
-                    }
-            )
-                    .execute(
-                            this.getAsyncEscPosPrinter(
-                                    new TcpConnection(
-                                            ipAddress.getText().toString(),
-                                            Integer.parseInt(portAddress.getText().toString())
-                                    )
-                            )
-                    );
-        } catch (NumberFormatException e) {
-            new AlertDialog.Builder(this)
-                    .setTitle("Invalid TCP port address")
-                    .setMessage("Port field must be an integer.")
-                    .show();
-            e.printStackTrace();
-        }
-    }
-
-    /*==============================================================================================
-    ===================================ESC/POS PRINTER PART=========================================
-    ==============================================================================================*/
-
-    /**
-     * Asynchronous printing
-     */
-    @SuppressLint("SimpleDateFormat")
-    public AsyncEscPosPrinter getAsyncEscPosPrinter(DeviceConnection printerConnection) {
-
-        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
-        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
-        return printer.addTextToPrint(
-                "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
-                        "[L]\n" +
-                        "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
-                        "[L]\n" +
-                        "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
-                        "[C]\n" +
-                        "[C]================================\n" +
-                        "[L]\n" +
-                        "[L]<b>BEAUTIFUL SHIRT</b>[R]9.99€\n" +
-                        "[L]  + Size : S\n" +
-                        "[L]\n" +
-                        "[L]<b>AWESOME HAT</b>[R]24.99€\n" +
-                        "[L]  + Size : 57/58\n" +
-                        "[L]\n" +
-                        "[C]--------------------------------\n" +
-                        "[R]TOTAL PRICE :[R]34.98€\n" +
-                        "[R]TAX :[R]4.23€\n" +
-                        "[L]\n" +
-                        "[C]================================\n" +
-                        "[L]\n" +
-                        "[L]<u><font color='bg-black' size='tall'>Customer :</font></u>\n" +
-                        "[L]Raymond DUPONT\n" +
-                        "[L]5 rue des girafes\n" +
-                        "[L]31547 PERPETES\n" +
-                        "[L]Tel : +33801201456\n" +
-                        "\n" +
-                        "[C]<barcode type='ean13' height='10'>831254784551</barcode>\n" +
-                        "[L]\n" +
-                        "[C]<qrcode size='20'>https://dantsu.com/</qrcode>\n"
-        );
-    }
-
-    /*==============================================================================================
-    ===================================Tasty Igniter Part=========================================
-    ==============================================================================================*/
+//    /*==============================================================================================
+//    ===========================================USB PART=============================================
+//    ==============================================================================================*/
+//
+//    private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
+//    private final BroadcastReceiver usbReceiver = new BroadcastReceiver() {
+//        public void onReceive(Context context, Intent intent) {
+//            String action = intent.getAction();
+//            if (MainActivity.ACTION_USB_PERMISSION.equals(action)) {
+//                synchronized (this) {
+//                    UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+//                    UsbDevice usbDevice = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+//                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+//                        if (usbManager != null && usbDevice != null) {
+//                            new AsyncUsbEscPosPrint(
+//                                    context,
+//                                    new AsyncEscPosPrint.OnPrintFinished() {
+//                                        @Override
+//                                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+//                                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
+//                                        }
+//
+//                                        @Override
+//                                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+//                                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+//                                        }
+//                                    }
+//                            )
+//                                    .execute(getAsyncEscPosPrinter(new UsbConnection(usbManager, usbDevice)));
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    };
+//
+//    public void printUsb() {
+//        UsbConnection usbConnection = UsbPrintersConnections.selectFirstConnected(this);
+//        UsbManager usbManager = (UsbManager) this.getSystemService(Context.USB_SERVICE);
+//
+//        if (usbConnection == null || usbManager == null) {
+//            new AlertDialog.Builder(this)
+//                    .setTitle("USB Connection")
+//                    .setMessage("No USB printer found.")
+//                    .show();
+//            return;
+//        }
+//
+//        PendingIntent permissionIntent = PendingIntent.getBroadcast(
+//                this,
+//                0,
+//                new Intent(MainActivity.ACTION_USB_PERMISSION),
+//                android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0
+//        );
+//        IntentFilter filter = new IntentFilter(MainActivity.ACTION_USB_PERMISSION);
+//        registerReceiver(this.usbReceiver, filter);
+//        usbManager.requestPermission(usbConnection.getDevice(), permissionIntent);
+//    }
+//
+//    /*==============================================================================================
+//    =========================================TCP PART===============================================
+//    ==============================================================================================*/
+//
+//    public void printTcp() {
+//        final EditText ipAddress = (EditText) this.findViewById(R.id.edittext_tcp_ip);
+//        final EditText portAddress = (EditText) this.findViewById(R.id.edittext_tcp_port);
+//
+//        try {
+//            new AsyncTcpEscPosPrint(
+//                    this,
+//                    new AsyncEscPosPrint.OnPrintFinished() {
+//                        @Override
+//                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+//                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
+//                        }
+//
+//                        @Override
+//                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+//                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+//                        }
+//                    }
+//            )
+//                    .execute(
+//                            this.getAsyncEscPosPrinter(
+//                                    new TcpConnection(
+//                                            ipAddress.getText().toString(),
+//                                            Integer.parseInt(portAddress.getText().toString())
+//                                    )
+//                            )
+//                    );
+//        } catch (NumberFormatException e) {
+//            new AlertDialog.Builder(this)
+//                    .setTitle("Invalid TCP port address")
+//                    .setMessage("Port field must be an integer.")
+//                    .show();
+//            e.printStackTrace();
+//        }
+//    }
+//
+//    /*==============================================================================================
+//    ===================================ESC/POS PRINTER PART=========================================
+//    ==============================================================================================*/
+//
+//    /**
+//     * Asynchronous printing
+//     */
+//    @SuppressLint("SimpleDateFormat")
+//    public AsyncEscPosPrinter getAsyncEscPosPrinter(DeviceConnection printerConnection) {
+//
+//        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
+//        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
+//        return printer.addTextToPrint(
+//                "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
+//                        "[L]\n" +
+//                        "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
+//                        "[L]\n" +
+//                        "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
+//                        "[C]\n" +
+//                        "[C]================================\n" +
+//                        "[L]\n" +
+//                        "[L]<b>BEAUTIFUL SHIRT</b>[R]9.99€\n" +
+//                        "[L]  + Size : S\n" +
+//                        "[L]\n" +
+//                        "[L]<b>AWESOME HAT</b>[R]24.99€\n" +
+//                        "[L]  + Size : 57/58\n" +
+//                        "[L]\n" +
+//                        "[C]--------------------------------\n" +
+//                        "[R]TOTAL PRICE :[R]34.98€\n" +
+//                        "[R]TAX :[R]4.23€\n" +
+//                        "[L]\n" +
+//                        "[C]================================\n" +
+//                        "[L]\n" +
+//                        "[L]<u><font color='bg-black' size='tall'>Customer :</font></u>\n" +
+//                        "[L]Raymond DUPONT\n" +
+//                        "[L]5 rue des girafes\n" +
+//                        "[L]31547 PERPETES\n" +
+//                        "[L]Tel : +33801201456\n" +
+//                        "\n" +
+//                        "[C]<barcode type='ean13' height='10'>831254784551</barcode>\n" +
+//                        "[L]\n" +
+//                        "[C]<qrcode size='20'>https://dantsu.com/</qrcode>\n"
+//        );
+//    }
+//
+//    /*==============================================================================================
+//    ===================================Tasty Igniter Part=========================================
+//    ==============================================================================================*/
     private boolean isServiceActive = false;
     private Timer timer;
 
 
 
     public void tiPrintMonitoring() {
-        // app should be running if the screen is off
-        PowerManager mgr = (PowerManager)context.getSystemService(Context.POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = mgr.newWakeLock(PowerManager.FULL_WAKE_LOCK, "MyWakeLock");
-        //TODO: https://stackoverflow.com/questions/6091270/how-can-i-keep-my-android-service-running-when-the-screen-is-turned-off
         int buttonColor;
         if (!isServiceActive) { //start printing
-            //start in Foreground
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {   //min API 26
-                Intent serviceIntent = new Intent(ForegroundService.Actions.START.toString());
-                startForegroundService(serviceIntent);
-            } else { //start in background
-                Intent serviceIntent = new Intent(this, BackgroundService.class);
-                startService(serviceIntent);
-            }
-            wakeLock.acquire();
             buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
             button_ti_print.setBackgroundColor(buttonColor);
             button_ti_print.setText("Drucker ist Aktiv");
             startService();
+            isServiceActive = true;
         } else { // Stop printing
-            //Stop in Foreground
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {   //min API 26
-                Intent serviceIntent = new Intent(ForegroundService.Actions.STOP.toString());
-                startService(serviceIntent);
-            }else { //Stop in background
-                Intent serviceIntent = new Intent(this, BackgroundService.class);
-                stopService(serviceIntent);
-            }
-            wakeLock.release();
-            buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
-            button_ti_print.setBackgroundColor(buttonColor);
-            button_ti_print.setText("Drucker ist Inaktiv");
             stopService();
         }
     }
@@ -421,20 +395,21 @@ public class MainActivity extends AppCompatActivity {
 
                 new WebServiceTask().execute(tiOrdersEndpointURL);
             }
-        }, 0, 10000); // Execute every minute (60,000 milliseconds) TODO: change to 60000
+        }, 0, period); // Execute every minute (60,000 milliseconds)
 
         isServiceActive = true;
-        //showToast("Service activated");
     }
 
     private void stopService() {
+        int buttonColor;
         if (timer != null) {
             timer.cancel();
             timer.purge();
         }
-
+        buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
+        button_ti_print.setBackgroundColor(buttonColor);
+        button_ti_print.setText("Drucker ist Inaktiv");
         isServiceActive = false;
-        //showToast("Service deactivated");
     }
 
     private void showToast(String message) {
@@ -505,7 +480,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void printDocketCustomerReceipt(String json) {
-        showToast("Service activated");
+        showToast("Überwachung ist AN");
         String printOutput = "";
         String printHeader = "";
         String printOrder = "";
@@ -598,7 +573,7 @@ public class MainActivity extends AppCompatActivity {
                         "[L]Google Adresse Scannen \n" +
                         "[C]<qrcode size='20'>" + google_api_url + "</qrcode>";
 
-                // create print String
+                // create full print String
                 printOutput = printHeader +
                         printOrder +
                         printAllCosts +
@@ -607,7 +582,7 @@ public class MainActivity extends AppCompatActivity {
                         "[L]Kundeninformation\n" +
                         printCustomer;
                 //execute print
-                //TIJobPrintBluetooth(printOutput, orderID); //TODO Activate
+                TIJobPrintBluetooth(printOutput, orderID);
                 //clear texts
                 printOutput = "";
                 printHeader = "";
@@ -664,6 +639,7 @@ public class MainActivity extends AppCompatActivity {
         return outputDateString;
     }
 
+
     public void TIJobPrintBluetooth(String print_info, String orderId) {
         // moved to PrintMonitoringService
         this.checkBluetoothPermissions(() -> {
@@ -673,6 +649,7 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
                             Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
+                            stopService(); //stop the service loop
                         }
 
                         @Override
