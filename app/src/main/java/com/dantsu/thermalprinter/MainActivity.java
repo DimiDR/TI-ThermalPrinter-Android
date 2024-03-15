@@ -76,12 +76,13 @@ public class MainActivity extends AppCompatActivity {
     private static Set<String> printedOrders = new HashSet<>();
     private static Context context;
     private Button button_ti_print;
-
     private String tiOrdersEndpointURL = "https://bestellen.primavera-pizza-wickede.de/api/orders?sort=order_id desc&pageLimit=50";
     private String tiDashboardURL = "https://bestellen.primavera-pizza-wickede.de/admin";
     private String tiKitchenViewURL = "https://bestellen.primavera-pizza-wickede.de/admin/thoughtco/kitchendisplay/summary/view/1";
+    private String tiUpdates = "https://jandiweb.de/integration/";
+    private String tiLandingPage = "https://primavera-pizza-wickede.de/";
 
-    long period = 5*1000; // set to 60000 for 1 minute
+    long period = 60*1000; // set to 60000 for 1 minute
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,9 +102,13 @@ public class MainActivity extends AppCompatActivity {
         button  = (Button) this.findViewById(R.id.button_ti_clear_ids);
         button.setOnClickListener(view -> tiClearIds());
         button  = (Button) this.findViewById(R.id.button_ti_kitchen_view);
-        button.setOnClickListener(view -> tiKitchenView());
+        button.setOnClickListener(view -> openWebpage(tiKitchenViewURL));
         button  = (Button) this.findViewById(R.id.button_ti_dashboard);
-        button.setOnClickListener(view -> tiDashboard());
+        button.setOnClickListener(view -> openWebpage(tiDashboardURL));
+        button  = (Button) this.findViewById(R.id.button_ti_updates);
+        button.setOnClickListener(view -> openWebpage(tiUpdates));
+        button  = (Button) this.findViewById(R.id.button_ti_landing_page);
+        button.setOnClickListener(view -> openWebpage(tiLandingPage));
 
         //get the already printed IDs or orders
         context = this;
@@ -643,16 +648,7 @@ public class MainActivity extends AppCompatActivity {
         return printer.addTextToPrint(print_info);
     }
 
-    private void tiKitchenView(){ // open kitchen view URL
-        String url = tiKitchenViewURL;
-        if (!url.startsWith("http://") && !url.startsWith("https://"))
-            url = "http://" + url;
-        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        startActivity(browserIntent);
-    }
-
-    private void tiDashboard(){
-        String url = tiDashboardURL;
+    private void openWebpage(String url){
         if (!url.startsWith("http://") && !url.startsWith("https://"))
             url = "http://" + url;
         Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));

@@ -8,6 +8,8 @@ At the moment the ID counter is just resetted
 - Foreground/Background processes. The app should run also if not visible on screen.
 In the moment I am using a background process coded in the main activity.
 This is not a best practise. So mobile phones could also kill the background process.
+- Better looking UI
+- PHP send data to the app, to switch from periodic job to listeners
 
 # V0.1 28.02.2024
 

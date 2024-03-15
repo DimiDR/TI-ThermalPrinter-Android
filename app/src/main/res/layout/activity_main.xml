@@ -21,21 +21,73 @@
         android:gravity="center"
         android:textColor="#000000"
         android:textSize="25sp"
-        android:text="Zur Website" />
+        android:text="Zu den Websiten" />
 
-    <Button
-        android:id="@+id/button_ti_kitchen_view"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginVertical="10dp"
-        android:text="Kitchen View" />
+        android:orientation="horizontal"
+        android:gravity="center">
 
-    <Button
-        android:id="@+id/button_ti_dashboard"
-        android:layout_width="wrap_content"
+        <Button
+            android:id="@+id/button_ti_landing_page"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:width="100dp"
+            android:height="50dp"
+            android:layout_margin="10dp"
+            android:textSize="16sp"
+            android:background="@drawable/custom_button"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:text="Startseite" />
+
+        <Button
+            android:id="@+id/button_ti_updates"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:width="100dp"
+            android:height="50dp"
+            android:layout_margin="10dp"
+            android:textSize="16sp"
+            android:background="@drawable/custom_button"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:text="Updates" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginVertical="10dp"
-        android:text="Dashboard" />
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/button_ti_kitchen_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:width="130dp"
+            android:height="50dp"
+            android:layout_margin="10dp"
+            android:textSize="16sp"
+            android:background="@drawable/custom_button"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:text="Küchenanzeige" />
+
+        <Button
+            android:id="@+id/button_ti_dashboard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:width="130dp"
+            android:height="50dp"
+            android:layout_margin="10dp"
+            android:textSize="16sp"
+            android:background="@drawable/custom_button"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:text="Administration" />
+    </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"
@@ -50,14 +102,26 @@
         android:id="@+id/button_bluetooth_browse"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginVertical="10dp"
+        android:width="150dp"
+        android:height="50dp"
+        android:layout_margin="10dp"
+        android:textSize="16sp"
+        android:background="@drawable/custom_button"
+        android:textColor="#FFFFFF"
+        android:textAllCaps="false"
         android:text="Drucker wählen" />
 
     <Button
         android:id="@+id/button_ti_print_monitoring"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginVertical="10dp"
+        android:width="160dp"
+        android:height="50dp"
+        android:layout_margin="10dp"
+        android:textSize="16sp"
+        android:background="@drawable/custom_button"
+        android:textColor="#FFFFFF"
+        android:textAllCaps="false"
         android:text="Drucker Anschalten" />
 
     <TextView
@@ -73,7 +137,13 @@
         android:id="@+id/button_ti_clear_ids"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginVertical="10dp"
+        android:width="160dp"
+        android:height="50dp"
+        android:layout_margin="10dp"
+        android:textSize="16sp"
+        android:background="@drawable/custom_button"
+        android:textColor="#FFFFFF"
+        android:textAllCaps="false"
         android:text="Druck Zurücksetzen" />
 
     <LinearLayout
