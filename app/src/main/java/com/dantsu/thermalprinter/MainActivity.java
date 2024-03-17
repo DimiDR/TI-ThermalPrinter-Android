@@ -376,8 +376,6 @@ public class MainActivity extends AppCompatActivity {
     private boolean isServiceActive = false;
     private Timer timer;
 
-
-
     public void tiPrintMonitoring() {
         int buttonColor;
         if (!isServiceActive) { //start printing
