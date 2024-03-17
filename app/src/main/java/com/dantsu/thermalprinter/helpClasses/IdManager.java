@@ -12,11 +12,20 @@ public class IdManager {
     public static void saveIds(Context context, Set<String> ids) {
         SharedPreferences.Editor editor = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit();
         editor.putStringSet(KEY_IDS, ids);
-        editor.apply();
+        editor.apply(); // asynchonous
+//        boolean result = editor.commit(); // synchonous
+//        result = false;
     }
+
+//    public static Set<String> getIds(Context context) {
+//        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+//        Set<String> TEST = prefs.getStringSet(KEY_IDS, new HashSet<>());
+//        return prefs.getStringSet(KEY_IDS, new HashSet<>());
+//    }
 
     public static Set<String> getIds(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        //Set<String> TEST = prefs.getStringSet(KEY_IDS, new HashSet<>());
         return prefs.getStringSet(KEY_IDS, new HashSet<>());
     }
 

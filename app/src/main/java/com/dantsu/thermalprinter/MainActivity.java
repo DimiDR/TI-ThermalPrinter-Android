@@ -68,6 +68,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.dantsu.thermalprinter.helpClasses.IdManager;
+import com.dantsu.thermalprinter.helpClasses.MyWakeLockManager;
 
 import android.net.Uri;
 
@@ -82,8 +83,6 @@ public class MainActivity extends AppCompatActivity {
     private String tiKitchenViewURL = "https://bestellen.primavera-pizza-wickede.de/admin/thoughtco/kitchendisplay/summary/view/1";
     private String tiUpdates = "https://jandiweb.de/integration/";
     private String tiLandingPage = "https://primavera-pizza-wickede.de/";
-    private BroadcastReceiver mReceiver = null;
-    private boolean wasScreenOn = true;
 
     long period = 60*1000; // set to 60000 for 1 minute
 
@@ -117,11 +116,6 @@ public class MainActivity extends AppCompatActivity {
         context = this;
         printedOrders = IdManager.getIds(context);
 
-        // initialize receiver for screen off
-        final IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
-        filter.addAction(Intent.ACTION_SCREEN_OFF);
-        mReceiver = new ScreenReceiver();
-        registerReceiver(mReceiver, filter);
     }
 
     private String[] arrayOf(String postNotifications) {
@@ -385,21 +379,24 @@ public class MainActivity extends AppCompatActivity {
     private Timer timer;
 
     public void tiPrintMonitoring() {
-        int buttonColor;
+        //printedOrders = IdManager.getIds(context);
         if (!isServiceActive) { //start printing
-            buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
-            button_ti_print.setBackgroundColor(buttonColor);
-            button_ti_print.setText("Drucker ist Aktiv");
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             startService();
-            isServiceActive = true;
         } else { // Stop printing
             stopService();
         }
     }
 
     private void startService() {
+        int buttonColor;
         timer = new Timer();
+
+        buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
+        button_ti_print.setBackgroundColor(buttonColor);
+        button_ti_print.setText("Drucker ist Aktiv");
+        // stop wake lock to stop CPU. Critical!
+        MyWakeLockManager.acquirePartialWakeLock(this);
+
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -420,8 +417,8 @@ public class MainActivity extends AppCompatActivity {
         buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
         button_ti_print.setBackgroundColor(buttonColor);
         button_ti_print.setText("Drucker ist Inaktiv");
-        // remove screen on functionality
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // stop wake lock to stop CPU. Critical!
+        MyWakeLockManager.releasePartialWakeLock();
         isServiceActive = false;
     }
 
@@ -590,6 +587,8 @@ public class MainActivity extends AppCompatActivity {
                         "[L]Kundeninformation\n" +
                         printCustomer;
                 //execute print
+                printOutput = "[C]TEST" + orderId; //TODO remove
+                printedOrders.add(orderId); // Add to printed orders set
                 TIJobPrintBluetooth(printOutput, orderID);
                 //clear texts
                 printOutput = "";
@@ -641,7 +640,9 @@ public class MainActivity extends AppCompatActivity {
                         public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
                             Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
                             // save the printed order IDs, to prevent reprinting
-                            printedOrders.add(orderId); // Add to printed orders set
+                            // clearIds is needed as Shared Preferences does not overwrite once saved
+                            // this can be optimized, with Shared Preferences overwrite
+                            IdManager.clearIds(context);
                             IdManager.saveIds(context, printedOrders);
                         }
                     }
@@ -729,43 +730,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-//    @Override
-//    protected void onPause() {
-//        // WHEN THE SCREEN IS ABOUT TO TURN OFF
-//        if (wasScreenOn) {
-//            // THIS IS THE CASE WHEN ONPAUSE() IS CALLED BY THE SYSTEM DUE TO A SCREEN STATE CHANGE
-//            System.out.println("SCREEN TURNED OFF");
-//        } else {
-//            // THIS IS WHEN ONPAUSE() IS CALLED WHEN THE SCREEN STATE HAS NOT CHANGED
-//        }
-//        super.onPause();
-//    }
-//
-//    @Override
-//    protected void onResume() {
-//        // ONLY WHEN SCREEN TURNS ON
-//        if (!wasScreenOn) {
-//            // THIS IS WHEN ONRESUME() IS CALLED DUE TO A SCREEN STATE CHANGE
-//            System.out.println("SCREEN TURNED ON");
-//        } else {
-//            // THIS IS WHEN ONRESUME() IS CALLED WHEN THE SCREEN STATE HAS NOT CHANGED
-//        }
-//        super.onResume();
-//    }
-
-    public class ScreenReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (intent.getAction().equals(Intent.ACTION_SCREEN_OFF)) {
-                // DO WHATEVER YOU NEED TO DO HERE
-                System.out.println("ACTION_SCREEN_OFF");
-                stopService();
-                wasScreenOn = false;
-            } else if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
-                // AND DO WHATEVER YOU NEED TO DO HERE
-                System.out.println("ACTION_SCREEN_ON");
-                wasScreenOn = true;
-            }
-        }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopService();
     }
 }
