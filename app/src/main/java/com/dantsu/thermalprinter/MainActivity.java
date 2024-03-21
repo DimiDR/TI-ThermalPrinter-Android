@@ -396,7 +396,8 @@ public class MainActivity extends AppCompatActivity {
         button_ti_print.setText("Drucker ist Aktiv");
         // stop wake lock to stop CPU. Critical!
         MyWakeLockManager.acquirePartialWakeLock(this);
-
+        // keep screen on
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -419,6 +420,8 @@ public class MainActivity extends AppCompatActivity {
         button_ti_print.setText("Drucker ist Inaktiv");
         // stop wake lock to stop CPU. Critical!
         MyWakeLockManager.releasePartialWakeLock();
+        // remove keep screen on
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         isServiceActive = false;
     }
 
