@@ -397,7 +397,7 @@ public class MainActivity extends AppCompatActivity {
         // stop wake lock to stop CPU. Critical!
         MyWakeLockManager.acquirePartialWakeLock(this);
         // keep screen on
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
