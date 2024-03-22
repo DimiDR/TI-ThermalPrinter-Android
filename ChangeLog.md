@@ -3,6 +3,7 @@ UI updated, Popup for print reset added.
 Some description text.
 
 Next Updates:
+- Change delivery time in the app. For this I would need an in app kitchen sink with orders POST API
 - If clicked on OK in the pupup all initial invoices should be printed.
 At the moment the ID counter is just resetted
 - Foreground/Background processes. The app should run also if not visible on screen.
