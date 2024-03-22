@@ -227,7 +227,6 @@ public class MainActivity extends AppCompatActivity {
 //                    .execute(this.getAsyncEscPosPrinter(selectedDevice));
 //        });
 //    }
-
 //    /*==============================================================================================
 //    ===========================================USB PART=============================================
 //    ==============================================================================================*/
@@ -395,7 +394,7 @@ public class MainActivity extends AppCompatActivity {
         button_ti_print.setBackgroundColor(buttonColor);
         button_ti_print.setText("Drucker ist Aktiv");
         // stop wake lock to stop CPU. Critical!
-        MyWakeLockManager.acquirePartialWakeLock(this);
+        MyWakeLockManager.acquireFullWakeLock(this);
         // keep screen on
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         timer.scheduleAtFixedRate(new TimerTask() {
@@ -419,7 +418,7 @@ public class MainActivity extends AppCompatActivity {
         button_ti_print.setBackgroundColor(buttonColor);
         button_ti_print.setText("Drucker ist Inaktiv");
         // stop wake lock to stop CPU. Critical!
-        MyWakeLockManager.releasePartialWakeLock();
+        MyWakeLockManager.releaseFullWakeLock();
         // remove keep screen on
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         isServiceActive = false;
