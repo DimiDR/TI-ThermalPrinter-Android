@@ -378,7 +378,6 @@ public class MainActivity extends AppCompatActivity {
     private Timer timer;
 
     public void tiPrintMonitoring() {
-        //printedOrders = IdManager.getIds(context);
         if (!isServiceActive) { //start printing
             startService();
         } else { // Stop printing
@@ -403,7 +402,7 @@ public class MainActivity extends AppCompatActivity {
 
                 new WebServiceTask().execute(tiOrdersEndpointURL);
             }
-        }, 0, period); // Execute every minute (60,000 milliseconds)
+        }, 0, period);
 
         isServiceActive = true;
     }
@@ -589,7 +588,7 @@ public class MainActivity extends AppCompatActivity {
                         "[L]Kundeninformation\n" +
                         printCustomer;
                 //execute print
-                printOutput = "[C]TEST" + orderId; //TODO remove
+                printOutput = "[C]TEST " + orderId; //TODO remove
                 printedOrders.add(orderId); // Add to printed orders set
                 TIJobPrintBluetooth(printOutput, orderID);
                 //clear texts
@@ -726,7 +725,6 @@ public class MainActivity extends AppCompatActivity {
                     dismiss(); // Close the dialog when Cancel button is clicked
                 }
             });
-
             builder.setView(view);
             return builder.create();
         }
