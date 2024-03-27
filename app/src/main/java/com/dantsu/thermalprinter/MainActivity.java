@@ -493,6 +493,7 @@ public class MainActivity extends AppCompatActivity {
         String printAllCosts = "";
         String printCustomer = "";
         String printPayment = "";
+        boolean isGoogleMaps = true;
 
         try {
             JSONObject jsonObject = new JSONObject(json);
@@ -542,8 +543,12 @@ public class MainActivity extends AppCompatActivity {
                     String menusName = order_menus_object.getString("name");
                     String menusSubtotal = FormatStringValue(order_menus_object.getString("subtotal"));
                     String menusQuantity = order_menus_object.getString("quantity");
+                    String menusComment = order_menus_object.getString("comment");
                     printOrder +="[L]<b>" + menusQuantity + "x - "+ menusName + ", Preis "
                             + menusSubtotal + "€</b> \n";
+                    if (menusComment != null && !menusComment.isEmpty()) {
+                        printOrder +="[L]Kommentar: " + menusComment + "\n";
+                    }
                     // menu options
                     JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
                     for (int k = 0; k < menu_options_array.length(); k++) {
@@ -571,13 +576,26 @@ public class MainActivity extends AppCompatActivity {
                         .replaceAll("\\s+", " ").replaceAll(",\\s*,", ",");
                 String google_api_url = "https://www.google.com/maps?q=" +
                         orderAttributes.getString("formatted_address").replaceAll("[,\\s]+", "+");
+                if (formatted_address == "null" || formatted_address.isEmpty()) {
+                    formatted_address = "nicht angegeben";
+                    isGoogleMaps = false;
+                }
+                if (telephone == "null" || telephone.isEmpty()) {
+                    telephone = "nicht angegeben";
+                }
+                if (comment == "null" || comment.isEmpty()) {
+                    comment = "nicht angegeben";
+                }
 
                 printCustomer += "[L]Name: " + customer_name +"\n" +
                         "[L]Telefon: " + telephone +"\n" +
                         "[L]Adresse: "+ formatted_address + "\n" +
                         "[L]Kommentar: "+ comment + "\n" +
-                        "[L]Google Adresse Scannen \n" +
-                        "[C]<qrcode size='20'>" + google_api_url + "</qrcode>";
+                        "[L]Google Adresse Scannen \n";
+
+                if (isGoogleMaps) {
+                    printCustomer += "[C]<qrcode size='20'>" + google_api_url + "</qrcode>";
+                }
 
                 // create full print String
                 printOutput = printHeader +
@@ -588,7 +606,7 @@ public class MainActivity extends AppCompatActivity {
                         "[L]Kundeninformation\n" +
                         printCustomer;
                 //execute print
-                printOutput = "[C]TEST " + orderId; //TODO remove
+                //printOutput = "[C]TEST " + orderId; //TODO remove
                 printedOrders.add(orderId); // Add to printed orders set
                 TIJobPrintBluetooth(printOutput, orderID);
                 //clear texts
