@@ -4,28 +4,19 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbManager;
+import android.media.MediaPlayer;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.PowerManager;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -37,15 +28,9 @@ import androidx.fragment.app.DialogFragment;
 import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections;
-import com.dantsu.escposprinter.connection.tcp.TcpConnection;
-import com.dantsu.escposprinter.connection.usb.UsbConnection;
-import com.dantsu.escposprinter.connection.usb.UsbPrintersConnections;
-import com.dantsu.escposprinter.textparser.PrinterTextParserImg;
 import com.dantsu.thermalprinter.async.AsyncBluetoothEscPosPrint;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrint;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrinter;
-import com.dantsu.thermalprinter.async.AsyncTcpEscPosPrint;
-import com.dantsu.thermalprinter.async.AsyncUsbEscPosPrint;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -83,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private String tiKitchenViewURL = "https://bestellen.primavera-pizza-wickede.de/admin/thoughtco/kitchendisplay/summary/view/1";
     private String tiUpdates = "https://jandiweb.de/integration/";
     private String tiLandingPage = "https://primavera-pizza-wickede.de/";
-
+    MediaPlayer mediaPlayer;
     long period = 60*1000; // set to 60000 for 1 minute
 
     @Override
@@ -115,7 +100,8 @@ public class MainActivity extends AppCompatActivity {
         //get the already printed IDs or orders
         context = this;
         printedOrders = IdManager.getIds(context);
-
+        // play new order sound
+        mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
     }
 
     private String[] arrayOf(String postNotifications) {
@@ -486,6 +472,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void printDocketCustomerReceipt(String json) {
+        mediaPlayer.start(); // TODO remove
         showToast("Überwachung ist AN");
         String printOutput = "";
         String printHeader = "";
@@ -661,6 +648,7 @@ public class MainActivity extends AppCompatActivity {
                             // save the printed order IDs, to prevent reprinting
                             // clearIds is needed as Shared Preferences does not overwrite once saved
                             // this can be optimized, with Shared Preferences overwrite
+                            mediaPlayer.start(); // play new order sound
                             IdManager.clearIds(context);
                             IdManager.saveIds(context, printedOrders);
                         }
@@ -678,6 +666,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openWebpage(String url){
+        mediaPlayer.start(); // TODO remove
         if (!url.startsWith("http://") && !url.startsWith("https://"))
             url = "http://" + url;
         Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
