@@ -472,7 +472,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void printDocketCustomerReceipt(String json) {
-        mediaPlayer.start(); // TODO remove
+        //mediaPlayer.start(); // TODO remove
         showToast("Überwachung ist AN");
         String printOutput = "";
         String printHeader = "";
@@ -666,7 +666,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openWebpage(String url){
-        mediaPlayer.start(); // TODO remove
+        //mediaPlayer.start(); // TODO remove
         if (!url.startsWith("http://") && !url.startsWith("https://"))
             url = "http://" + url;
         Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
