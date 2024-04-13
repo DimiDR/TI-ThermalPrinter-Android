@@ -96,6 +96,8 @@ public class MainActivity extends AppCompatActivity {
         button.setOnClickListener(view -> openWebpage(tiUpdates));
         button  = (Button) this.findViewById(R.id.button_ti_landing_page);
         button.setOnClickListener(view -> openWebpage(tiLandingPage));
+        button  = (Button) this.findViewById(R.id.button_ti_testprint);
+        button.setOnClickListener(view -> TITestPrinter("[C]<u><font size='big'>DRUCKER TEST ERFOLGREICH</font></u>\n"));
 
         //get the already printed IDs or orders
         context = this;
@@ -321,40 +323,41 @@ public class MainActivity extends AppCompatActivity {
 //     */
 //    @SuppressLint("SimpleDateFormat")
 //    public AsyncEscPosPrinter getAsyncEscPosPrinter(DeviceConnection printerConnection) {
-//
 //        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
 //        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
-//        return printer.addTextToPrint(
-//                "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
-//                        "[L]\n" +
-//                        "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
-//                        "[L]\n" +
-//                        "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
-//                        "[C]\n" +
-//                        "[C]================================\n" +
-//                        "[L]\n" +
-//                        "[L]<b>BEAUTIFUL SHIRT</b>[R]9.99€\n" +
-//                        "[L]  + Size : S\n" +
-//                        "[L]\n" +
-//                        "[L]<b>AWESOME HAT</b>[R]24.99€\n" +
-//                        "[L]  + Size : 57/58\n" +
-//                        "[L]\n" +
-//                        "[C]--------------------------------\n" +
-//                        "[R]TOTAL PRICE :[R]34.98€\n" +
-//                        "[R]TAX :[R]4.23€\n" +
-//                        "[L]\n" +
-//                        "[C]================================\n" +
-//                        "[L]\n" +
-//                        "[L]<u><font color='bg-black' size='tall'>Customer :</font></u>\n" +
-//                        "[L]Raymond DUPONT\n" +
-//                        "[L]5 rue des girafes\n" +
-//                        "[L]31547 PERPETES\n" +
-//                        "[L]Tel : +33801201456\n" +
-//                        "\n" +
-//                        "[C]<barcode type='ean13' height='10'>831254784551</barcode>\n" +
-//                        "[L]\n" +
-//                        "[C]<qrcode size='20'>https://dantsu.com/</qrcode>\n"
-//        );
+//        return printer.addTextToPrint("[C]<u><font size='big'>DRUCKER TEST ERFOLGREICH</font></u>\n")
+//
+////        return printer.addTextToPrint(
+////                "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
+////                        "[L]\n" +
+////                        "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
+////                        "[L]\n" +
+////                        "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
+////                        "[C]\n" +
+////                        "[C]================================\n" +
+////                        "[L]\n" +
+////                        "[L]<b>BEAUTIFUL SHIRT</b>[R]9.99€\n" +
+////                        "[L]  + Size : S\n" +
+////                        "[L]\n" +
+////                        "[L]<b>AWESOME HAT</b>[R]24.99€\n" +
+////                        "[L]  + Size : 57/58\n" +
+////                        "[L]\n" +
+////                        "[C]--------------------------------\n" +
+////                        "[R]TOTAL PRICE :[R]34.98€\n" +
+////                        "[R]TAX :[R]4.23€\n" +
+////                        "[L]\n" +
+////                        "[C]================================\n" +
+////                        "[L]\n" +
+////                        "[L]<u><font color='bg-black' size='tall'>Customer :</font></u>\n" +
+////                        "[L]Raymond DUPONT\n" +
+////                        "[L]5 rue des girafes\n" +
+////                        "[L]31547 PERPETES\n" +
+////                        "[L]Tel : +33801201456\n" +
+////                        "\n" +
+////                        "[C]<barcode type='ean13' height='10'>831254784551</barcode>\n" +
+////                        "[L]\n" +
+////                        "[C]<qrcode size='20'>https://dantsu.com/</qrcode>\n"
+////        );
 //    }
 //
 //    /*==============================================================================================
@@ -488,6 +491,8 @@ public class MainActivity extends AppCompatActivity {
             if (dataArray.length() == 0){
                 //showToast("Nothing to Print");
                 return;
+            } else {
+                mediaPlayer.start(); //always play if new order is available
             }
             // main data object with single orders
             for (int i = 0; i < dataArray.length(); i++) {
@@ -648,7 +653,7 @@ public class MainActivity extends AppCompatActivity {
                             // save the printed order IDs, to prevent reprinting
                             // clearIds is needed as Shared Preferences does not overwrite once saved
                             // this can be optimized, with Shared Preferences overwrite
-                            mediaPlayer.start(); // play new order sound
+                            mediaPlayer.start(); // play if printing done
                             IdManager.clearIds(context);
                             IdManager.saveIds(context, printedOrders);
                         }
@@ -742,4 +747,31 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         stopService();
     }
+
+
+    public void TITestPrinter(String print_info) {
+        this.checkBluetoothPermissions(() -> {
+            new AsyncBluetoothEscPosPrint(
+                    this,
+                    new AsyncEscPosPrint.OnPrintFinished() {
+                        @Override
+                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
+                            stopService(); //stop the service loop
+                        }
+
+                        @Override
+                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+                            // save the printed order IDs, to prevent reprinting
+                            // clearIds is needed as Shared Preferences does not overwrite once saved
+                            // this can be optimized, with Shared Preferences overwrite
+                            mediaPlayer.start(); // play if printing done
+                        }
+                    }
+            )
+                    .execute(this.TIgetAsyncEscPosPrinter(selectedDevice, print_info));
+        });
+    }
+
 }
