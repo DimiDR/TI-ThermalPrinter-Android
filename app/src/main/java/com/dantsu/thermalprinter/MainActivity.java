@@ -71,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
     private final String tiUpdates = "https://jandiweb.de/integration/";
     private final String tiLandingPage = "https://primavera-pizza-wickede.de/";
     MediaPlayer mediaPlayer;
-    long period = 10*1000; // set to 60000 for 1 minute //TODO change
+    long period = 60*1000; // set to 60000 for 1 minute //TODO change
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,7 +99,9 @@ public class MainActivity extends AppCompatActivity {
         button  = (Button) this.findViewById(R.id.button_ti_landing_page);
         button.setOnClickListener(view -> openWebpage(tiLandingPage));
         button  = (Button) this.findViewById(R.id.button_ti_testprint);
-        button.setOnClickListener(view -> TITestPrinter("[C]<u><font size='big'>DRUCKER TEST ERFOLGREICH</font></u>\n"));
+        button.setOnClickListener(view -> TITestPrinter("[L] Test 1 \n " +
+                "[L] Test 2 \n " +
+                "[C]<u><font size='big'>DRUCKER TEST ERFOLGREICH</font></u>"));
 
         //get the already printed IDs or orders
         context = this;
@@ -523,19 +525,19 @@ public class MainActivity extends AppCompatActivity {
                 // check if delivery is later, print bigger if delivery later
                 String order_type_time = "";
                 if (order_time_is_asap.equals("false")){
-                    order_type_time = "[C]<font size='big'>" + order_type + " am " + order_date_time + "</font>\n";
+                    order_type_time = "[C]<font size='tall'><b>Gewünschte Zeit: " + " am " + order_date_time + "</b></font>\n";
                 } else {
-                    order_type_time = "[C]" + order_type + " am " + order_date_time + "\n";
+                    order_type_time = "[C] Sofort: " + " am " + order_date_time + "\n";
                 }
                 printHeader = "[C]<u><font size='big'> Primavera </font></u>\n"+
                         "[L]<font size='big'>Bestellung Nr." + orderId + "</font>\n" +
                         "[L]\n" +
-                        "[C]<b>" + order_type + " - " + payment + " - <u type='double'>" +
-                        orderTotal + "€ </u></b>\n" +
+                        "[L]<font size='tall'><b>" + order_type + " - " + payment + " - <u type='double'>" +
+                        orderTotal + "€ </u></b><font size='tall'>\n" +
 //                        "[C]" + order_type + " am " + order_date_time + "\n" +
                         order_type_time +
                         "[C]\n" +
-                        "[C]================================\n" +
+                        "[L]====================================\n" +
                         "[L]\n";
 
                 // menu entries
@@ -604,15 +606,15 @@ public class MainActivity extends AppCompatActivity {
                         printOrder +
                         printAllCosts +
                         printPayment +
-                        "[C]================================\n" +
+                        "[L]====================================\n" +
                         "[L]Kundeninformation\n" +
                         printCustomer;
                 //execute print
                 //printOutput = "[C]TEST " + orderId; // test print to not waist paper
-                printedOrders.add(orderId); // Add to printed orders set //TODO not correct here, needs to be in onsuccess of printing
-                IdManager.clearIds(context); // TODO remove when printer is working, needed only if printed
-                IdManager.saveIds(context, printedOrders); // TODO remove when printer is working, needed only if printed
-//                TIJobPrintBluetooth(printOutput, orderID); // TODO Activate after printer is working
+//                printedOrders.add(orderId); // Add to printed orders set //TODO not correct here, needs to be in onsuccess of printing
+//                IdManager.clearIds(context); // TODO remove when printer is working, needed only if printed
+//                IdManager.saveIds(context, printedOrders); // TODO remove when printer is working, needed only if printed
+                TIJobPrintBluetooth(printOutput, orderID); // TODO Activate after printer is working
                 //TODO: I need to implement a timeout if printer is not working
                 //clear texts
                 printOutput = "";
@@ -667,6 +669,7 @@ public class MainActivity extends AppCompatActivity {
                             // clearIds is needed as Shared Preferences does not overwrite once saved
                             // this can be optimized, with Shared Preferences overwrite
                             mediaPlayer.start(); // play if printing done
+                            printedOrders.add(orderId);
                             IdManager.clearIds(context);
                             IdManager.saveIds(context, printedOrders);
                         }
@@ -679,7 +682,7 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("SimpleDateFormat")
     public AsyncEscPosPrinter TIgetAsyncEscPosPrinter(DeviceConnection printerConnection, String print_info) {
         SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
-        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
+        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 60f, 37);
         return printer.addTextToPrint(print_info);
     }
 
