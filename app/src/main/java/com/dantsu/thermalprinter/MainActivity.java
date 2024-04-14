@@ -63,13 +63,15 @@ public class MainActivity extends AppCompatActivity {
     private static Set<String> printedOrders = new HashSet<>();
     private static Context context;
     private Button button_ti_print;
-    private String tiOrdersEndpointURL = "https://bestellen.primavera-pizza-wickede.de/api/orders?sort=order_id desc&pageLimit=50";
-    private String tiDashboardURL = "https://bestellen.primavera-pizza-wickede.de/admin";
-    private String tiKitchenViewURL = "https://bestellen.primavera-pizza-wickede.de/admin/thoughtco/kitchendisplay/summary/view/1";
-    private String tiUpdates = "https://jandiweb.de/integration/";
-    private String tiLandingPage = "https://primavera-pizza-wickede.de/";
+//    private final String domain = "https://dimitrir14.sg-host.com"; //TODO change
+    private final String domain = "https://bestellen.primavera-pizza-wickede.de";
+    private final String tiOrdersEndpointURL = domain + "/api/orders?sort=order_id desc&pageLimit=50";
+    private final String tiDashboardURL = domain + "/admin";
+    private final String tiKitchenViewURL = domain + "/admin/thoughtco/kitchendisplay/summary/view/1";
+    private final String tiUpdates = "https://jandiweb.de/integration/";
+    private final String tiLandingPage = "https://primavera-pizza-wickede.de/";
     MediaPlayer mediaPlayer;
-    long period = 60*1000; // set to 60000 for 1 minute
+    long period = 10*1000; // set to 60000 for 1 minute //TODO change
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -475,7 +477,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void printDocketCustomerReceipt(String json) {
-        //mediaPlayer.start(); // TODO remove
         showToast("Überwachung ist AN");
         String printOutput = "";
         String printHeader = "";
@@ -501,6 +502,7 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject orderAttributes = dataObject.getJSONObject("attributes");
                 String payment = orderAttributes.getString("payment");//stripe, cod, paypalexpress
                 String order_type = orderAttributes.getString("order_type");
+                String order_time_is_asap = orderAttributes.getString("order_time_is_asap");
                 String order_date_time = FormatDate(orderAttributes.getString("order_date_time"));
                 String orderId = String.valueOf(orderAttributes.getInt("order_id"));
                 String orderTotal = String.valueOf(orderAttributes.getDouble("order_total"));
@@ -518,12 +520,20 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     order_type = "Abholung";
                 }
+                // check if delivery is later, print bigger if delivery later
+                String order_type_time = "";
+                if (order_time_is_asap.equals("false")){
+                    order_type_time = "[C]<font size='big'>" + order_type + " am " + order_date_time + "</font>\n";
+                } else {
+                    order_type_time = "[C]" + order_type + " am " + order_date_time + "\n";
+                }
                 printHeader = "[C]<u><font size='big'> Primavera </font></u>\n"+
                         "[L]<font size='big'>Bestellung Nr." + orderId + "</font>\n" +
                         "[L]\n" +
                         "[C]<b>" + order_type + " - " + payment + " - <u type='double'>" +
                         orderTotal + "€ </u></b>\n" +
-                        "[C]" + order_type + " am " + order_date_time + "\n" +
+//                        "[C]" + order_type + " am " + order_date_time + "\n" +
+                        order_type_time +
                         "[C]\n" +
                         "[C]================================\n" +
                         "[L]\n";
@@ -598,9 +608,12 @@ public class MainActivity extends AppCompatActivity {
                         "[L]Kundeninformation\n" +
                         printCustomer;
                 //execute print
-                //printOutput = "[C]TEST " + orderId; //TODO remove
-                printedOrders.add(orderId); // Add to printed orders set
-                TIJobPrintBluetooth(printOutput, orderID);
+                //printOutput = "[C]TEST " + orderId; // test print to not waist paper
+                printedOrders.add(orderId); // Add to printed orders set //TODO not correct here, needs to be in onsuccess of printing
+                IdManager.clearIds(context); // TODO remove when printer is working, needed only if printed
+                IdManager.saveIds(context, printedOrders); // TODO remove when printer is working, needed only if printed
+//                TIJobPrintBluetooth(printOutput, orderID); // TODO Activate after printer is working
+                //TODO: I need to implement a timeout if printer is not working
                 //clear texts
                 printOutput = "";
                 printHeader = "";
@@ -671,7 +684,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openWebpage(String url){
-        //mediaPlayer.start(); // TODO remove
         if (!url.startsWith("http://") && !url.startsWith("https://"))
             url = "http://" + url;
         Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
@@ -773,5 +785,4 @@ public class MainActivity extends AppCompatActivity {
                     .execute(this.TIgetAsyncEscPosPrinter(selectedDevice, print_info));
         });
     }
-
 }
