@@ -58,7 +58,7 @@ import com.dantsu.thermalprinter.helpClasses.MyWakeLockManager;
 import android.net.Uri;
 
 public class MainActivity extends AppCompatActivity {
-
+//TEST BRANCH
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
     private static Context context;
