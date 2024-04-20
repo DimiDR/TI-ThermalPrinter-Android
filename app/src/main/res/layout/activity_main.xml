@@ -5,7 +5,18 @@
     android:layout_height="match_parent"
     android:gravity="center"
     android:orientation="vertical">
-
+    <Button
+        android:id="@+id/button_ti_login"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:width="100dp"
+        android:height="50dp"
+        android:layout_margin="10dp"
+        android:textSize="16sp"
+        android:background="@drawable/custom_button"
+        android:textColor="#FFFFFF"
+        android:textAllCaps="false"
+        android:text="Login" />
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

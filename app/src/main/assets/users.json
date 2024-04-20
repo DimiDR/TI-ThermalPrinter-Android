@@ -1,0 +1,14 @@
+{
+  "users": [
+    {
+      "username": "Primavera",
+      "password": "password1",
+      "domain": "https://bestellen.primavera-pizza-wickede.de"
+    },
+    {
+      "username": "user2",
+      "password": "password2",
+      "domain": "https://example.com/user2"
+    }
+  ]
+}
