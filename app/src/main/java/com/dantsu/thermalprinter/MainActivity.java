@@ -12,6 +12,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,6 +29,7 @@ import androidx.fragment.app.DialogFragment;
 import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections;
+import com.dantsu.escposprinter.textparser.PrinterTextParserImg;
 import com.dantsu.thermalprinter.async.AsyncBluetoothEscPosPrint;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrint;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrinter;
@@ -99,10 +101,8 @@ public class MainActivity extends AppCompatActivity {
         button  = (Button) this.findViewById(R.id.button_ti_landing_page);
         button.setOnClickListener(view -> openWebpage(tiLandingPage));
         button  = (Button) this.findViewById(R.id.button_ti_testprint);
-        button.setOnClickListener(view -> TITestPrinter("[L] Test 1 \n " +
-                "[L] Test 2 \n " +
-                "[C]<u><font size='big'>DRUCKER TEST ERFOLGREICH</font></u>"));
-
+        button.setOnClickListener(view -> TITestPrinter(true));
+        button.setOnLongClickListener(view -> TITestPrinter(false));
         //get the already printed IDs or orders
         context = this;
         printedOrders = IdManager.getIds(context);
@@ -325,44 +325,44 @@ public class MainActivity extends AppCompatActivity {
 //    /**
 //     * Asynchronous printing
 //     */
-//    @SuppressLint("SimpleDateFormat")
-//    public AsyncEscPosPrinter getAsyncEscPosPrinter(DeviceConnection printerConnection) {
-//        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
-//        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
+    @SuppressLint("SimpleDateFormat")
+    public AsyncEscPosPrinter getAsyncEscPosPrinter(DeviceConnection printerConnection) {
+        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
+        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
 //        return printer.addTextToPrint("[C]<u><font size='big'>DRUCKER TEST ERFOLGREICH</font></u>\n")
-//
-////        return printer.addTextToPrint(
-////                "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
-////                        "[L]\n" +
-////                        "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
-////                        "[L]\n" +
-////                        "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
-////                        "[C]\n" +
-////                        "[C]================================\n" +
-////                        "[L]\n" +
-////                        "[L]<b>BEAUTIFUL SHIRT</b>[R]9.99€\n" +
-////                        "[L]  + Size : S\n" +
-////                        "[L]\n" +
-////                        "[L]<b>AWESOME HAT</b>[R]24.99€\n" +
-////                        "[L]  + Size : 57/58\n" +
-////                        "[L]\n" +
-////                        "[C]--------------------------------\n" +
-////                        "[R]TOTAL PRICE :[R]34.98€\n" +
-////                        "[R]TAX :[R]4.23€\n" +
-////                        "[L]\n" +
-////                        "[C]================================\n" +
-////                        "[L]\n" +
-////                        "[L]<u><font color='bg-black' size='tall'>Customer :</font></u>\n" +
-////                        "[L]Raymond DUPONT\n" +
-////                        "[L]5 rue des girafes\n" +
-////                        "[L]31547 PERPETES\n" +
-////                        "[L]Tel : +33801201456\n" +
-////                        "\n" +
-////                        "[C]<barcode type='ean13' height='10'>831254784551</barcode>\n" +
-////                        "[L]\n" +
-////                        "[C]<qrcode size='20'>https://dantsu.com/</qrcode>\n"
-////        );
-//    }
+
+        return printer.addTextToPrint(
+                "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
+                        "[L]\n" +
+                        "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
+                        "[L]\n" +
+                        "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
+                        "[C]\n" +
+                        "[C]================================\n" +
+                        "[L]\n" +
+                        "[L]<b>BEAUTIFUL SHIRT</b>[R]9.99€\n" +
+                        "[L]  + Size : S\n" +
+                        "[L]\n" +
+                        "[L]<b>AWESOME HAT</b>[R]24.99€\n" +
+                        "[L]  + Size : 57/58\n" +
+                        "[L]\n" +
+                        "[C]--------------------------------\n" +
+                        "[R]TOTAL PRICE :[R]34.98€\n" +
+                        "[R]TAX :[R]4.23€\n" +
+                        "[L]\n" +
+                        "[C]================================\n" +
+                        "[L]\n" +
+                        "[L]<u><font color='bg-black' size='tall'>Customer :</font></u>\n" +
+                        "[L]Raymond DUPONT\n" +
+                        "[L]5 rue des girafes\n" +
+                        "[L]31547 PERPETES\n" +
+                        "[L]Tel : +33801201456\n" +
+                        "\n" +
+                        "[C]<barcode type='ean13' height='10'>831254784551</barcode>\n" +
+                        "[L]\n" +
+                        "[C]<qrcode size='20'>https://dantsu.com/</qrcode>\n"
+        );
+    }
 //
 //    /*==============================================================================================
 //    ===================================Tasty Igniter Part=========================================
@@ -764,7 +764,48 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    public void TITestPrinter(String print_info) {
+    @SuppressLint("SimpleDateFormat")
+    public boolean TITestPrinter(boolean normal_click) {
+        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
+        //TODO: fix printerConnection here
+        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
+        String print_info;
+        if (normal_click) {
+            print_info = "[L] Test 1 \n " +
+                    "[L] Test 2 \n " +
+                    "[C]<u><font size='big'>DRUCKER TEST ERFOLGREICH</font></u>";
+        } else {
+            print_info = "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
+                        "[L]\n" +
+                        "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
+                        "[L]\n" +
+                        "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
+                        "[C]\n" +
+                        "[C]================================\n" +
+                        "[L]\n" +
+                        "[L]<b>BEAUTIFUL SHIRT</b>[R]9.99€\n" +
+                        "[L]  + Size : S\n" +
+                        "[L]\n" +
+                        "[L]<b>AWESOME HAT</b>[R]24.99€\n" +
+                        "[L]  + Size : 57/58\n" +
+                        "[L]\n" +
+                        "[C]--------------------------------\n" +
+                        "[R]TOTAL PRICE :[R]34.98€\n" +
+                        "[R]TAX :[R]4.23€\n" +
+                        "[L]\n" +
+                        "[C]================================\n" +
+                        "[L]\n" +
+                        "[L]<u><font color='bg-black' size='tall'>Customer :</font></u>\n" +
+                        "[L]Raymond DUPONT\n" +
+                        "[L]5 rue des girafes\n" +
+                        "[L]31547 PERPETES\n" +
+                        "[L]Tel : +33801201456\n" +
+                        "\n" +
+                        "[C]<barcode type='ean13' height='10'>831254784551</barcode>\n" +
+                        "[L]\n" +
+                        "[C]<qrcode size='20'>https://jandiweb.de/</qrcode>\n";
+        }
+
         this.checkBluetoothPermissions(() -> {
             new AsyncBluetoothEscPosPrint(
                     this,
@@ -787,5 +828,6 @@ public class MainActivity extends AppCompatActivity {
             )
                     .execute(this.TIgetAsyncEscPosPrinter(selectedDevice, print_info));
         });
+        return true; // for OnLongClickListener
     }
 }
