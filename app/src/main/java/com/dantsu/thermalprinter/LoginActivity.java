@@ -31,7 +31,7 @@ public class LoginActivity extends AppCompatActivity {
                     String password = etPassword.getText().toString();
 
                     if (isValidCredentials(username, password)) {
-                        saveUserUrl(username); // Save user-specific URL here
+
                         startActivity(new Intent(LoginActivity.this, MainActivity.class));
                         finish();
                     } else {
@@ -43,6 +43,8 @@ public class LoginActivity extends AppCompatActivity {
 
         private boolean isValidCredentials(String username, String password) {
             // Hardcoded credentials validation
+            //TODO check user and PW from users.json
+            //TODO: use UserUtils.java
             return "admin".equals(username) && "password123".equals(password);
         }
 

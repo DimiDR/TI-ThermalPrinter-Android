@@ -103,6 +103,8 @@ public class MainActivity extends AppCompatActivity {
         button  = (Button) this.findViewById(R.id.button_ti_testprint);
         button.setOnClickListener(view -> TITestPrinter(true));
         button.setOnLongClickListener(view -> TITestPrinter(false));
+        button  = (Button) this.findViewById(R.id.button_ti_login);
+        button.setOnClickListener(view -> LoginActivity());
         //get the already printed IDs or orders
         context = this;
         printedOrders = IdManager.getIds(context);
@@ -325,44 +327,44 @@ public class MainActivity extends AppCompatActivity {
 //    /**
 //     * Asynchronous printing
 //     */
-    @SuppressLint("SimpleDateFormat")
-    public AsyncEscPosPrinter getAsyncEscPosPrinter(DeviceConnection printerConnection) {
-        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
-        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
-//        return printer.addTextToPrint("[C]<u><font size='big'>DRUCKER TEST ERFOLGREICH</font></u>\n")
-
-        return printer.addTextToPrint(
-                "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
-                        "[L]\n" +
-                        "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
-                        "[L]\n" +
-                        "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
-                        "[C]\n" +
-                        "[C]================================\n" +
-                        "[L]\n" +
-                        "[L]<b>BEAUTIFUL SHIRT</b>[R]9.99€\n" +
-                        "[L]  + Size : S\n" +
-                        "[L]\n" +
-                        "[L]<b>AWESOME HAT</b>[R]24.99€\n" +
-                        "[L]  + Size : 57/58\n" +
-                        "[L]\n" +
-                        "[C]--------------------------------\n" +
-                        "[R]TOTAL PRICE :[R]34.98€\n" +
-                        "[R]TAX :[R]4.23€\n" +
-                        "[L]\n" +
-                        "[C]================================\n" +
-                        "[L]\n" +
-                        "[L]<u><font color='bg-black' size='tall'>Customer :</font></u>\n" +
-                        "[L]Raymond DUPONT\n" +
-                        "[L]5 rue des girafes\n" +
-                        "[L]31547 PERPETES\n" +
-                        "[L]Tel : +33801201456\n" +
-                        "\n" +
-                        "[C]<barcode type='ean13' height='10'>831254784551</barcode>\n" +
-                        "[L]\n" +
-                        "[C]<qrcode size='20'>https://dantsu.com/</qrcode>\n"
-        );
-    }
+//    @SuppressLint("SimpleDateFormat")
+//    public AsyncEscPosPrinter getAsyncEscPosPrinter(DeviceConnection printerConnection) {
+//        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
+//        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
+////        return printer.addTextToPrint("[C]<u><font size='big'>DRUCKER TEST ERFOLGREICH</font></u>\n")
+//
+//        return printer.addTextToPrint(
+//                "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
+//                        "[L]\n" +
+//                        "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
+//                        "[L]\n" +
+//                        "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
+//                        "[C]\n" +
+//                        "[C]================================\n" +
+//                        "[L]\n" +
+//                        "[L]<b>BEAUTIFUL SHIRT</b>[R]9.99€\n" +
+//                        "[L]  + Size : S\n" +
+//                        "[L]\n" +
+//                        "[L]<b>AWESOME HAT</b>[R]24.99€\n" +
+//                        "[L]  + Size : 57/58\n" +
+//                        "[L]\n" +
+//                        "[C]--------------------------------\n" +
+//                        "[R]TOTAL PRICE :[R]34.98€\n" +
+//                        "[R]TAX :[R]4.23€\n" +
+//                        "[L]\n" +
+//                        "[C]================================\n" +
+//                        "[L]\n" +
+//                        "[L]<u><font color='bg-black' size='tall'>Customer :</font></u>\n" +
+//                        "[L]Raymond DUPONT\n" +
+//                        "[L]5 rue des girafes\n" +
+//                        "[L]31547 PERPETES\n" +
+//                        "[L]Tel : +33801201456\n" +
+//                        "\n" +
+//                        "[C]<barcode type='ean13' height='10'>831254784551</barcode>\n" +
+//                        "[L]\n" +
+//                        "[C]<qrcode size='20'>https://dantsu.com/</qrcode>\n"
+//        );
+//    }
 //
 //    /*==============================================================================================
 //    ===================================Tasty Igniter Part=========================================
@@ -725,6 +727,10 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
     }
 
+    private void LoginActivity() {
+        //TODO
+    }
+
     public static class ResetPrintFragment extends DialogFragment {
 
         @NonNull
@@ -767,17 +773,16 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("SimpleDateFormat")
     public boolean TITestPrinter(boolean normal_click) {
         SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
-        //TODO: fix printerConnection here
-        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
+        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(selectedDevice, 203, 48f, 32);
         String print_info;
         if (normal_click) {
-            print_info = "[L] Test 1 \n " +
-                    "[L] Test 2 \n " +
+            print_info = "[C] Test \n" +
+                    "[C] Ausdruck \n" +
                     "[C]<u><font size='big'>DRUCKER TEST ERFOLGREICH</font></u>";
         } else {
             print_info = "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, this.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
                         "[L]\n" +
-                        "[C]<u><font size='big'>ORDER N°045</font></u>\n" +
+                        "[C]<u><font size='big'>TEST ORDER N°045</font></u>\n" +
                         "[L]\n" +
                         "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
                         "[C]\n" +
