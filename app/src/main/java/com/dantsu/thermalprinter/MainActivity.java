@@ -373,7 +373,9 @@ public class MainActivity extends AppCompatActivity {
     private Timer timer;
 
     public void tiPrintMonitoring() {
+
         if (!isServiceActive) { //start printing
+            //TODO: check if a valid user is selected. Else toast an error
             startService();
         } else { // Stop printing
             stopService();

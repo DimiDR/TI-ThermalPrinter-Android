@@ -44,7 +44,8 @@ public class LoginActivity extends AppCompatActivity {
         private boolean isValidCredentials(String username, String password) {
             // Hardcoded credentials validation
             //TODO check user and PW from users.json
-            //TODO: use UserUtils.java
+            //TODO: remove UserUtils.java, and add logic here. It does not make sence to have an extra class
+
             return "admin".equals(username) && "password123".equals(password);
         }
 
