@@ -18,6 +18,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -46,7 +47,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -56,24 +59,26 @@ import java.util.Set;
 
 import com.dantsu.thermalprinter.helpClasses.IdManager;
 import com.dantsu.thermalprinter.helpClasses.MyWakeLockManager;
+import com.dantsu.thermalprinter.helpClasses.UserUtils;
 
 import android.net.Uri;
 
 public class MainActivity extends AppCompatActivity {
-//TEST BRANCH
+    //TEST BRANCH
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
     private static Context context;
     private Button button_ti_print;
-//    private final String domain = "https://dimitrir14.sg-host.com"; //TODO change
+    //    private final String domain = "https://dimitrir14.sg-host.com"; //TODO change
     private final String domain = "https://bestellen.primavera-pizza-wickede.de";
     private final String tiOrdersEndpointURL = domain + "/api/orders?sort=order_id desc&pageLimit=50";
     private final String tiDashboardURL = domain + "/admin";
     private final String tiKitchenViewURL = domain + "/admin/thoughtco/kitchendisplay/summary/view/1";
     private final String tiUpdates = "https://jandiweb.de/integration/";
     private final String tiLandingPage = "https://primavera-pizza-wickede.de/";
+    private static List<UserUtils.User> users;
     MediaPlayer mediaPlayer;
-    long period = 60*1000; // set to 60000 for 1 minute //TODO change
+    long period = 60 * 1000; // set to 60000 for 1 minute //TODO change
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,32 +95,34 @@ public class MainActivity extends AppCompatActivity {
         //button.setOnClickListener(view -> printTcp());
         button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
         button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
-        button  = (Button) this.findViewById(R.id.button_ti_clear_ids);
+        button = (Button) this.findViewById(R.id.button_ti_clear_ids);
         button.setOnClickListener(view -> tiClearIds());
-        button  = (Button) this.findViewById(R.id.button_ti_kitchen_view);
+        button = (Button) this.findViewById(R.id.button_ti_kitchen_view);
         button.setOnClickListener(view -> openWebpage(tiKitchenViewURL));
-        button  = (Button) this.findViewById(R.id.button_ti_dashboard);
+        button = (Button) this.findViewById(R.id.button_ti_dashboard);
         button.setOnClickListener(view -> openWebpage(tiDashboardURL));
-        button  = (Button) this.findViewById(R.id.button_ti_updates);
+        button = (Button) this.findViewById(R.id.button_ti_updates);
         button.setOnClickListener(view -> openWebpage(tiUpdates));
-        button  = (Button) this.findViewById(R.id.button_ti_landing_page);
+        button = (Button) this.findViewById(R.id.button_ti_landing_page);
         button.setOnClickListener(view -> openWebpage(tiLandingPage));
-        button  = (Button) this.findViewById(R.id.button_ti_testprint);
+        button = (Button) this.findViewById(R.id.button_ti_testprint);
         button.setOnClickListener(view -> TITestPrinter(true));
         button.setOnLongClickListener(view -> TITestPrinter(false));
-        button  = (Button) this.findViewById(R.id.button_ti_login);
-        button.setOnClickListener(view -> LoginActivity());
+        button = (Button) this.findViewById(R.id.button_ti_login);
+        button.setOnClickListener(view -> LoginUser());
         //get the already printed IDs or orders
         context = this;
         printedOrders = IdManager.getIds(context);
         // play new order sound
         mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
+        // get valid users
+        users = UserUtils.getUsers(this);
     }
 
     private String[] arrayOf(String postNotifications) {
-        String[] strArray= new String[1];
+        String[] strArray = new String[1];
         strArray[0] = postNotifications;
-        return  strArray;
+        return strArray;
     }
 
 
@@ -202,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-//    public void printBluetooth() {
+    //    public void printBluetooth() {
 //        this.checkBluetoothPermissions(() -> {
 //            new AsyncBluetoothEscPosPrint(
 //                    this,
@@ -375,7 +382,7 @@ public class MainActivity extends AppCompatActivity {
     public void tiPrintMonitoring() {
 
         if (!isServiceActive) { //start printing
-            //TODO: check if a valid user is selected. Else toast an error
+            //TODO: check if a user is selected. Else toast an error
             startService();
         } else { // Stop printing
             stopService();
@@ -467,6 +474,7 @@ public class MainActivity extends AppCompatActivity {
             }
             return resultJson;
         }
+
         @Override
         protected void onPostExecute(String result) {
             // Process the result here
@@ -495,7 +503,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             JSONObject jsonObject = new JSONObject(json);
             JSONArray dataArray = filterPrintableOrders(jsonObject.getJSONArray("data"));
-            if (dataArray.length() == 0){
+            if (dataArray.length() == 0) {
                 //showToast("Nothing to Print");
                 return;
             } else {
@@ -521,19 +529,19 @@ public class MainActivity extends AppCompatActivity {
                     payment = "Bezahlt mit PayPal";
                 }
                 //delivery translation
-                if (order_type.equals("delivery")){
+                if (order_type.equals("delivery")) {
                     order_type = "Lieferung";
                 } else {
                     order_type = "Abholung";
                 }
                 // check if delivery is later, print bigger if delivery later
                 String order_type_time = "";
-                if (order_time_is_asap.equals("false")){
+                if (order_time_is_asap.equals("false")) {
                     order_type_time = "[C]<font size='tall'><b>Gewünschte Zeit: " + " am " + order_date_time + "</b></font>\n";
                 } else {
                     order_type_time = "[C] Sofort: " + " am " + order_date_time + "\n";
                 }
-                printHeader = "[C]<u><font size='big'> Primavera </font></u>\n"+
+                printHeader = "[C]<u><font size='big'> Primavera </font></u>\n" +
                         "[L]<font size='big'>Bestellung Nr." + orderId + "</font>\n" +
                         "[L]\n" +
                         "[L]<font size='tall'><b>" + order_type + " - " + payment + " - <u type='double'>" +
@@ -552,10 +560,10 @@ public class MainActivity extends AppCompatActivity {
                     String menusSubtotal = FormatStringValue(order_menus_object.getString("subtotal"));
                     String menusQuantity = order_menus_object.getString("quantity");
                     String menusComment = order_menus_object.getString("comment");
-                    printOrder +="[L]<b>" + menusQuantity + "x - "+ menusName + ", Preis "
+                    printOrder += "[L]<b>" + menusQuantity + "x - " + menusName + ", Preis "
                             + menusSubtotal + "€</b> \n";
                     if (menusComment != null && !menusComment.isEmpty()) {
-                        printOrder +="[L]Kommentar: " + menusComment + "\n";
+                        printOrder += "[L]Kommentar: " + menusComment + "\n";
                     }
                     // menu options
                     JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
@@ -563,7 +571,7 @@ public class MainActivity extends AppCompatActivity {
                         JSONObject menu_option_object = menu_options_array.getJSONObject(k);
                         String order_option_name = menu_option_object.getString("order_option_name");
                         String order_option_price = FormatStringValue(menu_option_object.getString("order_option_price"));
-                        printOrder += "[L]"+ order_option_name + ", Preis " + order_option_price +"€\n"
+                        printOrder += "[L]" + order_option_name + ", Preis " + order_option_price + "€\n"
                                 + "[L]\n";
                     }
                 }
@@ -595,10 +603,10 @@ public class MainActivity extends AppCompatActivity {
                     comment = "nicht angegeben";
                 }
 
-                printCustomer += "[L]Name: " + customer_name +"\n" +
-                        "[L]Telefon: " + telephone +"\n" +
-                        "[L]Adresse: "+ formatted_address + "\n" +
-                        "[L]Kommentar: "+ comment + "\n" +
+                printCustomer += "[L]Name: " + customer_name + "\n" +
+                        "[L]Telefon: " + telephone + "\n" +
+                        "[L]Adresse: " + formatted_address + "\n" +
+                        "[L]Kommentar: " + comment + "\n" +
                         "[L]Google Adresse Scannen \n";
 
                 if (isGoogleMaps) {
@@ -614,11 +622,7 @@ public class MainActivity extends AppCompatActivity {
                         "[L]Kundeninformation\n" +
                         printCustomer;
                 //execute print
-                //printOutput = "[C]TEST " + orderId; // test print to not waist paper
-//                printedOrders.add(orderId); // Add to printed orders set //TODO not correct here, needs to be in onsuccess of printing
-//                IdManager.clearIds(context); // TODO remove when printer is working, needed only if printed
-//                IdManager.saveIds(context, printedOrders); // TODO remove when printer is working, needed only if printed
-                TIJobPrintBluetooth(printOutput, orderID); // TODO Activate after printer is working
+                TIJobPrintBluetooth(printOutput, orderID);
                 //TODO: I need to implement a timeout if printer is not working
                 //clear texts
                 printOutput = "";
@@ -690,19 +694,23 @@ public class MainActivity extends AppCompatActivity {
         return printer.addTextToPrint(print_info);
     }
 
-    private void openWebpage(String url){
+    private void openWebpage(String url) {
         if (!url.startsWith("http://") && !url.startsWith("https://"))
             url = "http://" + url;
         Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         startActivity(browserIntent);
     }
 
-    private void tiClearIds(){
+    private void tiClearIds() {
         //clear the id, so that the printing of open orders can be restarted
         ResetPrintFragment dialog = new ResetPrintFragment();
         dialog.show(getSupportFragmentManager(), "CustomDialogFragment");
     }
 
+    private void LoginUser() {
+        LoginUserDialogFragment dialog = new LoginUserDialogFragment();
+        dialog.show(getSupportFragmentManager(), "CustomDialogFragment");
+    }
 
     private String FormatDate(String inputDateString) {
         String outputDateString = "";
@@ -720,7 +728,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String FormatStringValue(String value) {
-        String output = value.substring(0, value.length()-2);
+        String output = value.substring(0, value.length() - 2);
         return output;
     }
 
@@ -729,9 +737,6 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
     }
 
-    private void LoginActivity() {
-        //TODO
-    }
 
     public static class ResetPrintFragment extends DialogFragment {
 
@@ -762,6 +767,68 @@ public class MainActivity extends AppCompatActivity {
             });
             builder.setView(view);
             return builder.create();
+        }
+    }
+
+
+    public static class LoginUserDialogFragment extends DialogFragment {
+
+        @NonNull
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            LayoutInflater inflater = requireActivity().getLayoutInflater();
+            View view = inflater.inflate(R.layout.popup_login_user, null);
+
+            Button okButton = view.findViewById(R.id.button_ok);
+            Button cancelButton = view.findViewById(R.id.button_cancel);
+            EditText etUsername = view.findViewById(R.id.etUsername);
+            EditText etPassword = view.findViewById(R.id.etPassword);
+
+
+            okButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    String username = etUsername.getText().toString(); //TODO wenn man Enter Druckt dann entsteht eine neue Zeile
+                    String password = etPassword.getText().toString();
+                    //check for valid createntials //TODO differentiate if password or user is wrong
+                    String validCredentials = checkValidCredentials(username, password);
+                    if (validCredentials.equals("OK")) {
+                        Toast.makeText(getActivity(), "Dialog dismissed", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(getActivity(), validCredentials, Toast.LENGTH_SHORT).show();
+                    }
+                    dismiss();
+                }
+            });
+
+            cancelButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    dismiss(); // Close the dialog when Cancel button is clicked
+                }
+            });
+            builder.setView(view);
+            return builder.create();
+        }
+
+
+        private String checkValidCredentials(String username, String password) {
+            // Hardcoded credentials validation
+            //TODO check user and PW from users
+            //TODO: remove UserUtils.java, and add logic here. It does not make sence to have an extra class
+            for (int i = 0; i < users.size(); i++) {
+                if (users.get(i).username.equals(username) && users.get(i).password.equals(password)) {
+                    return "OK";
+                } else if (users.get(i).username.equals(username) && !users.get(i).password.equals(password)) {
+                    return "falsches Passwort";
+                } else {
+                    //TODO: return user not found
+                    return "Der Benutzer wurde nicht gefunden";
+                }
+
+            }
+            return username;
         }
     }
 
