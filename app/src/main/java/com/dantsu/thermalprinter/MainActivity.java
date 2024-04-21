@@ -49,7 +49,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -125,11 +124,12 @@ public class MainActivity extends AppCompatActivity {
         users = UserUtils.getUsers(this);
     }
 
-    @Override //change to landscape mode
+    @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_main); // Adjust to your main layout
     }
+
 
     private String[] arrayOf(String postNotifications) {
         String[] strArray = new String[1];
