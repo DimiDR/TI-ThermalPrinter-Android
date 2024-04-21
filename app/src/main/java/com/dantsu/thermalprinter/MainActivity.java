@@ -7,6 +7,7 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -122,6 +123,12 @@ public class MainActivity extends AppCompatActivity {
         mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
         // get valid users
         users = UserUtils.getUsers(this);
+    }
+
+    @Override //change to landscape mode
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        setContentView(R.layout.activity_main);
     }
 
     private String[] arrayOf(String postNotifications) {
