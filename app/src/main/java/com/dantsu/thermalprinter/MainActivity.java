@@ -6,6 +6,7 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.media.MediaPlayer;
@@ -70,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
     private static Set<String> printedOrders = new HashSet<>();
     private static Context context;
     private Button button_ti_print;
+    private static TextView textview_ti_header;
     //    private final String domain = "https://dimitrir14.sg-host.com"; //TODO change
 //    private static  String domain = "https://bestellen.primavera-pizza-wickede.de";
     private boolean userSelected = false; // TODO: no buttons should work if user is not selected
@@ -100,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
         //button.setOnClickListener(view -> printTcp());
         button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
         button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
+        textview_ti_header = this.findViewById(R.id.textview_ti_header);
         button = (Button) this.findViewById(R.id.button_ti_clear_ids);
         button.setOnClickListener(view -> tiClearIds());
         button = (Button) this.findViewById(R.id.button_ti_kitchen_view);
@@ -122,6 +125,24 @@ public class MainActivity extends AppCompatActivity {
         mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
         // get valid users
         users = UserUtils.getUsers(this);
+        // Retrieve saved login details from SharedPreferences
+        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+        String savedUsername = sharedPreferences.getString("username", "");
+        String savedPassword = sharedPreferences.getString("password", "");
+        String savedDomainShop = sharedPreferences.getString("domain_shop", "");
+        String savedDomainWebsite = sharedPreferences.getString("domain_website", "");
+
+        if (!savedUsername.isEmpty() && !savedPassword.isEmpty()) {
+            // Set saved URLs to your URL fields
+            tiOrdersEndpointURL = savedDomainShop + "/api/orders?sort=order_id desc&pageLimit=50";
+            tiDashboardURL = savedDomainShop + "/admin";
+            tiKitchenViewURL = savedDomainShop + "/admin/thoughtco/kitchendisplay/summary/view/1";
+            tiLandingPage = savedDomainWebsite + "/";
+            //TODO: activate all buttons
+            //TODO: deactivate all buttons except Login in XML
+            //TODO: user2 kann ich einloggen
+            textview_ti_header.setText(savedUsername);
+        }
     }
 
     @Override
@@ -831,7 +852,7 @@ public class MainActivity extends AppCompatActivity {
                     String password = etPassword.getText().toString();
                     String validCredentials = checkValidCredentials(username, password);
                     if (validCredentials.equals("OK")) {
-                        Toast.makeText(getActivity(), "Nutzer gefunden", Toast.LENGTH_SHORT).show();
+//                        Toast.makeText(getActivity(), "Nutzer gefunden", Toast.LENGTH_SHORT).show();
 
                         dismiss();
                     } else {
@@ -854,6 +875,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         private String checkValidCredentials(String username, String password) {
+            SharedPreferences sharedPreferences = getActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
             // Hardcoded credentials validation
             //TODO check user and PW from users
             //TODO: remove UserUtils.java, and add logic here. It does not make sence to have an extra class
@@ -867,6 +889,15 @@ public class MainActivity extends AppCompatActivity {
                     tiDashboardURL = domain_shop + "/admin";
                     tiKitchenViewURL = domain_shop + "/admin/thoughtco/kitchendisplay/summary/view/1";
                     tiLandingPage = domain_website + "/";
+                    //save login data
+                    SharedPreferences.Editor editor = sharedPreferences.edit();
+                    editor.putString("username", username);
+                    editor.putString("password", password);
+                    editor.putString("domain_shop", users.get(i).domain_shop);
+                    editor.putString("domain_website", users.get(i).domain_website);
+                    editor.apply();
+                    //change header text
+                    textview_ti_header.setText(username);
                     return "OK";
                 } else if (users.get(i).username.equals(username) && !users.get(i).password.equals(password)) {
                     return "FEHLER: falsches Passwort";
