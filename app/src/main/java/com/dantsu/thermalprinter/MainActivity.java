@@ -19,6 +19,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -70,12 +71,16 @@ public class MainActivity extends AppCompatActivity {
     private static Context context;
     private Button button_ti_print;
     //    private final String domain = "https://dimitrir14.sg-host.com"; //TODO change
-    private final String domain = "https://bestellen.primavera-pizza-wickede.de";
-    private final String tiOrdersEndpointURL = domain + "/api/orders?sort=order_id desc&pageLimit=50";
-    private final String tiDashboardURL = domain + "/admin";
-    private final String tiKitchenViewURL = domain + "/admin/thoughtco/kitchendisplay/summary/view/1";
+//    private static  String domain = "https://bestellen.primavera-pizza-wickede.de";
+    private boolean userSelected = false; // TODO: no buttons should work if user is not selected
+    private static  String domain_shop = "";
+    private static  String domain_website = "";
+    private static String username = "";
+    private static String tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
+    private static String tiDashboardURL = domain_shop + "/admin";
+    private static String tiKitchenViewURL = domain_shop + "/admin/thoughtco/kitchendisplay/summary/view/1";
+    private static String tiLandingPage = domain_website + "/";
     private final String tiUpdates = "https://jandiweb.de/integration/";
-    private final String tiLandingPage = "https://primavera-pizza-wickede.de/";
     private static List<UserUtils.User> users;
     MediaPlayer mediaPlayer;
     long period = 60 * 1000; // set to 60000 for 1 minute //TODO change
@@ -98,13 +103,13 @@ public class MainActivity extends AppCompatActivity {
         button = (Button) this.findViewById(R.id.button_ti_clear_ids);
         button.setOnClickListener(view -> tiClearIds());
         button = (Button) this.findViewById(R.id.button_ti_kitchen_view);
-        button.setOnClickListener(view -> openWebpage(tiKitchenViewURL));
+        button.setOnClickListener(view -> openWebpage("KitchenView"));
         button = (Button) this.findViewById(R.id.button_ti_dashboard);
-        button.setOnClickListener(view -> openWebpage(tiDashboardURL));
+        button.setOnClickListener(view -> openWebpage("Administration"));
         button = (Button) this.findViewById(R.id.button_ti_updates);
-        button.setOnClickListener(view -> openWebpage(tiUpdates));
+        button.setOnClickListener(view -> openWebpage("Updates"));
         button = (Button) this.findViewById(R.id.button_ti_landing_page);
-        button.setOnClickListener(view -> openWebpage(tiLandingPage));
+        button.setOnClickListener(view -> openWebpage("LandingPage"));
         button = (Button) this.findViewById(R.id.button_ti_testprint);
         button.setOnClickListener(view -> TITestPrinter(true));
         button.setOnLongClickListener(view -> TITestPrinter(false));
@@ -694,7 +699,33 @@ public class MainActivity extends AppCompatActivity {
         return printer.addTextToPrint(print_info);
     }
 
-    private void openWebpage(String url) {
+    private void openWebpage(String action) {
+        String url = "";
+        //TODO Im changing the URLs due to multivendor.
+        // As I am setting the Listener, old URLs are being saved. They need to be updated here
+        // Implement other cases for differen URLs here
+
+            switch (action) {
+                case "LandingPage":
+                    url = tiLandingPage;
+                    break;
+                case "APIEndpoint":
+                    url = tiOrdersEndpointURL;
+                    break;
+                case "KitchenView":
+                    url = tiKitchenViewURL;
+                    break;
+                case "Administration":
+                    url = tiDashboardURL;
+                    break;
+                case "Updates":
+                    url = tiUpdates;
+                    break;
+                default:
+                    url = "";
+                    break;
+            }
+
         if (!url.startsWith("http://") && !url.startsWith("https://"))
             url = "http://" + url;
         Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
@@ -784,21 +815,23 @@ public class MainActivity extends AppCompatActivity {
             Button cancelButton = view.findViewById(R.id.button_cancel);
             EditText etUsername = view.findViewById(R.id.etUsername);
             EditText etPassword = view.findViewById(R.id.etPassword);
-
+            TextView etError = view.findViewById(R.id.popup_error);
 
             okButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     String username = etUsername.getText().toString(); //TODO wenn man Enter Druckt dann entsteht eine neue Zeile
                     String password = etPassword.getText().toString();
-                    //check for valid createntials //TODO differentiate if password or user is wrong
                     String validCredentials = checkValidCredentials(username, password);
                     if (validCredentials.equals("OK")) {
-                        Toast.makeText(getActivity(), "Dialog dismissed", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getActivity(), "Nutzer gefunden", Toast.LENGTH_SHORT).show();
+
+                        dismiss();
                     } else {
-                        Toast.makeText(getActivity(), validCredentials, Toast.LENGTH_SHORT).show();
+                        // activate the error text in the popup
+                        etError.setVisibility(View.VISIBLE);
+                        etError.setText(validCredentials);
                     }
-                    dismiss();
                 }
             });
 
@@ -819,12 +852,20 @@ public class MainActivity extends AppCompatActivity {
             //TODO: remove UserUtils.java, and add logic here. It does not make sence to have an extra class
             for (int i = 0; i < users.size(); i++) {
                 if (users.get(i).username.equals(username) && users.get(i).password.equals(password)) {
+                    // username has to be unique in JSON
+                    domain_shop = users.get(i).domain_shop;
+                    domain_website = users.get(i).domain_website;
+                    username = users.get(i).username;
+                    tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
+                    tiDashboardURL = domain_shop + "/admin";
+                    tiKitchenViewURL = domain_shop + "/admin/thoughtco/kitchendisplay/summary/view/1";
+                    tiLandingPage = domain_website + "/";
                     return "OK";
                 } else if (users.get(i).username.equals(username) && !users.get(i).password.equals(password)) {
-                    return "falsches Passwort";
+                    return "FEHLER: falsches Passwort";
                 } else {
                     //TODO: return user not found
-                    return "Der Benutzer wurde nicht gefunden";
+                    return "FEHLER: Der Benutzer wurde nicht gefunden";
                 }
 
             }

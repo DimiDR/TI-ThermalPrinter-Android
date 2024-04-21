@@ -53,4 +53,12 @@
 
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/popup_error"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:text='Error'
+        android:textColor="@color/colorError"
+        android:visibility="gone" />
 </LinearLayout>

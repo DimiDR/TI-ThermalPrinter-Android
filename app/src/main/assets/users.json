@@ -2,13 +2,15 @@
   "users": [
     {
       "username": "Primavera",
-      "password": "password1",
-      "domain": "https://bestellen.primavera-pizza-wickede.de"
+      "password": "pw1",
+      "domain_shop": "https://bestellen.primavera-pizza-wickede.de",
+      "domain_website": "https://primavera-pizza-wickede.de"
     },
     {
       "username": "user2",
       "password": "password2",
-      "domain": "https://example.com/user2"
+      "domain_shop": "https://bestellen.primavera-pizza-wickede.de",
+      "domain_website": "https://bestellen.primavera-pizza-wickede.de"
     }
   ]
 }
