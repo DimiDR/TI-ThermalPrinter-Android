@@ -876,6 +876,7 @@ public class MainActivity extends AppCompatActivity {
 
         private String checkValidCredentials(String username, String password) {
             SharedPreferences sharedPreferences = getActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+            String userMessage = "EMPTY";
             // Hardcoded credentials validation
             //TODO check user and PW from users
             //TODO: remove UserUtils.java, and add logic here. It does not make sence to have an extra class
@@ -899,15 +900,13 @@ public class MainActivity extends AppCompatActivity {
                     //change header text
                     textview_ti_header.setText(username);
                     return "OK";
+                } else if (!users.get(i).username.equals(username)) {
+                    userMessage = "FEHLER: Der Benutzer wurde nicht gefunden";
                 } else if (users.get(i).username.equals(username) && !users.get(i).password.equals(password)) {
-                    return "FEHLER: falsches Passwort";
-                } else {
-                    //TODO: return user not found
-                    return "FEHLER: Der Benutzer wurde nicht gefunden";
+                    userMessage = "FEHLER: falsches Passwort";
                 }
-
             }
-            return username;
+            return userMessage;
         }
     }
 
