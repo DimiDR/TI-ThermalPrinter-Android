@@ -75,8 +75,8 @@ public class MainActivity extends AppCompatActivity {
     //    private final String domain = "https://dimitrir14.sg-host.com"; //TODO change
 //    private static  String domain = "https://bestellen.primavera-pizza-wickede.de";
     private boolean userSelected = false; // TODO: no buttons should work if user is not selected
-    private static  String domain_shop = "";
-    private static  String domain_website = "";
+    private static String domain_shop = "";
+    private static String domain_website = "";
     private static String username = "";
     private static String tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
     private static String tiDashboardURL = domain_shop + "/admin";
@@ -215,6 +215,16 @@ public class MainActivity extends AppCompatActivity {
                 items[0] = "Default printer";
                 int i = 0;
                 for (BluetoothConnection device : bluetoothDevicesList) {
+                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                        // TODO: Consider calling
+                        //    ActivityCompat#requestPermissions
+                        // here to request the missing permissions, and then overriding
+                        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                        //                                          int[] grantResults)
+                        // to handle the case where the user grants the permission. See the documentation
+                        // for ActivityCompat#requestPermissions for more details.
+                        return;
+                    }
                     items[++i] = device.getDevice().getName();
                 }
 
@@ -813,6 +823,7 @@ public class MainActivity extends AppCompatActivity {
                     //clear the id, so that the printing of open orders can be restarted
                     IdManager.clearIds(context);
                     printedOrders.clear();
+//                    AsyncTask tast = new WebServiceTask().execute(tiOrdersEndpointURL); //TODO test printing initial requests immediately
                     dismiss();
                 }
             });

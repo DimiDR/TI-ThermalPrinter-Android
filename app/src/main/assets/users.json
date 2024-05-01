@@ -7,10 +7,10 @@
       "domain_website": "https://primavera-pizza-wickede.de"
     },
     {
-      "username": "user2",
-      "password": "password2",
-      "domain_shop": "https://bestellen.primavera-pizza-wickede.de",
-      "domain_website": "https://bestellen.primavera-pizza-wickede.de"
+      "username": "testshop",
+      "password": "pw2",
+      "domain_shop": "https://dimitrir14.sg-host.com",
+      "domain_website": "https://dimitrir14.sg-host.com"
     }
   ]
 }
