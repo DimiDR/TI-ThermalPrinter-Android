@@ -689,15 +689,29 @@ public class MainActivity extends AppCompatActivity {
             JSONObject order = dataArray.getJSONObject(i);
             String orderId = order.getString("id");
 
-            if (!printedOrders.contains(orderId)) {
-                JSONObject attributes = order.getJSONObject("attributes");
-                JSONObject status = attributes.getJSONObject("status");
-                int statusId = status.getInt("status_id"); // initial order
+            //TODO add a call to get the categories of order item and add to json
+            // this can be used to order the orders by category on the print
+            // add only the first category to the json to prevent ordering in two different categories
+            // add to order_menus[i].category
+            // make a call to get the categories
 
-                if (statusId == 1) {
-                    printableOrders.put(order);
-                }
+//        print special order ID for testing TODO deactivate
+            if (orderId.equals("70")) {
+                printableOrders.put(order);
+                return printableOrders;
             }
+
+//TODO: activate
+//            if (!printedOrders.contains(orderId)) {
+//                JSONObject attributes = order.getJSONObject("attributes");
+//                JSONObject status = attributes.getJSONObject("status");
+//                int statusId = status.getInt("status_id"); // initial order
+//
+//                if (statusId == 1) {
+//                    printableOrders.put(order);
+//                }
+//            }
+
         }
         return printableOrders;
     }
@@ -747,7 +761,7 @@ public class MainActivity extends AppCompatActivity {
                 case "LandingPage":
                     url = tiLandingPage;
                     break;
-                case "APIEndpoint":
+                case "APIEndpoint": //TODO why do I need to open API on the webpage?
                     url = tiOrdersEndpointURL;
                     break;
                 case "KitchenView":
