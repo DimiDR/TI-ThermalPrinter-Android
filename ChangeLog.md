@@ -2,6 +2,8 @@
 - multivendor implementation. Now different vendors can login and use their IDs. The IDs and PW are saved in users.json
 - landscape mode crashed on later android versions. No error to be seen. Maybe an emulator problem.
 - Need to get categories of menu. I need to get only the first category, as it is an array. The print should be ordered by categories
+- disable button is user is not logged in
+- servicetask need to be switched to new method https://stackoverflow.com/questions/58767733/the-asynctask-api-is-deprecated-in-android-11-what-are-the-alternatives
 
 # V0.2 15.03.2024
 UI updated, Popup for print reset added.
