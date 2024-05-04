@@ -76,14 +76,16 @@ public class MainActivity extends AppCompatActivity {
     //    private final String domain = "https://dimitrir14.sg-host.com"; //TODO change
 //    private static  String domain = "https://bestellen.primavera-pizza-wickede.de";
     private boolean userSelected = false; // TODO: no buttons should work if user is not selected
-    private static String domain_shop = "";
+    private static String domain_shop;
     private static String domain_website = "";
     private static String username = "";
-    private static String tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
-    private static String tiDashboardURL = domain_shop + "/admin";
-    private static String tiKitchenViewURL = domain_shop + "/admin/thoughtco/kitchendisplay/summary/view/1";
-    private static String tiLandingPage = domain_website + "/";
-    private final String tiUpdates = "https://jandiweb.de/integration/";
+    private static String tiOrdersEndpointURL = "";
+    private static String tiDashboardURL  = "";
+    private static String tiKitchenViewURL  = "";
+    private static String tiLandingPage  = "";
+    private static String tiMenusEndpointURL = "";
+    private static String tiCategoriesEndpointURL = "";
+    private final String tiUpdates  = "";
     private static List<UserUtils.User> users;
     MediaPlayer mediaPlayer;
     String resultJson;
@@ -147,6 +149,8 @@ public class MainActivity extends AppCompatActivity {
             //TODO: deactivate all buttons except Login in XML
             //TODO: user2 kann ich einloggen
             textview_ti_header.setText(savedUsername);
+            tiMenusEndpointURL = savedDomainShop + "/api/menus?include=categories&pageLimit=5000";
+            tiCategoriesEndpointURL = savedDomainShop + "/api/categories";
         }
     }
 
@@ -451,7 +455,7 @@ public class MainActivity extends AppCompatActivity {
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                new WebServiceTask().execute(tiOrdersEndpointURL);
+                 new WebServiceTask().execute(tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
             }
         }, 0, period);
 
@@ -474,16 +478,95 @@ public class MainActivity extends AppCompatActivity {
         isServiceActive = false;
     }
 
-    private class WebServiceTask extends AsyncTask<String, Void, String> {
+//    private class WebServiceTask extends AsyncTask<String, Void, String> {
+//
+//        @Override
+//        protected String doInBackground(String... urls) {
+//            HttpURLConnection urlConnection = null;
+//            BufferedReader reader = null;
+//            String resultJson = null;
+//
+//            try {
+//                URL url = new URL(urls[0]);
+//                urlConnection = (HttpURLConnection) url.openConnection();
+//                urlConnection.setRequestMethod("GET");
+//                urlConnection.connect();
+//
+//                InputStream inputStream = urlConnection.getInputStream();
+//                StringBuilder buffer = new StringBuilder();
+//                if (inputStream == null) {
+//                    return null;
+//                }
+//                reader = new BufferedReader(new InputStreamReader(inputStream));
+//
+//                String line;
+//                while ((line = reader.readLine()) != null) {
+//                    buffer.append(line).append("\n");
+//                }
+//
+//                if (buffer.length() == 0) {
+//                    return null;
+//                }
+//                resultJson = buffer.toString();
+//            } catch (IOException e) {
+//                Log.e("MainActivity", "Error ", e);
+//                return null;
+//            } finally {
+//                if (urlConnection != null) {
+//                    urlConnection.disconnect();
+//                }
+//                if (reader != null) {
+//                    try {
+//                        reader.close();
+//                    } catch (final IOException e) {
+//                        Log.e("MainActivity", "Error closing stream", e);
+//                    }
+//                }
+//            }
+//            return resultJson;
+//        }
+//
+//        @Override
+//        protected void onPostExecute(String result) {
+//            String orderID;
+//            JSONObject dataObject;
+//            // Process the result here
+//            if (result != null) {
+//                // Do something with the result
+//                Log.d("WebServiceResponse", result);
+//
+//                // Call printDocketCustomerReceipt method
+//                //printDocketCustomerReceipt(result);
+//                JSONObject jsonObject = null;
+//                try {
+//                    jsonObject = new JSONObject(result);
+//                    JSONArray dataArray  = DocketStringModeler.filterPrintableOrders(jsonObject.getJSONArray("data"));
+//                    for (int i = 0; i < dataArray.length(); i++) {
+//                        dataObject = dataArray.getJSONObject(i);
+//                        orderID = dataObject.getString("id");
+//                        TIJobPrintBluetooth(docketStringModeler.startPrinting(dataObject, mediaPlayer), orderID);
+//                    }
+//
+//                } catch (JSONException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            } else {
+//                Log.e("WebServiceResponse", "Failed to fetch data from web service");
+//            }
+//        }
+//    }
 
-        @Override
-        protected String doInBackground(String... urls) {
+private class WebServiceTask extends AsyncTask<String, Void, String[]> {
+
+    @Override
+    protected String[] doInBackground(String... urls) {
+        String[] results = new String[urls.length];
+        for (int i = 0; i < urls.length; i++) {
             HttpURLConnection urlConnection = null;
             BufferedReader reader = null;
-            String resultJson = null;
 
             try {
-                URL url = new URL(urls[0]);
+                URL url = new URL(urls[i]);
                 urlConnection = (HttpURLConnection) url.openConnection();
                 urlConnection.setRequestMethod("GET");
                 urlConnection.connect();
@@ -503,9 +586,9 @@ public class MainActivity extends AppCompatActivity {
                 if (buffer.length() == 0) {
                     return null;
                 }
-                resultJson = buffer.toString();
+                results[i] = buffer.toString();
             } catch (IOException e) {
-                Log.e("MainActivity", "Error ", e);
+                e.printStackTrace();
                 return null;
             } finally {
                 if (urlConnection != null) {
@@ -515,32 +598,31 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         reader.close();
                     } catch (final IOException e) {
-                        Log.e("MainActivity", "Error closing stream", e);
+                        e.printStackTrace();
                     }
                 }
             }
-            return resultJson;
         }
+        return results;
+    }
 
-        @Override
-        protected void onPostExecute(String result) {
+    @Override
+    protected void onPostExecute(String[] results) {
+        // results[0] contains the response from the orders API
+        // results[1] contains the response from the menus API
             String orderID;
-            JSONObject dataObject;
-            // Process the result here
-            if (result != null) {
-                // Do something with the result
-                Log.d("WebServiceResponse", result);
-
-                // Call printDocketCustomerReceipt method
-                //printDocketCustomerReceipt(result);
-                JSONObject jsonObject = null;
+            JSONObject dataObjectOrders;
+            if (results[0] != null && results[1] != null) {
                 try {
-                    jsonObject = new JSONObject(result);
-                    JSONArray dataArray  = DocketStringModeler.filterPrintableOrders(jsonObject.getJSONArray("data"));
-                    for (int i = 0; i < dataArray.length(); i++) {
-                        dataObject = dataArray.getJSONObject(i);
-                        orderID = dataObject.getString("id");
-                        TIJobPrintBluetooth(docketStringModeler.startPrinting(dataObject, mediaPlayer), orderID);
+                    JSONObject jsonObjectOrders = new JSONObject(results[0]);
+                    JSONObject jsonObjectMenus = new JSONObject(results[1]);
+                    JSONObject jsonObjectCategories = new JSONObject(results[2]);
+//                    https://bestellen.primavera-pizza-wickede.de/api/menus?include=categories&pageLimit=5000
+                    JSONArray dataArrayOrders  = DocketStringModeler.filterPrintableOrders(jsonObjectOrders.getJSONArray("data"));
+                    for (int i = 0; i < dataArrayOrders.length(); i++) {
+                        dataObjectOrders = dataArrayOrders.getJSONObject(i);
+                        orderID = dataObjectOrders.getString("id");
+                        TIJobPrintBluetooth(docketStringModeler.startPrinting(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer), orderID);
                     }
 
                 } catch (JSONException e) {
@@ -549,10 +631,8 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 Log.e("WebServiceResponse", "Failed to fetch data from web service");
             }
-        }
     }
-
-
+}
 
 
 //    private void printDocketCustomerReceipt(String json) {

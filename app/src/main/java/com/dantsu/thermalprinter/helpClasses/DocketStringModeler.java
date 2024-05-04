@@ -43,19 +43,24 @@ public class DocketStringModeler {
     MediaPlayer mediaPlayer;
     JSONObject categories;
     String customerReceipt = "Placeholder";
+    JSONObject  jsonObjectMenus;
+    JSONObject jsonObjectCategories;
 
 
-    public String startPrinting(JSONObject dataObject, MediaPlayer mediaPlayer){
+    public String startPrinting(JSONObject dataObject,   JSONObject  jsonObjectMenus, JSONObject jsonObjectCategories, MediaPlayer mediaPlayer){
         this.orders = dataObject;
         this.mediaPlayer = mediaPlayer;
+        this.jsonObjectMenus = jsonObjectMenus;
+        this.jsonObjectCategories = jsonObjectCategories;
         //TODO I need to block this, at this is in background and wait until its finished
-        try {
-            String str_result = new GetMenuCategoryTask().execute().get(); // get categories of order
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+//        try {
+//            String str_result = new GetMenuCategoryTask().execute().get(); // get categories of order
+//        } catch (ExecutionException e) {
+//            throw new RuntimeException(e);
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
+        printDocketCustomerReceipt();
         return customerReceipt;
     }
 
@@ -129,6 +134,17 @@ public class DocketStringModeler {
                     // menu options
                     JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
                     for (int k = 0; k < menu_options_array.length(); k++) {
+                        //TODO hier Schleife für Categorie Gruppierung. In der Gruppierungsschleife ein IF, ob Gruppierung existiert
+                        // dann alles sammeln was dazu gehört. Dann Gruppierung und alles reinschreiben. Man brauch ein Hilfs String Array.
+                        // Nach dem IF nochmal duch den Array schleifen fürs reinschreiben
+//                        Orders:
+//                        order_menus[i].menu_id = 105
+//                        Menus:
+//                        menus[i].relationships.categories.data[0].type=="categories" (filter)
+//                                menus[i].relationships.categories.data[0].id = 16
+//                        Category:
+//                        category.id == 16
+//                        category[i].attributes.name
                         JSONObject menu_option_object = menu_options_array.getJSONObject(k);
                         String order_option_name = menu_option_object.getString("order_option_name");
                         String order_option_price = FormatStringValue(menu_option_object.getString("order_option_price"));
@@ -295,92 +311,92 @@ public class DocketStringModeler {
         return print_info;
     }
 
-    private class GetMenuCategoryTask extends AsyncTask<String, Void, String> {
+//    private class GetMenuCategoryTask extends AsyncTask<String, Void, String> {
+//
+//        @Override
+//        protected String doInBackground(String... params) {
+////            String orderID = params[0];
+//            HttpURLConnection urlConnection = null;
+//            BufferedReader reader = null;
+//            String resultJson = null;
+//
+//            try {
+//                // will get all menu elements with all categories
+//                //TODO switch to dynamic domain
+//                URL url = new URL("https://bestellen.primavera-pizza-wickede.de/api/menus/?include=categories&pageLimit=5000");
+//                urlConnection = (HttpURLConnection) url.openConnection();
+//                urlConnection.setRequestMethod("GET");
+//                urlConnection.connect();
+//
+//                InputStream inputStream = urlConnection.getInputStream();
+//                StringBuilder buffer = new StringBuilder();
+//                if (inputStream == null) {
+//                    return null;
+//                }
+//                reader = new BufferedReader(new InputStreamReader(inputStream));
+//
+//                String line;
+//                while ((line = reader.readLine()) != null) {
+//                    buffer.append(line).append("\n");
+//                }
+//
+//                if (buffer.length() == 0) {
+//                    return null;
+//                }
+//                resultJson = buffer.toString();
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//                return null;
+//            } finally {
+//                if (urlConnection != null) {
+//                    urlConnection.disconnect();
+//                }
+//                if (reader != null) {
+//                    try {
+//                        reader.close();
+//                    } catch (final IOException e) {
+//                        e.printStackTrace();
+//                    }
+//                }
+//            }
+//            //TODO get category of order from result and return only category
+////            return extractCategoryFromJson(resultJson);
+//            return resultJson;
+//        }
+//
+//        @Override
+//        protected void onPostExecute(String result) {
+//            // Process the result here
+//            try {
+//                categories = new JSONObject(result);
+//                printDocketCustomerReceipt();
+//            } catch (JSONException e) {
+//                throw new RuntimeException(e);
+//            }
+//        }
+//    }
 
-        @Override
-        protected String doInBackground(String... params) {
-//            String orderID = params[0];
-            HttpURLConnection urlConnection = null;
-            BufferedReader reader = null;
-            String resultJson = null;
-
-            try {
-                // will get all menu elements with all categories
-                //TODO switch to dynamic domain
-                URL url = new URL("https://bestellen.primavera-pizza-wickede.de/api/menus/?include=categories&pageLimit=5000");
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestMethod("GET");
-                urlConnection.connect();
-
-                InputStream inputStream = urlConnection.getInputStream();
-                StringBuilder buffer = new StringBuilder();
-                if (inputStream == null) {
-                    return null;
-                }
-                reader = new BufferedReader(new InputStreamReader(inputStream));
-
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    buffer.append(line).append("\n");
-                }
-
-                if (buffer.length() == 0) {
-                    return null;
-                }
-                resultJson = buffer.toString();
-            } catch (IOException e) {
-                e.printStackTrace();
-                return null;
-            } finally {
-                if (urlConnection != null) {
-                    urlConnection.disconnect();
-                }
-                if (reader != null) {
-                    try {
-                        reader.close();
-                    } catch (final IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-            //TODO get category of order from result and return only category
-//            return extractCategoryFromJson(resultJson);
-            return resultJson;
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            // Process the result here
-            try {
-                categories = new JSONObject(result);
-                printDocketCustomerReceipt();
-            } catch (JSONException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    private String extractCategoryFromJson(String json) {
-        //TODO get category of order from result and return only category
-        //TODO its an async task in background. I need to put into shared preferences to ensure execution
-        // I can also execute some function in DocketStringModeler, its executes the background task and
-        // its executes the docket creation in the onPostExecute method
-        // in post execute it will get the JSON from main activity for Orders
-        // and the JSON for Categories
-        // in mainActivity I could use the same background task to get all Orders and immidiately get all Categories
-        String categoryName;
-        JSONObject dataObject;
-        JSONObject jsonObject;
-        try {
-            jsonObject = new JSONObject(json);
-            JSONArray dataArray  =jsonObject.getJSONArray("included");
-            dataObject = dataArray.getJSONObject(0); // only the first category
-            JSONObject attributes = dataObject.getJSONObject("attributes");
-            categoryName = attributes.getString("name");
-        } catch (JSONException e) {
-            throw new RuntimeException(e);
-        }
-
-        return categoryName;
-    }
+//    private String extractCategoryFromJson(String json) {
+//        //TODO get category of order from result and return only category
+//        //TODO its an async task in background. I need to put into shared preferences to ensure execution
+//        // I can also execute some function in DocketStringModeler, its executes the background task and
+//        // its executes the docket creation in the onPostExecute method
+//        // in post execute it will get the JSON from main activity for Orders
+//        // and the JSON for Categories
+//        // in mainActivity I could use the same background task to get all Orders and immidiately get all Categories
+//        String categoryName;
+//        JSONObject dataObject;
+//        JSONObject jsonObject;
+//        try {
+//            jsonObject = new JSONObject(json);
+//            JSONArray dataArray  =jsonObject.getJSONArray("included");
+//            dataObject = dataArray.getJSONObject(0); // only the first category
+//            JSONObject attributes = dataObject.getJSONObject("attributes");
+//            categoryName = attributes.getString("name");
+//        } catch (JSONException e) {
+//            throw new RuntimeException(e);
+//        }
+//
+//        return categoryName;
+//    }
 }
