@@ -4,6 +4,9 @@
 - Need to get categories of menu. I need to get only the first category, as it is an array. The print should be ordered by categories
 - disable button is user is not logged in
 - servicetask need to be switched to new method https://stackoverflow.com/questions/58767733/the-asynctask-api-is-deprecated-in-android-11-what-are-the-alternatives
+- https://stackoverflow.com/questions/12575068/how-to-get-the-result-of-onpostexecute-to-main-activity-because-asynctask-is-a
+- deactivate all buttons if not logged in
+- get menu categories /api/menus/:menu_id?include=categories
 
 # V0.2 15.03.2024
 UI updated, Popup for print reset added.

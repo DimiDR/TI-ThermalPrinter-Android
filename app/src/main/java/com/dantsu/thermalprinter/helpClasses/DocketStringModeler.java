@@ -3,6 +3,7 @@ package com.dantsu.thermalprinter.helpClasses;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.media.MediaPlayer;
+import android.os.AsyncTask;
 import android.util.DisplayMetrics;
 
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
@@ -14,6 +15,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -21,6 +28,7 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.concurrent.ExecutionException;
 
 public class DocketStringModeler {
     private static Set<String> printedOrders;
@@ -31,8 +39,27 @@ public class DocketStringModeler {
     String printCustomer = "";
     String printPayment = "";
     boolean isGoogleMaps = true;
+    JSONObject orders;
+    MediaPlayer mediaPlayer;
+    JSONObject categories;
+    String customerReceipt = "Placeholder";
 
-    public String printDocketCustomerReceipt(JSONObject dataObject, MediaPlayer mediaPlayer) {
+
+    public String startPrinting(JSONObject dataObject, MediaPlayer mediaPlayer){
+        this.orders = dataObject;
+        this.mediaPlayer = mediaPlayer;
+        //TODO I need to block this, at this is in background and wait until its finished
+        try {
+            String str_result = new GetMenuCategoryTask().execute().get(); // get categories of order
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return customerReceipt;
+    }
+
+    private void printDocketCustomerReceipt() {
         try {
 //            JSONObject jsonObject = new JSONObject(json);
 //            JSONArray dataArray = filterPrintableOrders(jsonObject.getJSONArray("data"));
@@ -45,8 +72,9 @@ public class DocketStringModeler {
             // main data object with single orders
 //            for (int i = 0; i < dataArray.length(); i++) {
 //                JSONObject dataObject = dataArray.getJSONObject(i);
-                String orderID = dataObject.getString("id");
-                JSONObject orderAttributes = dataObject.getJSONObject("attributes");
+                String orderID = orders.getString("id");
+//                new GetMenuCategoryTask().execute(orderID); // get category of order
+                JSONObject orderAttributes = orders.getJSONObject("attributes");
                 String payment = orderAttributes.getString("payment");//stripe, cod, paypalexpress
                 String order_type = orderAttributes.getString("order_type");
                 String order_time_is_asap = orderAttributes.getString("order_time_is_asap");
@@ -154,7 +182,8 @@ public class DocketStringModeler {
                         "[L]====================================\n" +
                         "[L]Kundeninformation\n" +
                         printCustomer;
-                //printOutput = "";
+                this.customerReceipt = printOutput;
+                printOutput = "";
                 printHeader = "";
                 printOrder = "";
                 printAllCosts = "";
@@ -164,7 +193,7 @@ public class DocketStringModeler {
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        return printOutput;
+//        return printOutput;
     }
 
 
@@ -264,5 +293,94 @@ public class DocketStringModeler {
                     "[C]<qrcode size='20'>https://jandiweb.de/</qrcode>\n";
         }
         return print_info;
+    }
+
+    private class GetMenuCategoryTask extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(String... params) {
+//            String orderID = params[0];
+            HttpURLConnection urlConnection = null;
+            BufferedReader reader = null;
+            String resultJson = null;
+
+            try {
+                // will get all menu elements with all categories
+                //TODO switch to dynamic domain
+                URL url = new URL("https://bestellen.primavera-pizza-wickede.de/api/menus/?include=categories&pageLimit=5000");
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setRequestMethod("GET");
+                urlConnection.connect();
+
+                InputStream inputStream = urlConnection.getInputStream();
+                StringBuilder buffer = new StringBuilder();
+                if (inputStream == null) {
+                    return null;
+                }
+                reader = new BufferedReader(new InputStreamReader(inputStream));
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    buffer.append(line).append("\n");
+                }
+
+                if (buffer.length() == 0) {
+                    return null;
+                }
+                resultJson = buffer.toString();
+            } catch (IOException e) {
+                e.printStackTrace();
+                return null;
+            } finally {
+                if (urlConnection != null) {
+                    urlConnection.disconnect();
+                }
+                if (reader != null) {
+                    try {
+                        reader.close();
+                    } catch (final IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            //TODO get category of order from result and return only category
+//            return extractCategoryFromJson(resultJson);
+            return resultJson;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            // Process the result here
+            try {
+                categories = new JSONObject(result);
+                printDocketCustomerReceipt();
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private String extractCategoryFromJson(String json) {
+        //TODO get category of order from result and return only category
+        //TODO its an async task in background. I need to put into shared preferences to ensure execution
+        // I can also execute some function in DocketStringModeler, its executes the background task and
+        // its executes the docket creation in the onPostExecute method
+        // in post execute it will get the JSON from main activity for Orders
+        // and the JSON for Categories
+        // in mainActivity I could use the same background task to get all Orders and immidiately get all Categories
+        String categoryName;
+        JSONObject dataObject;
+        JSONObject jsonObject;
+        try {
+            jsonObject = new JSONObject(json);
+            JSONArray dataArray  =jsonObject.getJSONArray("included");
+            dataObject = dataArray.getJSONObject(0); // only the first category
+            JSONObject attributes = dataObject.getJSONObject("attributes");
+            categoryName = attributes.getString("name");
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+
+        return categoryName;
     }
 }

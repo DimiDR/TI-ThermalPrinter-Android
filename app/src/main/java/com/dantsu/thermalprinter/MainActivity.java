@@ -540,7 +540,7 @@ public class MainActivity extends AppCompatActivity {
                     for (int i = 0; i < dataArray.length(); i++) {
                         dataObject = dataArray.getJSONObject(i);
                         orderID = dataObject.getString("id");
-                        TIJobPrintBluetooth(docketStringModeler.printDocketCustomerReceipt(dataObject, mediaPlayer), orderID);
+                        TIJobPrintBluetooth(docketStringModeler.startPrinting(dataObject, mediaPlayer), orderID);
                     }
 
                 } catch (JSONException e) {
@@ -551,6 +551,9 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+
+
 
 //    private void printDocketCustomerReceipt(String json) {
 //        showToast("Überwachung ist AN");
