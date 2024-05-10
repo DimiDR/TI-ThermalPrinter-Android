@@ -137,6 +137,7 @@ public class DocketStringModeler {
                         //TODO hier Schleife für Categorie Gruppierung. In der Gruppierungsschleife ein IF, ob Gruppierung existiert
                         // dann alles sammeln was dazu gehört. Dann Gruppierung und alles reinschreiben. Man brauch ein Hilfs String Array.
                         // Nach dem IF nochmal duch den Array schleifen fürs reinschreiben
+                        // es wäre einfacher in MainActivity das OrderJson zu erweitern um Categorie und danach zu sortieren den Subarray
 //                        Orders:
 //                        order_menus[i].menu_id = 105
 //                        Menus:
