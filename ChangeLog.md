@@ -1,10 +1,10 @@
 # V0.4 01.05.2024
 - multivendor implementation. Now different vendors can login and use their IDs. The IDs and PW are saved in users.json - done
 - landscape mode crashed on later android versions. No error to be seen. Maybe an emulator problem.
-- Need to get categories of menu. I need to get only the first category, as it is an array. The print should be ordered by categories
+- Need to get categories of menu. I need to get only the first category, as it is an array. The print should be ordered by categories - done
 - disable button is user is not logged in
 - servicetask need to be switched to new method https://stackoverflow.com/questions/58767733/the-asynctask-api-is-deprecated-in-android-11-what-are-the-alternatives
-- https://stackoverflow.com/questions/12575068/how-to-get-the-result-of-onpostexecute-to-main-activity-because-asynctask-is-a
+- https://stackoverflow.com/questions/12575068/how-to-get-the-result-of-onpostexecute-to-main-activity-because-asynctask-is-a - hold
 - deactivate all buttons if not logged in
 - get menu categories /api/menus/:menu_id?include=categories - done
 

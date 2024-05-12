@@ -157,8 +157,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
+        setContentView(R.layout.activity_main);
         super.onConfigurationChanged(newConfig);
-        setContentView(R.layout.activity_main); // Adjust to your main layout
     }
 
 
