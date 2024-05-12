@@ -216,7 +216,7 @@ public JSONObject addInformation(){
                     printOrder += "[L]<b> " + menusQuantity + "x - " + menusName + ", [R]"
                             + menusSubtotal + "€</b> \n";
                     if (menusComment != null && !menusComment.isEmpty()) {
-                        printOrder += "[L] Kommentar: " + menusComment + "\n";
+                        printOrder += "[L]  Kommentar: " + menusComment + "\n";
                     }
                     // menu options
                     JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
@@ -236,12 +236,13 @@ public JSONObject addInformation(){
                         JSONObject menu_option_object = menu_options_array.getJSONObject(k);
                         String order_option_name = menu_option_object.getString("order_option_name");
                         String order_option_price = FormatStringValue(menu_option_object.getString("order_option_price"));
-                        printOrder += "[L]" + order_option_name + ", [R]" + order_option_price + "€\n"
-                                + "[L]\n";
+                        printOrder += "[L]  Option: " + order_option_name + ", [R]" + order_option_price + "€\n";
+//                                + "[L]\n";
                     }
                 }
                 //all costs
                 JSONArray order_totals_array = orderAttributes.getJSONArray("order_totals");
+                printAllCosts += "[L]====================================\n";
                 for (int j = 0; j < order_totals_array.length(); j++) {
                     JSONObject order_totals_object = order_totals_array.getJSONObject(j);
                     // assumption, that the JSON is already sorted by priority. The same sequence will be taken
@@ -275,7 +276,7 @@ public JSONObject addInformation(){
                         "[L]Google Adresse Scannen \n";
 
                 if (isGoogleMaps) {
-                    printCustomer += "[C]<qrcode size='20'>" + google_api_url + "</qrcode>";
+                    printCustomer += "[L]<qrcode size='20'>" + google_api_url + "</qrcode>";
                 }
 
                 // create full print String
