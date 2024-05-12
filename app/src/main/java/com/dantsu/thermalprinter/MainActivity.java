@@ -153,6 +153,11 @@ public class MainActivity extends AppCompatActivity {
             tiMenusEndpointURL = savedDomainShop + "/api/menus?include=categories&pageLimit=5000";
             tiCategoriesEndpointURL = savedDomainShop + "/api/categories";
         }
+        //TODO: all buttons needs to have a name so I can set to inactive
+//        if (savedUsername.isEmpty()) {
+        //TODO: here deactivate buttons
+//        }
+
     }
 
     @Override
@@ -527,7 +532,7 @@ private class WebServiceTask extends AsyncTask<String, Void, String[]> {
                     String validCredentials = checkValidCredentials(username, password);
                     if (validCredentials.equals("OK")) {
 //                        Toast.makeText(getActivity(), "Nutzer gefunden", Toast.LENGTH_SHORT).show();
-
+                        //TODO: activate all buttons
                         dismiss();
                     } else {
                         // activate the error text in the popup
