@@ -23,8 +23,12 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.TimeZone;
@@ -52,16 +56,87 @@ public class DocketStringModeler {
         this.mediaPlayer = mediaPlayer;
         this.jsonObjectMenus = jsonObjectMenus;
         this.jsonObjectCategories = jsonObjectCategories;
-        //TODO I need to block this, at this is in background and wait until its finished
-//        try {
-//            String str_result = new GetMenuCategoryTask().execute().get(); // get categories of order
-//        } catch (ExecutionException e) {
-//            throw new RuntimeException(e);
-//        } catch (InterruptedException e) {
-//            throw new RuntimeException(e);
-//        }
+
+        // add category id and category name to orders for printing
+        addInformation();
         printDocketCustomerReceipt();
         return customerReceipt;
+    }
+
+public JSONObject addInformation(){
+    try {
+        JSONObject orderAttributes = orders.getJSONObject("attributes");
+        JSONArray order_menus_array = orderAttributes.getJSONArray("order_menus");
+        JSONArray menus_array = jsonObjectMenus.getJSONArray("data");
+        JSONArray categories_array = jsonObjectCategories.getJSONArray("data");
+
+        for (int i = 0; i < order_menus_array.length(); i++) {
+            JSONObject order_menus_object = order_menus_array.getJSONObject(i);
+            String menu_id = order_menus_object.getString("menu_id");
+            JSONObject menu = filterById(menus_array, menu_id);
+            String category_id = menu.getJSONObject("relationships").
+                    getJSONObject("categories").getJSONArray("data").
+                    getJSONObject(0).getString("id");
+            JSONObject category = filterById(categories_array, category_id);
+            String category_name = category.getJSONObject("attributes").getString("name");
+            order_menus_object.put("category_id", category_id);
+            order_menus_object.put("category_name", category_name);
+        }
+    } catch (JSONException e) {
+        throw new RuntimeException(e);
+    }
+    return orders;
+}
+
+    public JSONObject filterById(JSONArray jsonArray, String targetId) {
+        for (int i = 0; i < jsonArray.length(); i++) {
+            try {
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                String id = null;
+                id = jsonObject.getString("id");
+                if (id.equals(targetId)) {
+                    return jsonObject;
+                }
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return null; // Return null or a default JSONObject if no match is found
+    }
+
+    public JSONArray sortJSONArray(JSONArray jsonArray) {
+        List<JSONObject> jsonList = new ArrayList<JSONObject>();
+        for (int i = 0; i < jsonArray.length(); i++) {
+            try {
+                jsonList.add(jsonArray.getJSONObject(i));
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        Collections.sort(jsonList, new Comparator<JSONObject>() {
+            @Override
+            public int compare(JSONObject jsonObjectA, JSONObject jsonObjectB) {
+                String valA = new String();
+                String valB = new String();
+
+                try {
+                    valA = (String) jsonObjectA.get("category_id");
+                    valB = (String) jsonObjectB.get("category_id");
+                }
+                catch (JSONException e) {
+                    // do something
+                }
+
+                return valA.compareTo(valB);
+                // if you want to change the sort order, simply use the following:
+                // return -valA.compareTo(valB);
+            }
+        });
+
+        JSONArray sortedJsonArray = new JSONArray(jsonList);
+
+        return sortedJsonArray;
     }
 
     private void printDocketCustomerReceipt() {
@@ -103,33 +178,45 @@ public class DocketStringModeler {
                 // check if delivery is later, print bigger if delivery later
                 String order_type_time = "";
                 if (order_time_is_asap.equals("false")) {
-                    order_type_time = "[C]<font size='tall'><b>Gewünschte Zeit: " + " am " + order_date_time + "</b></font>\n";
+                    order_type_time = "[C]<b>Gewünschte Zeit: " + " am " + order_date_time + "</b>\n";
+//                    order_type_time = "[C]<font size='tall'><b>Gewünschte Zeit: " + " am " + order_date_time + "</b></font>\n";
                 } else {
                     order_type_time = "[C] Sofort: " + " am " + order_date_time + "\n";
                 }
                 printHeader = "[C]<u><font size='big'> Primavera </font></u>\n" +
                         "[L]<font size='big'>Bestellung Nr." + orderId + "</font>\n" +
                         "[L]\n" +
-                        "[L]<font size='tall'><b>" + order_type + " - " + payment + " - <u type='double'>" +
-                        orderTotal + "€ </u></b><font size='tall'>\n" +
+                        "[L]<b>" + order_type + " - " + payment + " - <u type='double'>" +
+                        orderTotal + "</u>€ </b>\n" +
+//                        "[L]<font size='tall'><b>" + order_type + " - " + payment + " - <u type='double'>" +
+//                        orderTotal + "</u>€ </b><font>\n" +
 //                        "[C]" + order_type + " am " + order_date_time + "\n" +
                         order_type_time +
                         "[C]\n" +
-                        "[L]====================================\n" +
-                        "[L]\n";
+                        "[L]====================================\n";
+//                        "[L]\n";
 
-                // menu entries
-                JSONArray order_menus_array = orderAttributes.getJSONArray("order_menus");
+                // menu entries, need to sort by category so on the print, a category is visible only once
+                JSONArray order_menus_array = sortJSONArray(orderAttributes.getJSONArray("order_menus"));
+                String category_id_help = "";
                 for (int j = 0; j < order_menus_array.length(); j++) {
                     JSONObject order_menus_object = order_menus_array.getJSONObject(j);
                     String menusName = order_menus_object.getString("name");
                     String menusSubtotal = FormatStringValue(order_menus_object.getString("subtotal"));
                     String menusQuantity = order_menus_object.getString("quantity");
                     String menusComment = order_menus_object.getString("comment");
-                    printOrder += "[L]<b>" + menusQuantity + "x - " + menusName + ", Preis "
+                    String category_id = order_menus_object.getString("category_id");
+                    String category_name = order_menus_object.getString("category_name");
+                    if (!category_id.equals(category_id_help)) {
+                        printOrder += "[L]__________________ \n";
+                        printOrder += "[L]<b>" + category_name + "</b> \n";
+                        category_id_help = category_id;
+                    }
+
+                    printOrder += "[L]<b> " + menusQuantity + "x - " + menusName + ", [R]"
                             + menusSubtotal + "€</b> \n";
                     if (menusComment != null && !menusComment.isEmpty()) {
-                        printOrder += "[L]Kommentar: " + menusComment + "\n";
+                        printOrder += "[L] Kommentar: " + menusComment + "\n";
                     }
                     // menu options
                     JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
@@ -149,7 +236,7 @@ public class DocketStringModeler {
                         JSONObject menu_option_object = menu_options_array.getJSONObject(k);
                         String order_option_name = menu_option_object.getString("order_option_name");
                         String order_option_price = FormatStringValue(menu_option_object.getString("order_option_price"));
-                        printOrder += "[L]" + order_option_name + ", Preis " + order_option_price + "€\n"
+                        printOrder += "[L]" + order_option_name + ", [R]" + order_option_price + "€\n"
                                 + "[L]\n";
                     }
                 }
