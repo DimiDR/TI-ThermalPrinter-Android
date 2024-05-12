@@ -79,6 +79,7 @@ public class MainActivity extends AppCompatActivity {
     private static String domain_shop;
     private static String domain_website = "";
     private static String username = "";
+    private static String shop_name = "";
     private static String tiOrdersEndpointURL = "";
     private static String tiDashboardURL  = "";
     private static String tiKitchenViewURL  = "";
@@ -557,6 +558,7 @@ private class WebServiceTask extends AsyncTask<String, Void, String[]> {
                     // username has to be unique in JSON
                     domain_shop = users.get(i).domain_shop;
                     domain_website = users.get(i).domain_website;
+                    shop_name = users.get(i).shop_name;
                     username = users.get(i).username;
                     tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
                     tiDashboardURL = domain_shop + "/admin";
@@ -566,11 +568,12 @@ private class WebServiceTask extends AsyncTask<String, Void, String[]> {
                     SharedPreferences.Editor editor = sharedPreferences.edit();
                     editor.putString("username", username);
                     editor.putString("password", password);
+                    editor.putString("shop_name", users.get(i).shop_name);
                     editor.putString("domain_shop", users.get(i).domain_shop);
                     editor.putString("domain_website", users.get(i).domain_website);
                     editor.apply();
                     //change header text
-                    textview_ti_header.setText(username);
+                    textview_ti_header.setText(shop_name);
                     return "OK";
                 } else if (!users.get(i).username.equals(username)) {
                     userMessage = "FEHLER: Der Benutzer wurde nicht gefunden";

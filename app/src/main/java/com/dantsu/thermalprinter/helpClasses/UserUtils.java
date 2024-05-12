@@ -29,9 +29,10 @@ public class UserUtils {
                 JSONObject userObject = jsonArray.getJSONObject(i);
                 String username = userObject.getString("username");
                 String password = userObject.getString("password");
+                String shop_name = userObject.getString("shop_name");
                 String domain_shop = userObject.getString("domain_shop");
                 String domain_website = userObject.getString("domain_website");
-                users.add(new User(username, password, domain_shop, domain_website));
+                users.add(new User(username, password, shop_name, domain_shop, domain_website));
             }
 
         } catch (IOException | JSONException e) {
@@ -44,12 +45,14 @@ public class UserUtils {
     public static class User {
         public String username;
         public String password;
+        public String shop_name;
         public String domain_shop;
         public String domain_website;
 
-        public User(String username, String password, String domain_shop, String domain_website) {
+        public User(String username, String password, String shop_name, String domain_shop, String domain_website) {
             this.username = username;
             this.password = password;
+            this.shop_name = shop_name;
             this.domain_shop = domain_shop;
             this.domain_website = domain_website;
         }
