@@ -67,14 +67,19 @@ import com.dantsu.thermalprinter.helpClasses.UserUtils;
 import android.net.Uri;
 
 public class MainActivity extends AppCompatActivity {
-    //TEST BRANCH
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
     private static Context context;
-    private Button button_ti_print;
+    private static Button button_bluetooth_browse;
+    private static Button button_ti_print;
+    private static Button button_ti_clear_ids;
+    private static Button button_ti_kitchen_view;
+    private static Button button_ti_dashboard;
+    private static Button button_ti_updates;
+    private static Button button_ti_landing_page;
+    private static Button button_ti_testprint;
+    private Button button_ti_login;
     private static TextView textview_ti_header;
-    //    private final String domain = "https://dimitrir14.sg-host.com"; //TODO change
-//    private static  String domain = "https://bestellen.primavera-pizza-wickede.de";
     private boolean userSelected = false; // TODO: no buttons should work if user is not selected
     private static String domain_shop;
     private static String domain_website = "";
@@ -97,8 +102,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Button button = (Button) this.findViewById(R.id.button_bluetooth_browse);
-        button.setOnClickListener(view -> browseBluetoothDevice());
+        button_bluetooth_browse = this.findViewById(R.id.button_bluetooth_browse);
+        button_bluetooth_browse.setOnClickListener(view -> browseBluetoothDevice());
         // TCP & USB printing deactivated
         //button = (Button) findViewById(R.id.button_bluetooth);
         //button.setOnClickListener(view -> printBluetooth());
@@ -109,21 +114,21 @@ public class MainActivity extends AppCompatActivity {
         button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
         button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
         textview_ti_header = this.findViewById(R.id.textview_ti_header);
-        button = (Button) this.findViewById(R.id.button_ti_clear_ids);
-        button.setOnClickListener(view -> tiClearIds());
-        button = (Button) this.findViewById(R.id.button_ti_kitchen_view);
-        button.setOnClickListener(view -> openWebpage("KitchenView"));
-        button = (Button) this.findViewById(R.id.button_ti_dashboard);
-        button.setOnClickListener(view -> openWebpage("Administration"));
-        button = (Button) this.findViewById(R.id.button_ti_updates);
-        button.setOnClickListener(view -> openWebpage("Updates"));
-        button = (Button) this.findViewById(R.id.button_ti_landing_page);
-        button.setOnClickListener(view -> openWebpage("LandingPage"));
-        button = (Button) this.findViewById(R.id.button_ti_testprint);
-        button.setOnClickListener(view -> TITestPrinter(true));
-        button.setOnLongClickListener(view -> TITestPrinter(false));
-        button = (Button) this.findViewById(R.id.button_ti_login);
-        button.setOnClickListener(view -> LoginUser());
+        button_ti_clear_ids = this.findViewById(R.id.button_ti_clear_ids);
+        button_ti_clear_ids.setOnClickListener(view -> tiClearIds());
+        button_ti_kitchen_view = this.findViewById(R.id.button_ti_kitchen_view);
+        button_ti_kitchen_view.setOnClickListener(view -> openWebpage("KitchenView"));
+        button_ti_dashboard =  this.findViewById(R.id.button_ti_dashboard);
+        button_ti_dashboard.setOnClickListener(view -> openWebpage("Administration"));
+        button_ti_updates =  this.findViewById(R.id.button_ti_updates);
+        button_ti_updates.setOnClickListener(view -> openWebpage("Updates"));
+        button_ti_landing_page = this.findViewById(R.id.button_ti_landing_page);
+        button_ti_landing_page.setOnClickListener(view -> openWebpage("LandingPage"));
+        button_ti_testprint = this.findViewById(R.id.button_ti_testprint);
+        button_ti_testprint.setOnClickListener(view -> TITestPrinter(true));
+        button_ti_testprint.setOnLongClickListener(view -> TITestPrinter(false));
+        button_ti_login = this.findViewById(R.id.button_ti_login);
+        button_ti_login.setOnClickListener(view -> LoginUser());
         //get the already printed IDs or orders
         context = this;
         printedOrders = IdManager.getIds(context);
@@ -152,6 +157,15 @@ public class MainActivity extends AppCompatActivity {
             textview_ti_header.setText(savedUsername);
             tiMenusEndpointURL = savedDomainShop + "/api/menus?include=categories&pageLimit=5000";
             tiCategoriesEndpointURL = savedDomainShop + "/api/categories";
+            //activate the buttons
+            button_bluetooth_browse.setEnabled(true);
+            button_ti_print.setEnabled(true);
+            button_ti_clear_ids.setEnabled(true);
+            button_ti_kitchen_view.setEnabled(true);
+            button_ti_dashboard.setEnabled(true);
+            button_ti_updates.setEnabled(true);
+            button_ti_landing_page.setEnabled(true);
+            button_ti_testprint.setEnabled(true);
         }
         //TODO: all buttons needs to have a name so I can set to inactive
 //        if (savedUsername.isEmpty()) {
@@ -533,6 +547,15 @@ private class WebServiceTask extends AsyncTask<String, Void, String[]> {
                     if (validCredentials.equals("OK")) {
 //                        Toast.makeText(getActivity(), "Nutzer gefunden", Toast.LENGTH_SHORT).show();
                         //TODO: activate all buttons
+                        //activate the buttons
+                        button_bluetooth_browse.setEnabled(true);
+                        button_ti_print.setEnabled(true);
+                        button_ti_clear_ids.setEnabled(true);
+                        button_ti_kitchen_view.setEnabled(true);
+                        button_ti_dashboard.setEnabled(true);
+                        button_ti_updates.setEnabled(true);
+                        button_ti_landing_page.setEnabled(true);
+                        button_ti_testprint.setEnabled(true);
                         dismiss();
                     } else {
                         // activate the error text in the popup

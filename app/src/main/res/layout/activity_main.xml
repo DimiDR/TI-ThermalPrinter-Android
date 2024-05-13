@@ -53,7 +53,8 @@
             android:background="@drawable/custom_button"
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
-            android:text="Startseite" />
+            android:text="Startseite"
+            android:enabled="false"/>
 
         <Button
             android:id="@+id/button_ti_updates"
@@ -66,7 +67,8 @@
             android:background="@drawable/custom_button"
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
-            android:text="Updates" />
+            android:text="Updates"
+            android:enabled="false"/>
 
         <Button
             android:id="@+id/button_ti_testprint"
@@ -79,7 +81,8 @@
             android:background="@drawable/custom_button"
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
-            android:text="Test Print" />
+            android:text="Test Print"
+            android:enabled="false"/>
     </LinearLayout>
 
     <LinearLayout
@@ -99,7 +102,8 @@
             android:background="@drawable/custom_button"
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
-            android:text="Küchenanzeige" />
+            android:text="Küchenanzeige"
+            android:enabled="false"/>
 
         <Button
             android:id="@+id/button_ti_dashboard"
@@ -112,7 +116,8 @@
             android:background="@drawable/custom_button"
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
-            android:text="Administration" />
+            android:text="Administration"
+            android:enabled="false"/>
     </LinearLayout>
 
     <TextView
@@ -135,7 +140,8 @@
         android:background="@drawable/custom_button"
         android:textColor="#FFFFFF"
         android:textAllCaps="false"
-        android:text="Drucker wählen" />
+        android:text="Drucker wählen"
+        android:enabled="false"/>
 
     <Button
         android:id="@+id/button_ti_print_monitoring"
@@ -148,7 +154,8 @@
         android:background="@drawable/custom_button"
         android:textColor="#FFFFFF"
         android:textAllCaps="false"
-        android:text="Drucker Anschalten" />
+        android:text="Drucker Anschalten"
+        android:enabled="false"/>
 
     <TextView
         android:layout_width="wrap_content"
@@ -170,7 +177,8 @@
         android:background="@drawable/custom_button"
         android:textColor="#FFFFFF"
         android:textAllCaps="false"
-        android:text="Druck Zurücksetzen" />
+        android:text="Druck Zurücksetzen"
+        android:enabled="false"/>
 
     <LinearLayout
         android:layout_width="wrap_content"

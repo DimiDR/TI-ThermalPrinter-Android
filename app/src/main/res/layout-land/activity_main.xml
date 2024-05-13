@@ -55,7 +55,8 @@
                 android:text="Startseite"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:enabled="false"/>
 
             <Button
                 android:id="@+id/button_ti_updates"
@@ -66,7 +67,8 @@
                 android:text="Updates"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:enabled="false"/>
 
             <Button
                 android:id="@+id/button_ti_testprint"
@@ -76,7 +78,8 @@
                 android:text="Test Print"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:enabled="false"/>
         </LinearLayout>
 
         <LinearLayout
@@ -94,7 +97,8 @@
                 android:text="Küchenanzeige"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:enabled="false"/>
 
             <Button
                 android:id="@+id/button_ti_dashboard"
@@ -105,7 +109,8 @@
                 android:text="Administration"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:enabled="false"/>
         </LinearLayout>
 
     </LinearLayout>
@@ -137,7 +142,8 @@
             android:text="Drucker wählen"
             android:textAllCaps="false"
             android:textColor="#FFFFFF"
-            android:textSize="16sp" />
+            android:textSize="16sp"
+            android:enabled="false"/>
 
         <Button
             android:id="@+id/button_ti_print_monitoring"
@@ -148,7 +154,8 @@
             android:text="Drucker Anschalten"
             android:textAllCaps="false"
             android:textColor="#FFFFFF"
-            android:textSize="16sp" />
+            android:textSize="16sp"
+            android:enabled="false"/>
 
         <TextView
             android:layout_width="match_parent"
@@ -169,7 +176,8 @@
             android:text="Druck Zurücksetzen"
             android:textAllCaps="false"
             android:textColor="#FFFFFF"
-            android:textSize="16sp" />
+            android:textSize="16sp"
+            android:enabled="false"/>
 
         <LinearLayout
             android:layout_width="wrap_content"
