@@ -278,7 +278,7 @@ public JSONObject addInformation(){
         return output;
     }
 
-    public static JSONArray filterPrintableOrders(JSONArray dataArray) throws JSONException {
+    public static JSONArray filterPrintableOrders(JSONArray dataArray, Set<String>  printedOrders) throws JSONException {
         JSONArray printableOrders = new JSONArray();
 
         for (int i = 0; i < dataArray.length(); i++) {
@@ -291,22 +291,22 @@ public JSONObject addInformation(){
             // add to order_menus[i].category
             // make a call to get the categories
 
-//        print special order ID for testing TODO deactivate
-            if (orderId.equals("70")) {
-                printableOrders.put(order);
-//                return printableOrders;
-            }
+////        print special order ID for testing TODO deactivate
+//            if (orderId.equals("70")) {
+//                printableOrders.put(order);
+////                return printableOrders;
+//            }
 
 //TODO: activate
-//            if (!printedOrders.contains(orderId)) {
-//                JSONObject attributes = order.getJSONObject("attributes");
-//                JSONObject status = attributes.getJSONObject("status");
-//                int statusId = status.getInt("status_id"); // initial order
-//
-//                if (statusId == 1) {
-//                    printableOrders.put(order);
-//                }
-//            }
+            if (!printedOrders.contains(orderId)) { //TODO printedOrders is null
+                JSONObject attributes = order.getJSONObject("attributes");
+                JSONObject status = attributes.getJSONObject("status");
+                int statusId = status.getInt("status_id"); // initial order
+
+                if (statusId == 1) {
+                    printableOrders.put(order);
+                }
+            }
 
         }
         return printableOrders;

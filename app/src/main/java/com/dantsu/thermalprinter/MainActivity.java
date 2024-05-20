@@ -104,13 +104,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         button_bluetooth_browse = this.findViewById(R.id.button_bluetooth_browse);
         button_bluetooth_browse.setOnClickListener(view -> browseBluetoothDevice());
-        // TCP & USB printing deactivated
-        //button = (Button) findViewById(R.id.button_bluetooth);
-        //button.setOnClickListener(view -> printBluetooth());
-        //button = (Button) this.findViewById(R.id.button_usb);
-        //button.setOnClickListener(view -> printUsb());
-        //button = (Button) this.findViewById(R.id.button_tcp);
-        //button.setOnClickListener(view -> printTcp());
         button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
         button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
         textview_ti_header = this.findViewById(R.id.textview_ti_header);
@@ -151,9 +144,6 @@ public class MainActivity extends AppCompatActivity {
             tiDashboardURL = savedDomainShop + "/admin";
             tiKitchenViewURL = savedDomainShop + "/admin/thoughtco/kitchendisplay/summary/view/1";
             tiLandingPage = savedDomainWebsite + "/";
-            //TODO: activate all buttons
-            //TODO: deactivate all buttons except Login in XML
-            //TODO: user2 kann ich einloggen
             textview_ti_header.setText(savedUsername);
             tiMenusEndpointURL = savedDomainShop + "/api/menus?include=categories&pageLimit=5000";
             tiCategoriesEndpointURL = savedDomainShop + "/api/categories";
@@ -167,10 +157,6 @@ public class MainActivity extends AppCompatActivity {
             button_ti_landing_page.setEnabled(true);
             button_ti_testprint.setEnabled(true);
         }
-        //TODO: all buttons needs to have a name so I can set to inactive
-//        if (savedUsername.isEmpty()) {
-        //TODO: here deactivate buttons
-//        }
 
     }
 
@@ -186,7 +172,6 @@ public class MainActivity extends AppCompatActivity {
         strArray[0] = postNotifications;
         return strArray;
     }
-
 
     /*==============================================================================================
     ======================================BLUETOOTH PART============================================
@@ -385,8 +370,6 @@ private class WebServiceTask extends AsyncTask<String, Void, String[]> {
 
     @Override
     protected void onPostExecute(String[] results) {
-        // results[0] contains the response from the orders API
-        // results[1] contains the response from the menus API
             String orderID;
             JSONObject dataObjectOrders;
             if (results[0] != null && results[1] != null) {
@@ -394,7 +377,7 @@ private class WebServiceTask extends AsyncTask<String, Void, String[]> {
                     JSONObject jsonObjectOrders = new JSONObject(results[0]);
                     JSONObject jsonObjectMenus = new JSONObject(results[1]);
                     JSONObject jsonObjectCategories = new JSONObject(results[2]);
-                    JSONArray dataArrayOrders  = DocketStringModeler.filterPrintableOrders(jsonObjectOrders.getJSONArray("data"));
+                    JSONArray dataArrayOrders  = DocketStringModeler.filterPrintableOrders(jsonObjectOrders.getJSONArray("data"), printedOrders);
                     for (int i = 0; i < dataArrayOrders.length(); i++) {
                         dataObjectOrders = dataArrayOrders.getJSONObject(i);
                         orderID = dataObjectOrders.getString("id");
@@ -447,10 +430,6 @@ private class WebServiceTask extends AsyncTask<String, Void, String[]> {
 
     private void openWebpage(String action) {
         String url = "";
-        //TODO Im changing the URLs due to multivendor.
-        // As I am setting the Listener, old URLs are being saved. They need to be updated here
-        // Implement other cases for differen URLs here
-
             switch (action) {
                 case "LandingPage":
                     url = tiLandingPage;
@@ -545,9 +524,6 @@ private class WebServiceTask extends AsyncTask<String, Void, String[]> {
                     String password = etPassword.getText().toString();
                     String validCredentials = checkValidCredentials(username, password);
                     if (validCredentials.equals("OK")) {
-//                        Toast.makeText(getActivity(), "Nutzer gefunden", Toast.LENGTH_SHORT).show();
-                        //TODO: activate all buttons
-                        //activate the buttons
                         button_bluetooth_browse.setEnabled(true);
                         button_ti_print.setEnabled(true);
                         button_ti_clear_ids.setEnabled(true);
