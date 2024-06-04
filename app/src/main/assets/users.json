@@ -13,6 +13,13 @@
       "shop_name": "testshop",
       "domain_shop": "https://dimitrir14.sg-host.com",
       "domain_website": "https://dimitrir14.sg-host.com"
+    },
+    {
+      "username": "mevlana",
+      "password": "pw3",
+      "shop_name": "Mevlana Walsum",
+      "domain_shop": "https://bestellen.mevlana-walsum.de",
+      "domain_website": "https://mevlana-walsum.de"
     }
   ]
 }

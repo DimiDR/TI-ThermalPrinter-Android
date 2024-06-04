@@ -1,6 +1,7 @@
 # V0.5 13.05.2024
 - Change delivery time in the app. For this I would need an in app kitchen sink with orders POST API
 - New Popup to print specific invoices. The user can select the invoices to print.
+- If the order is canceled, a printout with Canceled written in bold above appears. Canceled invoices should nicely visible in kitchen sink.
 
 # V0.4 01.05.2024
 - multivendor implementation. Now different vendors can login and use their IDs. The IDs and PW are saved in users.json - done
@@ -16,10 +17,10 @@ UI updated, Popup for print reset added.
 Some description text.
 
 Next Updates:
-- Change delivery time in the app. For this I would need an in app kitchen sink with orders POST API
-- If clicked on OK in the pupup all initial invoices should be printed.
+
+- If clicked on OK in the pupup all initial invoices should be printed. - done
 At the moment the ID counter is just resetted - will not be done. New screen to select the specific prints
-- Foreground/Background processes. The app should run also if not visible on screen.
+- Foreground/Background processes. The app should run also if not visible on screen. - done
 In the moment I am using a background process coded in the main activity. - done
 This is not a best practise. So mobile phones could also kill the background process. - done
 - Better looking UI - done

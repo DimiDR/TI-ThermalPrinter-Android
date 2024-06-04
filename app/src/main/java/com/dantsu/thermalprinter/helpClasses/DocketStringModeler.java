@@ -42,6 +42,7 @@ public class DocketStringModeler {
     String printAllCosts = "";
     String printCustomer = "";
     String printPayment = "";
+    String shop_name = "";
     boolean isGoogleMaps = true;
     JSONObject orders;
     MediaPlayer mediaPlayer;
@@ -51,11 +52,12 @@ public class DocketStringModeler {
     JSONObject jsonObjectCategories;
 
 
-    public String startPrinting(JSONObject dataObject,   JSONObject  jsonObjectMenus, JSONObject jsonObjectCategories, MediaPlayer mediaPlayer){
+    public String startPrinting(JSONObject dataObject,   JSONObject  jsonObjectMenus, JSONObject jsonObjectCategories, MediaPlayer mediaPlayer, String shop_name){
         this.orders = dataObject;
         this.mediaPlayer = mediaPlayer;
         this.jsonObjectMenus = jsonObjectMenus;
         this.jsonObjectCategories = jsonObjectCategories;
+        this.shop_name = shop_name;
 
         // add category id and category name to orders for printing
         addInformation();
@@ -171,7 +173,7 @@ public JSONObject addInformation(){
                 } else {
                     order_type_time = "[C] Sofort: " + " am " + order_date_time + "\n";
                 }
-                printHeader = "[C]<u><font size='big'> Primavera </font></u>\n" +
+                printHeader = "[C]<u><font size='big'>" + shop_name + "</font></u>\n" +
                         "[L]<font size='big'>Bestellung Nr." + orderId + "</font>\n" +
                         "[L]\n" +
                         "[L]<b>" + order_type + " - " + payment + " - <u type='double'>" +

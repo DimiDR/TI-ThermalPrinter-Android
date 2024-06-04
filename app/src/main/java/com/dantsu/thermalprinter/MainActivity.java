@@ -137,6 +137,7 @@ public class MainActivity extends AppCompatActivity {
         String savedPassword = sharedPreferences.getString("password", "");
         String savedDomainShop = sharedPreferences.getString("domain_shop", "");
         String savedDomainWebsite = sharedPreferences.getString("domain_website", "");
+        shop_name  = sharedPreferences.getString("shop_name", "");
 
         if (!savedUsername.isEmpty() && !savedPassword.isEmpty()) {
             // Set saved URLs to your URL fields
@@ -310,7 +311,7 @@ public class MainActivity extends AppCompatActivity {
         }
         buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
         button_ti_print.setBackgroundColor(buttonColor);
-        button_ti_print.setText("Drucker ist Inaktiv");
+        button_ti_print.setText("Drucker ist inaktiv");
         // stop wake lock to stop CPU. Critical!
         MyWakeLockManager.releaseFullWakeLock();
         // remove keep screen on
@@ -381,7 +382,7 @@ private class WebServiceTask extends AsyncTask<String, Void, String[]> {
                     for (int i = 0; i < dataArrayOrders.length(); i++) {
                         dataObjectOrders = dataArrayOrders.getJSONObject(i);
                         orderID = dataObjectOrders.getString("id");
-                        TIJobPrintBluetooth(docketStringModeler.startPrinting(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer), orderID);
+                        TIJobPrintBluetooth(docketStringModeler.startPrinting(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
                     }
 
                 } catch (JSONException e) {
