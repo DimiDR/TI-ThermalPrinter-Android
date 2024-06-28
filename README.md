@@ -1,14 +1,16 @@
 # Tasty Igniter Printer App
-This app is a fork of https://github.com/DantSu/ESCPOS-ThermalPrinter-Android. Thank you for the great implementation.
-It was modified to comply with https://tastyigniter.com/ and its Orders API https://tastyigniter.com/marketplace/item/igniter-api.
+This app is used by restaurant owners to monitor and print food orders.
+It is connected to a thermal printing device like this one https://www.amazon.de/Epson-TM-M30III-152-Bluetooth-Modell-schwarz/dp/B0BXH1QM42.
+There is a job running every 60 seconds checking the API if new order came in.
+If it is there, it will be sent to the printer device.
 
 The app will run in the background. It gets the last 50 requests from your shop.
 The printed IDs will be saved in an array and checked to see if they were already printed to prevent double prints.
 The job runs every minute.
 
-In general, I think the Bluetooth solution is one of the best for small businesses.
-It is portable (printer & Android device not connected with a cable) and is fast to set up.
-IP printers require multiple steps to be set up correctly. Logging in to different routers is also not an easy task.
+This app is a fork of https://github.com/DantSu/ESCPOS-ThermalPrinter-Android. Thank you for the great implementation.
+It was modified to comply with https://tastyigniter.com/ shop software and its Orders API https://tastyigniter.com/marketplace/item/igniter-api.
+
 # Restrictions
 It's a native Android app, so no IoS support is in place.
 I tried the React Native EXPO implementation, but it is not working properly.
@@ -38,3 +40,8 @@ Header set Access-Control-Allow-Headers "origin, x-requested-with, content-type"
 Header set Access-Control-Allow-Methods "GET"
 
 Also set the API for Order in admin dashboard API/Orders - All Resources Get to all and not employee.
+
+# Test Shop Credentials
+- URL: https://dimitrir14.sg-host.com
+- User: admin
+- PW: XXX
