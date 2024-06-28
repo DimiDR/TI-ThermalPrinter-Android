@@ -67,6 +67,7 @@ import com.dantsu.thermalprinter.helpClasses.UserUtils;
 import android.net.Uri;
 
 public class MainActivity extends AppCompatActivity {
+    //test
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
     private static Context context;
