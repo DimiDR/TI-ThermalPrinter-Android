@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -667,11 +668,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     @Override
     protected void onDestroy() {
         super.onDestroy();
-       // stopService();
-      //  unbindFromService();
-
+        stopService();
     }
-
 
     @SuppressLint("SimpleDateFormat")
     public boolean TITestPrinter(boolean normal_click) {
