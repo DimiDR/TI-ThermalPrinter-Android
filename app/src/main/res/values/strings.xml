@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ThermalPrinter</string>
+    <string name="app_name">Jandiweb Printer</string>
     <string name="title_activity_kitchen_display">KitchenDisplay</string>
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>

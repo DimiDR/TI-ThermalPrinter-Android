@@ -2,17 +2,23 @@ package com.dantsu.thermalprinter;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -29,6 +35,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.DialogFragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
@@ -59,14 +66,21 @@ import java.util.TimeZone;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.dantsu.thermalprinter.helpClasses.Constants;
 import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.helpClasses.IdManager;
+import com.dantsu.thermalprinter.helpClasses.MyBackgroundService;
 import com.dantsu.thermalprinter.helpClasses.MyWakeLockManager;
+import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
+import com.dantsu.thermalprinter.helpClasses.ServiceUtils;
 import com.dantsu.thermalprinter.helpClasses.UserUtils;
+import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
 
 import android.net.Uri;
 
-public class MainActivity extends AppCompatActivity {
+import javax.net.ssl.SSLException;
+
+public class MainActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback  {
     //test
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
@@ -96,13 +110,17 @@ public class MainActivity extends AppCompatActivity {
     private static List<UserUtils.User> users;
     MediaPlayer mediaPlayer;
     String resultJson;
-    long period = 60 * 1000; // set to 60000 for 1 minute //TODO change
+    long period = 5 * 1000; // set to 60000 for 1 minute //TODO change
     DocketStringModeler docketStringModeler;
+    private NetworkHelperViewModel networkHelperViewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        networkHelperViewModel = new ViewModelProvider(this).get(NetworkHelperViewModel.class);
+
+
         button_bluetooth_browse = this.findViewById(R.id.button_bluetooth_browse);
         button_bluetooth_browse.setOnClickListener(view -> browseBluetoothDevice());
         button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
@@ -160,19 +178,85 @@ public class MainActivity extends AppCompatActivity {
             button_ti_testprint.setEnabled(true);
         }
 
+
     }
 
     @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        setContentView(R.layout.activity_main);
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+        updateUIBasedOnServiceStatus();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateUIBasedOnServiceStatus();
+    }
+
+
+    @SuppressLint("MissingSuperCall")
+    @Override
+    public void onBackPressed() {
+        //super.onBackPressed();
+        showExitConfirmationDialog();
+    }
+
+    private void showExitConfirmationDialog() {
+        new AlertDialog.Builder(this)
+                .setMessage("Are you sure you want to exit the app? It will stop any running process.")
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        // Exit the app
+                        stopService();
+                        MainActivity.super.onBackPressed();
+
+                    }
+                })
+                .setNegativeButton("No", null)
+                .show();
+    }
 
     private String[] arrayOf(String postNotifications) {
         String[] strArray = new String[1];
         strArray[0] = postNotifications;
         return strArray;
+    }
+
+    @Override
+    public void onSuccess(String[] results) {
+
+        String orderID;
+        JSONObject dataObjectOrders;
+        if (results != null && results[0] != null && results[1] != null) {
+            try {
+                JSONObject jsonObjectOrders = new JSONObject(results[0]);
+                JSONObject jsonObjectMenus = new JSONObject(results[1]);
+                JSONObject jsonObjectCategories = new JSONObject(results[2]);
+                JSONArray dataArrayOrders = DocketStringModeler.filterPrintableOrders(jsonObjectOrders.getJSONArray("data"), printedOrders);
+                for (int i = 0; i < dataArrayOrders.length(); i++) {
+                    dataObjectOrders = dataArrayOrders.getJSONObject(i);
+                    orderID = dataObjectOrders.getString("id");
+                    TIJobPrintBluetooth(docketStringModeler.startPrinting(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                }
+                Log.e("MainActivity", "Data: " + results[0]);
+            } catch (JSONException e) {
+                showError("JSON Error: " + e.getMessage());
+            }
+        } else {
+            showError("Failed to fetch data from web service");
+        }
+    }
+
+    @Override
+    public void onError(Exception exception) {
+        if (exception != null) {
+            if (exception instanceof SSLException) {
+                showError("SSL Error: " + exception.getMessage());
+            } else {
+                showError("Error: " + exception.getMessage());
+            }
+            return;
+        }
     }
 
     /*==============================================================================================
@@ -270,131 +354,120 @@ public class MainActivity extends AppCompatActivity {
 //    /*==============================================================================================
 //    ===================================Tasty Igniter Part=========================================
 //    ==============================================================================================*/
-    private boolean isServiceActive = false;
-    private Timer timer;
 
     public void tiPrintMonitoring() {
-
-        if (!isServiceActive) { //start printing
-            //TODO: check if a user is selected. Else toast an error
-            startService();
-        } else { // Stop printing
-            stopService();
+        if (!Constants.isServiceActive) {
+            // Start printing
+            startService(); // This will handle starting and binding the service
+        } else {
+            // Stop printing
+            stopService(); // This will handle stopping and unbinding the service
         }
     }
 
     private void startService() {
-        int buttonColor;
-        timer = new Timer();
+        if (!Constants.isServiceActive) {
+            //bindToService();
+            Log.d("MainActivity", "Service bound");
 
-        buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
-        button_ti_print.setBackgroundColor(buttonColor);
-        button_ti_print.setText("Drucker ist Aktiv");
-        // stop wake lock to stop CPU. Critical!
-        MyWakeLockManager.acquireFullWakeLock(this);
-        // keep screen on
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                 new WebServiceTask().execute(tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
-            }
-        }, 0, period);
+            // Update UI elements or perform other tasks related to starting the service
+            int buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
+            button_ti_print.setBackgroundColor(buttonColor);
+            button_ti_print.setText("Drucker ist Aktiv");
 
-        isServiceActive = true;
+            // Acquire wake lock to keep CPU running
+            MyWakeLockManager.acquireFullWakeLock(this);
+            Log.d("MainActivity", "Wake lock acquired");
+
+            // Keep screen on
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            Log.d("MainActivity", "Screen on flag set");
+
+            // Start any other tasks related to the service
+           // startWebServiceTask();
+            startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
+            Log.d("MainActivity", "Web service task started");
+
+            Constants.isServiceActive = true;
+        }
     }
 
     private void stopService() {
-        int buttonColor;
-        if (timer != null) {
-            timer.cancel();
-            timer.purge();
-        }
-        buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
-        button_ti_print.setBackgroundColor(buttonColor);
-        button_ti_print.setText("Drucker ist inaktiv");
-        // stop wake lock to stop CPU. Critical!
-        MyWakeLockManager.releaseFullWakeLock();
-        // remove keep screen on
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        isServiceActive = false;
-    }
-
-private class WebServiceTask extends AsyncTask<String, Void, String[]> {
-
-    @Override
-    protected String[] doInBackground(String... urls) {
-        String[] results = new String[urls.length];
-        for (int i = 0; i < urls.length; i++) {
-            HttpURLConnection urlConnection = null;
-            BufferedReader reader = null;
-
-            try {
-                URL url = new URL(urls[i]);
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestMethod("GET");
-                urlConnection.connect();
-
-                InputStream inputStream = urlConnection.getInputStream();
-                StringBuilder buffer = new StringBuilder();
-                if (inputStream == null) {
-                    return null;
-                }
-                reader = new BufferedReader(new InputStreamReader(inputStream));
-
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    buffer.append(line).append("\n");
-                }
-
-                if (buffer.length() == 0) {
-                    return null;
-                }
-                results[i] = buffer.toString();
-            } catch (IOException e) {
-                e.printStackTrace();
-                return null;
-            } finally {
-                if (urlConnection != null) {
-                    urlConnection.disconnect();
-                }
-                if (reader != null) {
-                    try {
-                        reader.close();
-                    } catch (final IOException e) {
-                        e.printStackTrace();
-                    }
-                }
+        if (Constants.isServiceActive) {
+            //stopAndUnbindServiceWithDelay();
+            if (networkHelperViewModel.getNetworkHelper().isNetworkTaskRunning()) {
+                networkHelperViewModel.getNetworkHelper().cancelNetworkTask();
             }
+            networkHelperViewModel.cancelTimer();
+
+            // Update UI elements or perform other tasks related to stopping the service
+            int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
+            button_ti_print.setBackgroundColor(buttonColor);
+            button_ti_print.setText("Drucker ist inaktiv");
+
+            // Release wake lock to allow CPU to sleep
+            MyWakeLockManager.releaseFullWakeLock();
+            Log.d("MainActivity", "Wake lock released");
+
+            // Remove keep screen on flag
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            Log.d("MainActivity", "Screen on flag cleared");
+
+            // Update service status flag
+            Constants.isServiceActive = false;
+            Log.d("MainActivity", "Service stopped, isServiceActive set to false");
         }
-        return results;
     }
 
-    @Override
-    protected void onPostExecute(String[] results) {
-            String orderID;
-            JSONObject dataObjectOrders;
-            if (results[0] != null && results[1] != null) {
-                try {
-                    JSONObject jsonObjectOrders = new JSONObject(results[0]);
-                    JSONObject jsonObjectMenus = new JSONObject(results[1]);
-                    JSONObject jsonObjectCategories = new JSONObject(results[2]);
-                    JSONArray dataArrayOrders  = DocketStringModeler.filterPrintableOrders(jsonObjectOrders.getJSONArray("data"), printedOrders);
-                    for (int i = 0; i < dataArrayOrders.length(); i++) {
-                        dataObjectOrders = dataArrayOrders.getJSONObject(i);
-                        orderID = dataObjectOrders.getString("id");
-                        TIJobPrintBluetooth(docketStringModeler.startPrinting(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
-                    }
 
-                } catch (JSONException e) {
-                    throw new RuntimeException(e);
-                }
+
+    private void updateUIBasedOnServiceStatus() {
+        // Retrieve saved login details from SharedPreferences
+        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+        String savedUsername = sharedPreferences.getString("username", "");
+        String savedPassword = sharedPreferences.getString("password", "");
+        if (!savedUsername.isEmpty() && !savedPassword.isEmpty()){
+            if (Constants.isServiceActive) {
+                // Update UI elements for active service
+                int buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
+                button_ti_print.setBackgroundColor(buttonColor);
+                button_ti_print.setText("Drucker ist Aktiv");
+                MyWakeLockManager.acquireFullWakeLock(this);
+                Log.d("MainActivity", "Wake lock acquired");
+                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                Log.d("MainActivity", "Screen on flag set");
             } else {
-                Log.e("WebServiceResponse", "Failed to fetch data from web service");
+                // Update UI elements for inactive service
+                int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
+                button_ti_print.setBackgroundColor(buttonColor);
+                button_ti_print.setText("Drucker ist inaktiv");
+                MyWakeLockManager.releaseFullWakeLock();
+                Log.d("MainActivity", "Wake lock released");
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                Log.d("MainActivity", "Screen on flag cleared");
             }
+        }
     }
-}
 
+    public void startWebServiceTask(Activity activity, String ordersUrl, String menusUrl, String categoriesUrl) {
+        Timer timer = networkHelperViewModel.getTimer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                String[] urls = {ordersUrl, menusUrl, categoriesUrl};
+
+                Log.e("timerrrrrr", "running: ");
+                // Ensure the activity is still bound and the task can be executed
+                networkHelperViewModel.getNetworkHelper().fetchData(urls, (NetworkHelper.NetworkCallback) activity);
+
+            }
+        }, 0, period);
+    }
+
+    private void showError(String errorMessage) {
+        // Show the error message in an AlertDialog
+        Toast.makeText(context, ""+errorMessage, Toast.LENGTH_SHORT).show();
+    }
     public void TIJobPrintBluetooth(String print_info, String orderId) {
         this.checkBluetoothPermissions(() -> {
             new AsyncBluetoothEscPosPrint(
@@ -594,7 +667,9 @@ private class WebServiceTask extends AsyncTask<String, Void, String[]> {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopService();
+       // stopService();
+      //  unbindFromService();
+
     }
 
 
