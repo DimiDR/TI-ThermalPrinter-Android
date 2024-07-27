@@ -598,8 +598,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 } catch (IOException e) {
                     e.printStackTrace();
                     exception = e;
-                    progressBar.setVisibility(View.GONE);
-                    button_reprint.setVisibility(View.VISIBLE);
+                    //progressBar.setVisibility(View.GONE);
+                    //button_reprint.setVisibility(View.VISIBLE);
                     return null;
                 } finally {
                     if (urlConnection != null) {
@@ -610,8 +610,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                             reader.close();
                         } catch (final IOException e) {
                             e.printStackTrace();
-                            progressBar.setVisibility(View.GONE);
-                            button_reprint.setVisibility(View.VISIBLE);
+                            //progressBar.setVisibility(View.GONE);
+                            //button_reprint.setVisibility(View.VISIBLE);
                         }
                     }
                 }
