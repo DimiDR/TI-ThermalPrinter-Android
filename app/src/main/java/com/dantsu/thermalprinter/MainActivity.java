@@ -151,6 +151,29 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         docketStringModeler = new DocketStringModeler();
         // get valid users
         users = UserUtils.getUsers(this);
+        //initialize the URLs and activate the buttons
+        initilizeURLs();
+
+        if (getIntent().getBooleanExtra("isUpdate", false)){
+            apkFile = getIntent().getStringExtra("apkFile");
+            button_ti_updates.setEnabled(true);
+            button_ti_updates.setText("Update Available");
+            button_ti_updates.setBackgroundColor(ContextCompat.getColor(this, R.color.colorError));
+            showUpdatePopup();
+        }else{
+            button_ti_updates.setEnabled(false);
+            button_ti_updates.setText("Version OK");
+        }
+
+        button_reprint.setOnClickListener(v -> {
+            progressBar.setVisibility(View.VISIBLE);
+            button_reprint.setVisibility(View.GONE);
+            RePrintTask task = new RePrintTask();
+            task.execute(tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
+        });
+    }
+
+    private void initilizeURLs() {
         // Retrieve saved login details from SharedPreferences
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
         String savedUsername = sharedPreferences.getString("username", "");
@@ -180,26 +203,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             button_reprint.setEnabled(true);
 
         }
-
-        if (getIntent().getBooleanExtra("isUpdate", false)){
-            apkFile = getIntent().getStringExtra("apkFile");
-            button_ti_updates.setEnabled(true);
-            button_ti_updates.setText("Update Available");
-            button_ti_updates.setBackgroundColor(ContextCompat.getColor(this, R.color.colorError));
-            showUpdatePopup();
-        }else{
-            button_ti_updates.setEnabled(false);
-            button_ti_updates.setText("Version OK");
-        }
-
-        button_reprint.setOnClickListener(v -> {
-            progressBar.setVisibility(View.VISIBLE);
-            button_reprint.setVisibility(View.GONE);
-            RePrintTask task = new RePrintTask();
-            task.execute(tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
-        });
-
-
     }
 
     // Inside your MainActivity
@@ -598,8 +601,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 } catch (IOException e) {
                     e.printStackTrace();
                     exception = e;
-                    //progressBar.setVisibility(View.GONE);
-                    //button_reprint.setVisibility(View.VISIBLE);
                     return null;
                 } finally {
                     if (urlConnection != null) {
@@ -610,8 +611,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                             reader.close();
                         } catch (final IOException e) {
                             e.printStackTrace();
-                            //progressBar.setVisibility(View.GONE);
-                            //button_reprint.setVisibility(View.VISIBLE);
                         }
                     }
                 }
@@ -799,6 +798,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     String password = etPassword.getText().toString();
                     String validCredentials = checkValidCredentials(username, password);
                     if (validCredentials.equals("OK")) {
+                        //reinitialize the variables
+                        initilizeURLs();
+
                         button_bluetooth_browse.setEnabled(true);
 
                         button_ti_print.setEnabled(true);
