@@ -5,7 +5,6 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.app.ProgressDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -15,19 +14,28 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.media.MediaPlayer;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.PopupWindow;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -58,6 +66,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -87,6 +96,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static Set<String> printedOrders = new HashSet<>();
     private static Context context;
     private static Button button_bluetooth_browse;
+    private static Button button_reprint;
+
     private static Button button_ti_print;
     private static Button button_ti_clear_ids;
     private static Button button_ti_kitchen_view;
@@ -114,6 +125,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     long period = 5 * 1000; // set to 60000 for 1 minute //TODO change
     DocketStringModeler docketStringModeler;
     private NetworkHelperViewModel networkHelperViewModel;
+    private String apkFile;
+    private ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -123,6 +136,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
 
         button_bluetooth_browse = this.findViewById(R.id.button_bluetooth_browse);
+        button_reprint = this.findViewById(R.id.button_reprint);
+        progressBar = findViewById(R.id.progressBar);
+
         button_bluetooth_browse.setOnClickListener(view -> browseBluetoothDevice());
         button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
         button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
@@ -170,6 +186,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             tiCategoriesEndpointURL = savedDomainShop + "/api/categories";
             //activate the buttons
             button_bluetooth_browse.setEnabled(true);
+
             button_ti_print.setEnabled(true);
             button_ti_clear_ids.setEnabled(true);
             button_ti_kitchen_view.setEnabled(true);
@@ -177,10 +194,62 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             button_ti_updates.setEnabled(true);
             button_ti_landing_page.setEnabled(true);
             button_ti_testprint.setEnabled(true);
+            button_reprint.setEnabled(true);
+
         }
 
+        if (getIntent().getBooleanExtra("isUpdate", false)){
+            apkFile = getIntent().getStringExtra("apkFile");
+            showUpdatePopup();
+        }
+
+        button_reprint.setOnClickListener(v -> {
+            progressBar.setVisibility(View.VISIBLE);
+            button_reprint.setVisibility(View.GONE);
+            RePrintTask task = new RePrintTask();
+            task.execute(tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
+        });
 
     }
+
+    // Inside your MainActivity
+
+    private void showOrdersPopup(List<JSONObject> ordersList, JSONObject jsonObjectMenus, JSONObject jsonObjectCategories) {
+        // Inflate the popup layout
+        View popupView = getLayoutInflater().inflate(R.layout.popup_orders, null);
+
+        // Create the popup window
+        int width = LinearLayout.LayoutParams.MATCH_PARENT; // Set width to match_parent
+        int height = LinearLayout.LayoutParams.WRAP_CONTENT;
+        boolean focusable = true; // lets taps outside the popup also dismiss it
+        final PopupWindow popupWindow = new PopupWindow(popupView, width, height, focusable);
+
+        // Set background drawable for the popup window
+        popupWindow.setBackgroundDrawable(new ColorDrawable(Color.WHITE));
+        popupWindow.setElevation(10.0f); // Adds shadow effect
+
+        ImageView btnClose = popupView.findViewById(R.id.btnClose);
+        btnClose.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                popupWindow.dismiss();
+            }
+        });
+        // Set up the ListView
+        ListView listViewOrders = popupView.findViewById(R.id.listViewOrders);
+        OrdersAdapter adapter = new OrdersAdapter(this, ordersList, new OrdersAdapter.PrintButtonClickListener() {
+            @Override
+            public void onPrintButtonClick(int position, String orderId) {
+                TIJobPrintBluetooth(docketStringModeler.startPrinting(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
+            }
+        });
+        listViewOrders.setAdapter(adapter);
+
+        // Show the popup window
+        popupWindow.showAtLocation(findViewById(R.id.mainLayout), Gravity.CENTER, 0, 0);
+    }
+
+
 
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
@@ -193,7 +262,22 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         super.onResume();
         updateUIBasedOnServiceStatus();
     }
+    private void showUpdatePopup() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Update Available")
+                .setMessage("A new version of the app is available. Click update button to get latest version.")
+                .setPositiveButton("Update", (dialog, which) -> {
+                    // URL to open
+                    // Create an intent with ACTION_VIEW
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setData(Uri.parse(apkFile));
 
+                    // Start the activity
+                    startActivity(intent);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
 
     @SuppressLint("MissingSuperCall")
     @Override
@@ -222,31 +306,56 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         strArray[0] = postNotifications;
         return strArray;
     }
-
     @Override
     public void onSuccess(String[] results) {
-
         String orderID;
         JSONObject dataObjectOrders;
+        List<JSONObject> ordersList = new ArrayList<>();
+        JSONObject jsonObjectOrders, jsonObjectMenus = null, jsonObjectCategories = null;
         if (results != null && results[0] != null && results[1] != null) {
             try {
-                JSONObject jsonObjectOrders = new JSONObject(results[0]);
-                JSONObject jsonObjectMenus = new JSONObject(results[1]);
-                JSONObject jsonObjectCategories = new JSONObject(results[2]);
-                JSONArray dataArrayOrders = DocketStringModeler.filterPrintableOrders(jsonObjectOrders.getJSONArray("data"), printedOrders);
+                jsonObjectOrders = new JSONObject(results[0]);
+                jsonObjectMenus = new JSONObject(results[1]);
+                jsonObjectCategories = new JSONObject(results[2]);
+
+                // Log the entire orders JSON before filtering
+                Log.e("MainActivity", "Full Orders JSON: " + jsonObjectOrders.toString());
+
+                JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
+                JSONArray filteredOrders = DocketStringModeler.filterPrintableOrders(dataArrayOrders, printedOrders);
                 for (int i = 0; i < dataArrayOrders.length(); i++) {
                     dataObjectOrders = dataArrayOrders.getJSONObject(i);
+                    ordersList.add(dataObjectOrders); // Add to orders list
+                }
+
+                for (int i = 0; i < filteredOrders.length(); i++) {
+                    dataObjectOrders = filteredOrders.getJSONObject(i);
                     orderID = dataObjectOrders.getString("id");
                     TIJobPrintBluetooth(docketStringModeler.startPrinting(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
                 }
-                Log.e("MainActivity", "Data: " + results[0]);
+
+                button_reprint.setEnabled(true);
+
+                Log.e("MainActivity", "Orders List Size: " + ordersList.size());
+
             } catch (JSONException e) {
                 showError("JSON Error: " + e.getMessage());
+            }
+
+            // Show the popup when the button is clicked, only if ordersList is not empty
+            if (!ordersList.isEmpty()) {
+                JSONObject finalJsonObjectMenus = jsonObjectMenus;
+                JSONObject finalJsonObjectCategories = jsonObjectCategories;
+                button_reprint.setOnClickListener(v -> showOrdersPopup(ordersList, finalJsonObjectMenus, finalJsonObjectCategories));
+            } else {
+                showError("No printable orders found");
             }
         } else {
             showError("Failed to fetch data from web service");
         }
     }
+
+
 
     @Override
     public void onError(Exception exception) {
@@ -292,13 +401,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
     public void checkBluetoothPermissions(OnBluetoothPermissionsGranted onBluetoothPermissionsGranted) {
         this.onBluetoothPermissionsGranted = onBluetoothPermissionsGranted;
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH}, MainActivity.PERMISSION_BLUETOOTH);
-        } else if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
+        } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_ADMIN}, MainActivity.PERMISSION_BLUETOOTH_ADMIN);
-        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT}, MainActivity.PERMISSION_BLUETOOTH_CONNECT);
-        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_SCAN}, MainActivity.PERMISSION_BLUETOOTH_SCAN);
         } else {
             this.onBluetoothPermissionsGranted.onPermissionsGranted();
@@ -375,7 +484,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             int buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
             button_ti_print.setBackgroundColor(buttonColor);
             button_ti_print.setText("Drucker ist Aktiv");
-
             // Acquire wake lock to keep CPU running
             MyWakeLockManager.acquireFullWakeLock(this);
             Log.d("MainActivity", "Wake lock acquired");
@@ -465,6 +573,107 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }, 0, period);
     }
 
+    class RePrintTask extends AsyncTask<String, Void, String[]> {
+        Exception exception;
+
+        @Override
+        protected String[] doInBackground(String... urls) {
+            String[] results = new String[urls.length];
+            for (int i = 0; i < urls.length; i++) {
+                HttpURLConnection urlConnection = null;
+                BufferedReader reader = null;
+
+                try {
+                    URL url = new URL(urls[i]);
+                    urlConnection = (HttpURLConnection) url.openConnection();
+                    urlConnection.setRequestMethod("GET");
+                    urlConnection.connect();
+
+                    InputStream inputStream = urlConnection.getInputStream();
+                    StringBuilder buffer = new StringBuilder();
+                    if (inputStream == null) {
+                        return null;
+                    }
+                    reader = new BufferedReader(new InputStreamReader(inputStream));
+
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        buffer.append(line).append("\n");
+                    }
+
+                    if (buffer.length() == 0) {
+                        return null;
+                    }
+                    results[i] = buffer.toString();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    exception = e;
+                    progressBar.setVisibility(View.GONE);
+                    button_reprint.setVisibility(View.VISIBLE);
+                    return null;
+                } finally {
+                    if (urlConnection != null) {
+                        urlConnection.disconnect();
+                    }
+                    if (reader != null) {
+                        try {
+                            reader.close();
+                        } catch (final IOException e) {
+                            e.printStackTrace();
+                            progressBar.setVisibility(View.GONE);
+                            button_reprint.setVisibility(View.VISIBLE);
+                        }
+                    }
+                }
+            }
+            return results;
+        }
+
+        @Override
+        protected void onPostExecute(String[] results) {
+            if (exception != null) {
+                progressBar.setVisibility(View.GONE);
+                button_reprint.setVisibility(View.VISIBLE);
+                Toast.makeText(context, ""+exception.getMessage(), Toast.LENGTH_SHORT).show();
+            } else {
+                progressBar.setVisibility(View.GONE);
+                button_reprint.setVisibility(View.VISIBLE);
+                JSONObject dataObjectOrders;
+                List<JSONObject> ordersList = new ArrayList<>();
+                JSONObject jsonObjectOrders, jsonObjectMenus = null, jsonObjectCategories = null;
+                if (results != null && results[0] != null && results[1] != null) {
+                    try {
+                        jsonObjectOrders = new JSONObject(results[0]);
+                        jsonObjectMenus = new JSONObject(results[1]);
+                        jsonObjectCategories = new JSONObject(results[2]);
+
+                        // Log the entire orders JSON before filtering
+                        Log.e("MainActivity", "Full Orders JSON: " + jsonObjectOrders.toString());
+
+                        JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
+                        for (int i = 0; i < dataArrayOrders.length(); i++) {
+                            dataObjectOrders = dataArrayOrders.getJSONObject(i);
+                            ordersList.add(dataObjectOrders); // Add to orders list
+                        }
+
+                        Log.e("MainActivity", "Orders List Size: " + ordersList.size());
+
+                    } catch (JSONException e) {
+                        Toast.makeText(context, ""+e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+
+                    // Show the popup when the button is clicked, only if ordersList is not empty
+                    if (!ordersList.isEmpty()) {
+                        showOrdersPopup(ordersList, jsonObjectMenus, jsonObjectCategories);
+                    } else {
+                        showError("No re-printable orders found");
+                    }
+                } else {
+                    showError("Failed to fetch data from web service");
+                }
+            }
+        }
+    }
     private void showError(String errorMessage) {
         // Show the error message in an AlertDialog
         Toast.makeText(context, ""+errorMessage, Toast.LENGTH_SHORT).show();
@@ -601,11 +810,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     String validCredentials = checkValidCredentials(username, password);
                     if (validCredentials.equals("OK")) {
                         button_bluetooth_browse.setEnabled(true);
+
                         button_ti_print.setEnabled(true);
                         button_ti_clear_ids.setEnabled(true);
                         button_ti_kitchen_view.setEnabled(true);
                         button_ti_dashboard.setEnabled(true);
                         button_ti_updates.setEnabled(true);
+                        button_reprint.setEnabled(true);
                         button_ti_landing_page.setEnabled(true);
                         button_ti_testprint.setEnabled(true);
                         dismiss();
@@ -668,8 +879,11 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopService();
+       // stopService();
+      //  unbindFromService();
+
     }
+
 
     @SuppressLint("SimpleDateFormat")
     public boolean TITestPrinter(boolean normal_click) {

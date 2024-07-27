@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mainLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
@@ -129,33 +130,69 @@
         android:textColor="#000000"
         android:text="Bluetooth Drucker" />
 
-    <Button
-        android:id="@+id/button_bluetooth_browse"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:width="150dp"
-        android:height="50dp"
-        android:layout_margin="10dp"
-        android:textSize="16sp"
-        android:background="@drawable/custom_button"
-        android:textColor="#FFFFFF"
-        android:textAllCaps="false"
-        android:text="Drucker wählen"
-        android:enabled="false"/>
+        android:orientation="vertical">
 
-    <Button
-        android:id="@+id/button_ti_print_monitoring"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:width="160dp"
-        android:height="50dp"
-        android:layout_margin="10dp"
-        android:textSize="16sp"
-        android:background="@drawable/custom_button"
-        android:textColor="#FFFFFF"
-        android:textAllCaps="false"
-        android:text="Drucker Anschalten"
-        android:enabled="false"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/button_bluetooth_browse"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:width="150dp"
+                android:height="50dp"
+                android:background="@drawable/custom_button"
+                android:enabled="false"
+                android:text="Drucker wählen"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp" />
+
+            <Button
+                android:id="@+id/button_ti_print_monitoring"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:width="160dp"
+                android:height="50dp"
+                android:background="@drawable/custom_button"
+                android:enabled="false"
+                android:text="Drucker Anschalten"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/button_reprint"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_margin="10dp"
+            android:width="160dp"
+            android:height="50dp"
+            android:background="@drawable/custom_button"
+            android:enabled="false"
+            android:text="Reprint"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp" />
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+    </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"

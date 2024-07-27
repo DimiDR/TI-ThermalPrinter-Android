@@ -281,6 +281,7 @@ public JSONObject addInformation(){
     }
 
     public static JSONArray filterPrintableOrders(JSONArray dataArray, Set<String>  printedOrders) throws JSONException {
+        //checks for initial status of the order. Only orders with status initial will be printed.
         JSONArray printableOrders = new JSONArray();
 
         for (int i = 0; i < dataArray.length(); i++) {
