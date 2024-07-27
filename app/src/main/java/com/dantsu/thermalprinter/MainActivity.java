@@ -159,7 +159,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             button_ti_updates.setEnabled(true);
             button_ti_updates.setText("Update Available");
             button_ti_updates.setBackgroundColor(ContextCompat.getColor(this, R.color.colorError));
-            showUpdatePopup();
+            if (!networkHelperViewModel.isUpdatePopupShown()) {
+                showUpdatePopup();
+                networkHelperViewModel.setUpdatePopupShown(true);
+            }
         }else{
             button_ti_updates.setEnabled(false);
             button_ti_updates.setText("Version OK");
@@ -799,7 +802,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     String validCredentials = checkValidCredentials(username, password);
                     if (validCredentials.equals("OK")) {
                         //reinitialize the variables
-                        initilizeURLs();
+                        //initilizeURLs(); //TODO
 
                         button_bluetooth_browse.setEnabled(true);
 

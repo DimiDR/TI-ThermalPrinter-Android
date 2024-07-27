@@ -18,6 +18,7 @@ public class NetworkHelperViewModel extends ViewModel {
     private NetworkHelper networkHelper;
     private Timer timer;
     private BluetoothConnection selectedDevice;
+    private boolean isUpdatePopupShown = false;
 
     public NetworkHelperViewModel() {
         networkHelper = new NetworkHelper();
@@ -50,6 +51,13 @@ public class NetworkHelperViewModel extends ViewModel {
         this.selectedDevice = selectedDevice;
     }
 
+    public boolean isUpdatePopupShown() {
+        return isUpdatePopupShown;
+    }
+
+    public void setUpdatePopupShown(boolean shown) {
+        isUpdatePopupShown = shown;
+    }
     public void browseBluetoothDevice(Context context, MainActivity.OnBluetoothPermissionsGranted onBluetoothPermissionsGranted) {
         checkBluetoothPermissions(context, onBluetoothPermissionsGranted);
     }
