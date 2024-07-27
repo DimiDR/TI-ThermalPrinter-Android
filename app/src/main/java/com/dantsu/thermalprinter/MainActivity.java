@@ -184,10 +184,12 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (getIntent().getBooleanExtra("isUpdate", false)){
             apkFile = getIntent().getStringExtra("apkFile");
             button_ti_updates.setEnabled(true);
+            button_ti_updates.setText("Update Available");
             button_ti_updates.setBackgroundColor(ContextCompat.getColor(this, R.color.colorError));
             showUpdatePopup();
         }else{
             button_ti_updates.setEnabled(false);
+            button_ti_updates.setText("Version OK");
         }
 
         button_reprint.setOnClickListener(v -> {

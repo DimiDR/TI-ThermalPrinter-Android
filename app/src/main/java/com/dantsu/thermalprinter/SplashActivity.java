@@ -70,7 +70,7 @@ public class SplashActivity extends AppCompatActivity {
                     String appVersion = jsonObject.getString("app_version");
                     String fileToDownload = jsonObject.getString("apk_file");
 
-                    if (!currentAppVersion.equals(appVersion)) {
+                    if (isNewVersionAvailable(currentAppVersion, appVersion)) {
                         isUpdate = true;
                         apkFile = fileToDownload;
                     }
@@ -83,6 +83,25 @@ public class SplashActivity extends AppCompatActivity {
                 }
             }
         }
+    }
+
+    public boolean isNewVersionAvailable(String currentAppVersion, String appVersion) {
+        String[] currentVersionParts = currentAppVersion.split("\\.");
+        String[] newVersionParts = appVersion.split("\\.");
+
+        int length = Math.max(currentVersionParts.length, newVersionParts.length);
+
+        for (int i = 0; i < length; i++) {
+            int currentPart = i < currentVersionParts.length ? Integer.parseInt(currentVersionParts[i]) : 0;
+            int newPart = i < newVersionParts.length ? Integer.parseInt(newVersionParts[i]) : 0;
+
+            if (currentPart < newPart) {
+                return true;
+            } else if (currentPart > newPart) {
+                return false;
+            }
+        }
+        return false;
     }
 
 
