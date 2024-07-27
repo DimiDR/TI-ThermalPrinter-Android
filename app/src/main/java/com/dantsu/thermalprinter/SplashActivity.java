@@ -1,6 +1,9 @@
 package com.dantsu.thermalprinter;
 
 
+import static com.dantsu.thermalprinter.Constants.APP_DETAILS_URL;
+import static com.dantsu.thermalprinter.Constants.currentAppVersion;
+
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -22,8 +25,6 @@ import java.net.URL;
 public class SplashActivity extends AppCompatActivity {
 
     private static final int SPLASH_DISPLAY_LENGTH = 1000; // 1 seconds
-    private static final String APP_DETAILS_URL = "https://app-version.jandiweb.de/printer-app/app-details.json";
-    private String currentAppVersion = "1.0.0"; // Replace with your current app version
 
     private boolean isUpdate = false;
     private String apkFile = "";

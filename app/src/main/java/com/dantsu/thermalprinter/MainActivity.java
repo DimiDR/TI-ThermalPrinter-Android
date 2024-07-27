@@ -5,13 +5,10 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.content.SharedPreferences;
-import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
@@ -20,10 +17,6 @@ import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.IBinder;
-import android.os.Looper;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -49,7 +42,6 @@ import androidx.lifecycle.ViewModelProvider;
 import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections;
-import com.dantsu.escposprinter.textparser.PrinterTextParserImg;
 import com.dantsu.thermalprinter.async.AsyncBluetoothEscPosPrint;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrint;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrinter;
@@ -64,25 +56,17 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.text.SimpleDateFormat;
-import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.TimeZone;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.dantsu.thermalprinter.helpClasses.Constants;
 import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.helpClasses.IdManager;
-import com.dantsu.thermalprinter.helpClasses.MyBackgroundService;
 import com.dantsu.thermalprinter.helpClasses.MyWakeLockManager;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
-import com.dantsu.thermalprinter.helpClasses.ServiceUtils;
 import com.dantsu.thermalprinter.helpClasses.UserUtils;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
 
@@ -150,7 +134,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         button_ti_dashboard =  this.findViewById(R.id.button_ti_dashboard);
         button_ti_dashboard.setOnClickListener(view -> openWebpage("Administration"));
         button_ti_updates =  this.findViewById(R.id.button_ti_updates);
-        button_ti_updates.setOnClickListener(view -> openWebpage("Updates"));
+        button_ti_updates.setOnClickListener(view -> showUpdatePopup());
         button_ti_landing_page = this.findViewById(R.id.button_ti_landing_page);
         button_ti_landing_page.setOnClickListener(view -> openWebpage("LandingPage"));
         button_ti_testprint = this.findViewById(R.id.button_ti_testprint);
@@ -191,7 +175,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             button_ti_clear_ids.setEnabled(true);
             button_ti_kitchen_view.setEnabled(true);
             button_ti_dashboard.setEnabled(true);
-            button_ti_updates.setEnabled(true);
             button_ti_landing_page.setEnabled(true);
             button_ti_testprint.setEnabled(true);
             button_reprint.setEnabled(true);
@@ -200,7 +183,11 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
         if (getIntent().getBooleanExtra("isUpdate", false)){
             apkFile = getIntent().getStringExtra("apkFile");
+            button_ti_updates.setEnabled(true);
+            button_ti_updates.setBackgroundColor(ContextCompat.getColor(this, R.color.colorError));
             showUpdatePopup();
+        }else{
+            button_ti_updates.setEnabled(false);
         }
 
         button_reprint.setOnClickListener(v -> {
@@ -209,6 +196,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             RePrintTask task = new RePrintTask();
             task.execute(tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
         });
+
 
     }
 
@@ -815,7 +803,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                         button_ti_clear_ids.setEnabled(true);
                         button_ti_kitchen_view.setEnabled(true);
                         button_ti_dashboard.setEnabled(true);
-                        button_ti_updates.setEnabled(true);
                         button_reprint.setEnabled(true);
                         button_ti_landing_page.setEnabled(true);
                         button_ti_testprint.setEnabled(true);
