@@ -4,7 +4,10 @@ package com.dantsu.thermalprinter;
 import static com.dantsu.thermalprinter.Constants.APP_DETAILS_URL;
 import static com.dantsu.thermalprinter.Constants.currentAppVersion;
 
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -32,8 +35,19 @@ public class SplashActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
-        checkForUpdates();
+        //check for updates only if internet connection is available
+        if (isNetworkAvailable()){
+            checkForUpdates();
+        } else {
+            goToNextActivity();
+        }
+    }
 
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager != null ? connectivityManager.getActiveNetworkInfo() : null;
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
     private void checkForUpdates() {

@@ -75,7 +75,6 @@ import android.net.Uri;
 import javax.net.ssl.SSLException;
 
 public class MainActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback  {
-    //test
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
     private static Context context;
@@ -176,7 +175,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         });
     }
 
-    private void initilizeURLs() {
+    public void initilizeURLs() {
         // Retrieve saved login details from SharedPreferences
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
         String savedUsername = sharedPreferences.getString("username", "");
@@ -780,7 +779,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
 
     public static class LoginUserDialogFragment extends DialogFragment {
-
         @NonNull
         @Override
         public Dialog onCreateDialog(Bundle savedInstanceState) {
@@ -802,7 +800,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     String validCredentials = checkValidCredentials(username, password);
                     if (validCredentials.equals("OK")) {
                         //reinitialize the variables
-                        //initilizeURLs(); //TODO
+                        ((MainActivity)getActivity()).initilizeURLs();
 
                         button_bluetooth_browse.setEnabled(true);
 
