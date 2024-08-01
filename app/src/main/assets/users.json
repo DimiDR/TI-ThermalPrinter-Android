@@ -20,6 +20,13 @@
       "shop_name": "Mevlana Walsum",
       "domain_shop": "https://bestellen.mevlana-walsum.de",
       "domain_website": "https://mevlana-walsum.de"
+    },
+    {
+      "username": "Jamal",
+      "password": "jam144!Kashif55",
+      "shop_name": "Tandoori Love",
+      "domain_shop": "https://bestellen.tandoori-love.de",
+      "domain_website": "https://tandoori-love.de"
     }
   ]
 }
