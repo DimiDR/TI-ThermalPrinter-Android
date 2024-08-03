@@ -45,3 +45,19 @@ Also set the API for Order in admin dashboard API/Orders - All Resources Get to 
 - URL: https://dimitrir14.sg-host.com
 - User: admin
 - PW: XXX
+
+# Users File
+The file app\src\main\assets\users.json has the user information. It is part of gitignore to not expose the user information.
+Here is the structure of the file
+
+```"users": [
+        {
+      "shop_id": 1,
+      "username": "ts",
+      "password": "pw2",
+      "shop_name": "testshop",
+      "domain_shop": "https://dimitrir14.sg-host.com",
+      "domain_website": "https://dimitrir14.sg-host.com",
+      "kitchen_view": "https://dimitrir14.sg-host.com/admin/thoughtco/kitchendisplay/summary/view/1"
+    },...
+}```

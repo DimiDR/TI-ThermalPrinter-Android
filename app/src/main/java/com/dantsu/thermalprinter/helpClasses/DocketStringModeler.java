@@ -245,11 +245,10 @@ public JSONObject addInformation(){
                 printCustomer += "[L]Name: " + customer_name + "\n" +
                         "[L]Telefon: " + telephone + "\n" +
                         "[L]Adresse: " + formatted_address + "\n" +
-                        "[L]Kommentar: " + comment + "\n" +
-                        "[C]Google Adresse Scannen \n";
-
+                        "[L]Kommentar: " + comment + "\n";
                 if (isGoogleMaps) {
-                    printCustomer += "[C]<qrcode size='20'>" + google_api_url + "</qrcode> \n";
+                    printCustomer += "[C]Google Adresse Scannen \n" +
+                            "[C]<qrcode size='20'>" + google_api_url + "</qrcode> \n";
                 }
                 // create full print String
                 printOutput = printHeader +
