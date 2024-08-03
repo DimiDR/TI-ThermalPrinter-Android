@@ -58,6 +58,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.HashSet;
@@ -91,9 +92,11 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private Button button_ti_login;
     private static TextView textview_ti_header;
     private boolean userSelected = false; // TODO: no buttons should work if user is not selected
+    private static Integer shop_id;
     private static String domain_shop;
     private static String domain_website = "";
     private static String username = "";
+    private static String password = "";
     private static String shop_name = "";
     private static String tiOrdersEndpointURL = "";
     private static String tiDashboardURL  = "";
@@ -152,11 +155,11 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         users = UserUtils.getUsers(this);
         //initialize the URLs and activate the buttons
         initilizeURLs();
-
+        //enable update button, if updates available
         if (getIntent().getBooleanExtra("isUpdate", false)){
             apkFile = getIntent().getStringExtra("apkFile");
             button_ti_updates.setEnabled(true);
-            button_ti_updates.setText("Update Available");
+            button_ti_updates.setText("Update Verfügbar");
             button_ti_updates.setBackgroundColor(ContextCompat.getColor(this, R.color.colorError));
             if (!networkHelperViewModel.isUpdatePopupShown()) {
                 showUpdatePopup();
@@ -164,7 +167,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             }
         }else{
             button_ti_updates.setEnabled(false);
-            button_ti_updates.setText("Version OK");
+            // show current version on the screen
+            button_ti_updates.setText("Version " + getIntent().getStringExtra("currentAppVersion"));
         }
 
         button_reprint.setOnClickListener(v -> {
@@ -178,24 +182,60 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     public void initilizeURLs() {
         // Retrieve saved login details from SharedPreferences
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-        String savedUsername = sharedPreferences.getString("username", "");
-        String savedPassword = sharedPreferences.getString("password", "");
-        String savedDomainShop = sharedPreferences.getString("domain_shop", "");
-        String savedDomainWebsite = sharedPreferences.getString("domain_website", "");
-        shop_name  = sharedPreferences.getString("shop_name", "");
+        shop_id = sharedPreferences.getInt("shop_id", 0);
+//        String savedUsername = sharedPreferences.getString("username", "");
+//        String savedPassword = sharedPreferences.getString("password", "");
+//        String savedDomainShop = sharedPreferences.getString("domain_shop", "");
+//        String savedDomainWebsite = sharedPreferences.getString("domain_website", "");
+//        String savedKitchenViewWebsite = sharedPreferences.getString("kitchen_view", "");
+//        shop_name  = sharedPreferences.getString("shop_name", "");
 
-        if (!savedUsername.isEmpty() && !savedPassword.isEmpty()) {
+        if (shop_id == 0) {
+            Toast.makeText(context, "No User selected", Toast.LENGTH_SHORT).show();
+            return ;
+        }
+
+        for (UserUtils.User user : users) {
+            if (Objects.equals(user.shop_id, shop_id)) {
+                username = user.username;
+                password = user.password;
+                shop_name = user.shop_name;
+                domain_shop = user.domain_shop;
+                domain_website = user.domain_website;
+                tiDashboardURL = user.domain_shop + "/admin";
+                tiKitchenViewURL =  user.kitchen_view;
+                tiLandingPage = user.domain_website + "/";
+                textview_ti_header.setText(user.shop_name);
+                tiOrdersEndpointURL = user.domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
+                tiMenusEndpointURL = user.domain_shop + "/api/menus?include=categories&pageLimit=5000";
+                tiCategoriesEndpointURL = user.domain_shop + "/api/categories";
+                break; // Exit the loop once the user is found
+            }
+        }
+
+//        domain_shop = users.get(i).domain_shop;
+//        domain_website = users.get(i).domain_website;
+//        shop_name = users.get(i).shop_name;
+//        tiKitchenViewURL = users.get(i).kitchen_view;
+//        username = users.get(i).username;
+//        tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
+//        tiDashboardURL = domain_shop + "/admin";
+//        //tiKitchenViewURL = domain_shop + "/admin/thoughtco/kitchendisplay/summary/view/1";
+//        tiLandingPage = domain_website + "/";
+
+//        if (!savedUsername.isEmpty() && !savedPassword.isEmpty()) {
             // Set saved URLs to your URL fields
-            tiOrdersEndpointURL = savedDomainShop + "/api/orders?sort=order_id desc&pageLimit=50";
-            tiDashboardURL = savedDomainShop + "/admin";
-            tiKitchenViewURL = savedDomainShop + "/admin/thoughtco/kitchendisplay/summary/view/1";
-            tiLandingPage = savedDomainWebsite + "/";
-            textview_ti_header.setText(savedUsername);
-            tiMenusEndpointURL = savedDomainShop + "/api/menus?include=categories&pageLimit=5000";
-            tiCategoriesEndpointURL = savedDomainShop + "/api/categories";
+//            tiOrdersEndpointURL = savedDomainShop + "/api/orders?sort=order_id desc&pageLimit=50";
+//            tiDashboardURL = savedDomainShop + "/admin";
+            //tiKitchenViewURL = savedDomainShop + "/admin/thoughtco/kitchendisplay/summary/view/1";
+//            tiKitchenViewURL = savedKitchenViewWebsite;
+//            tiLandingPage = savedDomainWebsite + "/";
+//            textview_ti_header.setText(savedUsername);
+//            tiMenusEndpointURL = savedDomainShop + "/api/menus?include=categories&pageLimit=5000";
+//            tiCategoriesEndpointURL = savedDomainShop + "/api/categories";
+
             //activate the buttons
             button_bluetooth_browse.setEnabled(true);
-
             button_ti_print.setEnabled(true);
             button_ti_clear_ids.setEnabled(true);
             button_ti_kitchen_view.setEnabled(true);
@@ -203,8 +243,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             button_ti_landing_page.setEnabled(true);
             button_ti_testprint.setEnabled(true);
             button_reprint.setEnabled(true);
-
-        }
+//        }
     }
 
     // Inside your MainActivity
@@ -803,7 +842,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                         ((MainActivity)getActivity()).initilizeURLs();
 
                         button_bluetooth_browse.setEnabled(true);
-
                         button_ti_print.setEnabled(true);
                         button_ti_clear_ids.setEnabled(true);
                         button_ti_kitchen_view.setEnabled(true);
@@ -839,21 +877,25 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             for (int i = 0; i < users.size(); i++) {
                 if (users.get(i).username.equals(username) && users.get(i).password.equals(password)) {
                     // username has to be unique in JSON
+                    shop_id = users.get(i).shop_id;
                     domain_shop = users.get(i).domain_shop;
                     domain_website = users.get(i).domain_website;
                     shop_name = users.get(i).shop_name;
+                    tiKitchenViewURL = users.get(i).kitchen_view;
                     username = users.get(i).username;
                     tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
                     tiDashboardURL = domain_shop + "/admin";
-                    tiKitchenViewURL = domain_shop + "/admin/thoughtco/kitchendisplay/summary/view/1";
+                    //tiKitchenViewURL = domain_shop + "/admin/thoughtco/kitchendisplay/summary/view/1";
                     tiLandingPage = domain_website + "/";
                     //save login data
                     SharedPreferences.Editor editor = sharedPreferences.edit();
-                    editor.putString("username", username);
-                    editor.putString("password", password);
-                    editor.putString("shop_name", users.get(i).shop_name);
-                    editor.putString("domain_shop", users.get(i).domain_shop);
-                    editor.putString("domain_website", users.get(i).domain_website);
+                    editor.putInt("shop_id", shop_id);
+//                    editor.putString("username", username);
+//                    editor.putString("password", password);
+//                    editor.putString("shop_name", users.get(i).shop_name);
+//                    editor.putString("domain_shop", users.get(i).domain_shop);
+//                    editor.putString("domain_website", users.get(i).domain_website);
+//                    editor.putString("kitchen_view", users.get(i).kitchen_view);
                     editor.apply();
                     //change header text
                     textview_ti_header.setText(shop_name);

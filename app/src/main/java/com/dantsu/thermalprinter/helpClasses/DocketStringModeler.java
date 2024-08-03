@@ -246,10 +246,10 @@ public JSONObject addInformation(){
                         "[L]Telefon: " + telephone + "\n" +
                         "[L]Adresse: " + formatted_address + "\n" +
                         "[L]Kommentar: " + comment + "\n" +
-                        "[L]Google Adresse Scannen \n";
+                        "[C]Google Adresse Scannen \n";
 
                 if (isGoogleMaps) {
-                    printCustomer += "[L]<qrcode size='20'>" + google_api_url + "</qrcode>";
+                    printCustomer += "[C]<qrcode size='20'>" + google_api_url + "</qrcode> \n";
                 }
                 // create full print String
                 printOutput = printHeader +
@@ -258,7 +258,8 @@ public JSONObject addInformation(){
                         printPayment +
                         "[L]====================================\n" +
                         "[L]Kundeninformation\n" +
-                        printCustomer;
+                        printCustomer +
+                        "[C]<b>Dies ist keine Rechnung</b>";
                 this.customerReceipt = printOutput;
                 printOutput = "";
                 printHeader = "";

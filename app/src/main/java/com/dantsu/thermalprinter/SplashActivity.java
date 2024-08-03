@@ -127,6 +127,7 @@ public class SplashActivity extends AppCompatActivity {
                 Intent mainIntent = new Intent(SplashActivity.this, MainActivity.class);
                 mainIntent.putExtra("isUpdate", isUpdate);
                 mainIntent.putExtra("apkFile", apkFile);
+                mainIntent.putExtra("currentAppVersion", currentAppVersion);
                 startActivity(mainIntent);
                 finish();
             }

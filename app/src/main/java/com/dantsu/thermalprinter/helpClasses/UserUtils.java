@@ -27,12 +27,14 @@ public class UserUtils {
 
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject userObject = jsonArray.getJSONObject(i);
+                Integer shop_id = userObject.getInt("shop_id");
                 String username = userObject.getString("username");
                 String password = userObject.getString("password");
                 String shop_name = userObject.getString("shop_name");
                 String domain_shop = userObject.getString("domain_shop");
                 String domain_website = userObject.getString("domain_website");
-                users.add(new User(username, password, shop_name, domain_shop, domain_website));
+                String kitchen_view = userObject.getString("kitchen_view");
+                users.add(new User(shop_id, username, password, shop_name, domain_shop, domain_website, kitchen_view));
             }
 
         } catch (IOException | JSONException e) {
@@ -48,13 +50,17 @@ public class UserUtils {
         public String shop_name;
         public String domain_shop;
         public String domain_website;
+        public String kitchen_view;
+        public Integer shop_id;
 
-        public User(String username, String password, String shop_name, String domain_shop, String domain_website) {
+        public User(Integer shop_id, String username, String password, String shop_name, String domain_shop, String domain_website, String kitchen_view) {
+            this.shop_id = shop_id;
             this.username = username;
             this.password = password;
             this.shop_name = shop_name;
             this.domain_shop = domain_shop;
             this.domain_website = domain_website;
+            this.kitchen_view = kitchen_view;
         }
     }
 }
