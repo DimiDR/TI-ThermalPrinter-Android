@@ -61,5 +61,4 @@ Here is the structure of the file
       "domain_website": "https://dimitrir14.sg-host.com",
       "kitchen_view": "https://dimitrir14.sg-host.com/admin/thoughtco/kitchendisplay/summary/view/1"
     },...
-}
-
+}```
