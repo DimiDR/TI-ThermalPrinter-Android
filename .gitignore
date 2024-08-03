@@ -8,4 +8,4 @@
 .externalNativeBuild
 .cxx
 
-app\src\main\assets\users.json
+app/src/main/assets/users.json
