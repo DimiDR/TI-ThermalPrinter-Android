@@ -108,7 +108,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static List<UserUtils.User> users;
     MediaPlayer mediaPlayer;
     String resultJson;
-    long period = 5 * 1000; // set to 60000 for 1 minute //TODO change
+    long period = 6 * 10000; // set to 60000 for 1 minute //TODO change
     DocketStringModeler docketStringModeler;
     private NetworkHelperViewModel networkHelperViewModel;
     private String apkFile;
@@ -119,7 +119,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         networkHelperViewModel = new ViewModelProvider(this).get(NetworkHelperViewModel.class);
-
 
         button_bluetooth_browse = this.findViewById(R.id.button_bluetooth_browse);
         button_reprint = this.findViewById(R.id.button_reprint);
@@ -455,8 +454,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             final BluetoothConnection[] bluetoothDevicesList = (new BluetoothPrintersConnections()).getList();
 
             if (bluetoothDevicesList != null) {
-                final String[] items = new String[bluetoothDevicesList.length + 1];
-                items[0] = "Default printer";
+                //final String[] items = new String[bluetoothDevicesList.length + 1];// removed default printer
+                final String[] items = new String[bluetoothDevicesList.length];
+                //items[0] = "Default printer"; // removed default printer
                 int i = 0;
                 for (BluetoothConnection device : bluetoothDevicesList) {
                     if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
@@ -469,7 +469,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                         // for ActivityCompat#requestPermissions for more details.
                         return;
                     }
-                    items[++i] = device.getDevice().getName();
+                    //items[++i] = device.getDevice().getName();// removed default printer
+                    items[i] = device.getDevice().getName();
                 }
 
                 AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
@@ -477,11 +478,14 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 alertDialog.setItems(
                         items,
                         (dialogInterface, i1) -> {
-                            int index = i1 - 1;
+                            //int index = i1 - 1;// removed default printer
+                            int index = i1;
                             if (index == -1) {
                                 selectedDevice = null;
                             } else {
                                 selectedDevice = bluetoothDevicesList[index];
+                                int buttonColor = ContextCompat.getColor(this, R.color.light_green);
+                                button_bluetooth_browse.setBackgroundColor(buttonColor);
                             }
                             Button button = (Button) findViewById(R.id.button_bluetooth_browse);
                             button.setText(items[i1]);
@@ -489,7 +493,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 );
 
                 AlertDialog alert = alertDialog.create();
-                alert.setCanceledOnTouchOutside(false);
+                //alert.setCanceledOnTouchOutside(false);
                 alert.show();
             }
         });
@@ -502,7 +506,11 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     public void tiPrintMonitoring() {
         if (!Constants.isServiceActive) {
             // Start printing
-            startService(); // This will handle starting and binding the service
+            if (selectedDevice == null) {
+                Toast.makeText(context, "Bitte einen Drucker wählen", Toast.LENGTH_SHORT).show();
+            } else {
+                startService(); // This will handle starting and binding the service
+            }
         } else {
             // Stop printing
             stopService(); // This will handle stopping and unbinding the service
@@ -515,11 +523,12 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             Log.d("MainActivity", "Service bound");
 
             // Update UI elements or perform other tasks related to starting the service
-            int buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
+            int buttonColor = ContextCompat.getColor(this, R.color.light_green);
             button_ti_print.setBackgroundColor(buttonColor);
             button_ti_print.setText("Drucker ist Aktiv");
             // Acquire wake lock to keep CPU running
-            MyWakeLockManager.acquireFullWakeLock(this);
+            //MyWakeLockManager.acquireFullWakeLock(this); //TODO: remove as depricated
+            MyWakeLockManager.acquirePartialWakeLock(this);
             Log.d("MainActivity", "Wake lock acquired");
 
             // Keep screen on
@@ -549,7 +558,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             button_ti_print.setText("Drucker ist inaktiv");
 
             // Release wake lock to allow CPU to sleep
-            MyWakeLockManager.releaseFullWakeLock();
+            //MyWakeLockManager.releaseFullWakeLock(); //TODO: remove as depricated
+            MyWakeLockManager.releasePartialWakeLock();
             Log.d("MainActivity", "Wake lock released");
 
             // Remove keep screen on flag
