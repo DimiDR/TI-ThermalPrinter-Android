@@ -38,6 +38,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.DialogFragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.fragment.app.FragmentManager;
 
 import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
@@ -69,6 +70,7 @@ import com.dantsu.thermalprinter.helpClasses.IdManager;
 import com.dantsu.thermalprinter.helpClasses.MyWakeLockManager;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 import com.dantsu.thermalprinter.helpClasses.UserUtils;
+import com.dantsu.thermalprinter.helpClasses.WebViewDialogFragment;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
 
 import android.net.Uri;
@@ -108,11 +110,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static List<UserUtils.User> users;
     MediaPlayer mediaPlayer;
     String resultJson;
-    long period = 6 * 10000; // set to 60000 for 1 minute //TODO change
+    long period = 6 * 10000; // set to 60000 for 1 minute
     DocketStringModeler docketStringModeler;
     private NetworkHelperViewModel networkHelperViewModel;
     private String apkFile;
     private ProgressBar progressBar;
+    private Boolean isPrinterSelected = false;
+    private Boolean isServiceStarted = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -170,6 +174,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             button_ti_updates.setText("Version " + getIntent().getStringExtra("currentAppVersion"));
         }
 
+        //reprint orders
         button_reprint.setOnClickListener(v -> {
             progressBar.setVisibility(View.VISIBLE);
             button_reprint.setVisibility(View.GONE);
@@ -287,13 +292,14 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        updateUIBasedOnServiceStatus();
+        // changing orientation overwrites the UI settings to initial values
+        updateUIBasedOnServiceStatus(); //TODO check if needed
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        updateUIBasedOnServiceStatus();
+        updateUIBasedOnServiceStatus(); //TODO check if needed
     }
     private void showUpdatePopup() {
         new androidx.appcompat.app.AlertDialog.Builder(this)
@@ -482,10 +488,12 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                             int index = i1;
                             if (index == -1) {
                                 selectedDevice = null;
+                                isPrinterSelected = false;
                             } else {
                                 selectedDevice = bluetoothDevicesList[index];
                                 int buttonColor = ContextCompat.getColor(this, R.color.light_green);
                                 button_bluetooth_browse.setBackgroundColor(buttonColor);
+                                isPrinterSelected = true;
                             }
                             Button button = (Button) findViewById(R.id.button_bluetooth_browse);
                             button.setText(items[i1]);
@@ -508,8 +516,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             // Start printing
             if (selectedDevice == null) {
                 Toast.makeText(context, "Bitte einen Drucker wählen", Toast.LENGTH_SHORT).show();
+                isPrinterSelected = false;
             } else {
                 startService(); // This will handle starting and binding the service
+                isPrinterSelected = true;
             }
         } else {
             // Stop printing
@@ -541,6 +551,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             Log.d("MainActivity", "Web service task started");
 
             Constants.isServiceActive = true;
+            isServiceStarted = true;
         }
     }
 
@@ -569,6 +580,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             // Update service status flag
             Constants.isServiceActive = false;
             Log.d("MainActivity", "Service stopped, isServiceActive set to false");
+
+            isServiceStarted = false;
         }
     }
 
@@ -581,6 +594,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         String savedPassword = sharedPreferences.getString("password", "");
         if (!savedUsername.isEmpty() && !savedPassword.isEmpty()){
             if (Constants.isServiceActive) {
+                startService();
                 // Update UI elements for active service
                 int buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
                 button_ti_print.setBackgroundColor(buttonColor);
@@ -590,6 +604,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 Log.d("MainActivity", "Screen on flag set");
             } else {
+                stopService();
                 // Update UI elements for inactive service
                 int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
                 button_ti_print.setBackgroundColor(buttonColor);
@@ -609,7 +624,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             public void run() {
                 String[] urls = {ordersUrl, menusUrl, categoriesUrl};
 
-                Log.e("timerrrrrr", "running: ");
+                Log.e("timer", "running: ");
                 // Ensure the activity is still bound and the task can be executed
                 networkHelperViewModel.getNetworkHelper().fetchData(urls, (NetworkHelper.NetworkCallback) activity);
 
@@ -778,8 +793,30 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
         if (!url.startsWith("http://") && !url.startsWith("https://"))
             url = "http://" + url;
-        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        startActivity(browserIntent);
+        //Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        //startActivity(browserIntent);
+        // Open the WebViewDialogFragment instead of launching a browser
+        showWebViewDialog(url);
+    }
+
+    private void showWebViewDialog(String url) {
+        FragmentManager fm = getSupportFragmentManager();
+        WebViewDialogFragment webViewDialogFragment = WebViewDialogFragment.newInstance(url);
+        //TODO not working as expected. Colors are not changing
+        //change colors of the circles in the popup
+        if (isPrinterSelected) {
+            webViewDialogFragment.setPrinterCircleColor(ContextCompat.getColor(this, R.color.light_green));
+        } else {
+            webViewDialogFragment.setPrinterCircleColor(ContextCompat.getColor(this, R.color.colorAccent));
+        }
+
+        if (isServiceStarted) {
+            webViewDialogFragment.setServiceCircleColor(ContextCompat.getColor(this, R.color.light_green));
+        } else {
+            webViewDialogFragment.setServiceCircleColor(ContextCompat.getColor(this, R.color.colorAccent));
+        }
+
+        webViewDialogFragment.show(fm, "dialog_webview");
     }
 
     private void tiClearIds() {

@@ -1,6 +1,8 @@
 package com.dantsu.thermalprinter.helpClasses;
 
 import android.content.Context;
+import android.widget.Toast;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -39,6 +41,7 @@ public class UserUtils {
 
         } catch (IOException | JSONException e) {
             e.printStackTrace();
+            Toast.makeText(context, "Check if users.json exists", Toast.LENGTH_SHORT).show();
         }
 
         return users;
