@@ -111,6 +111,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     MediaPlayer mediaPlayer;
     String resultJson;
     long period = 6 * 10000; // set to 60000 for 1 minute
+    long delayPeriod = 0;
+    private boolean isLongerConnectionTime = false;
     DocketStringModeler docketStringModeler;
     private NetworkHelperViewModel networkHelperViewModel;
     private String apkFile;
@@ -585,7 +587,14 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }
     }
 
-
+private void restartWebservice(){
+//stopAndUnbindServiceWithDelay();
+    if (networkHelperViewModel.getNetworkHelper().isNetworkTaskRunning()) {
+        networkHelperViewModel.getNetworkHelper().cancelNetworkTask();
+    }
+    networkHelperViewModel.cancelTimer();
+    startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
+}
 
     private void updateUIBasedOnServiceStatus() {
         // Retrieve saved login details from SharedPreferences
@@ -629,7 +638,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 networkHelperViewModel.getNetworkHelper().fetchData(urls, (NetworkHelper.NetworkCallback) activity);
 
             }
-        }, 0, period);
+        }, delayPeriod, period);
     }
 
     class RePrintTask extends AsyncTask<String, Void, String[]> {
@@ -741,7 +750,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                         @Override
                         public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
                             Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
-                            stopService(); //stop the service loop
+                            //stopService(); //stop the service loop TODO: maybe restart service after some minutes? This kills the process
+                            if (!isLongerConnectionTime) {
+                                period = 5 * 6 * 10000; // check every 5 minutes
+                                delayPeriod = 5 * 6 * 10000; // start after 5 minutes
+                                restartWebservice();
+                                isLongerConnectionTime = true; //swiched to 5 minutes
+                            }
                         }
 
                         @Override
@@ -750,6 +765,12 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                             // save the printed order IDs, to prevent reprinting
                             // clearIds is needed as Shared Preferences does not overwrite once saved
                             // this can be optimized, with Shared Preferences overwrite
+                            if (isLongerConnectionTime) {
+                                period = 1 * 6 * 10000;// switch back to 1 minute
+                                delayPeriod = 0; // start immidiate
+                                restartWebservice();
+                                isLongerConnectionTime = false; // stop restarting the service
+                            }
                             mediaPlayer.start(); // play if printing done
                             printedOrders.add(orderId);
                             IdManager.clearIds(context);
