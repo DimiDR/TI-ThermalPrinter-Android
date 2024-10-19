@@ -13,4 +13,5 @@
     <color name="black">#000000</color>
     <color name="ic_launcher_background">#B1B1B1</color>
     <color name="light_green">#4CAF50</color>
+    <color name="warning">#E16800</color>
 </resources>

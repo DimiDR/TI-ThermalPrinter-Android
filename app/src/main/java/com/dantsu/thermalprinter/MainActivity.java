@@ -373,6 +373,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     dataObjectOrders = filteredOrders.getJSONObject(i);
                     orderID = dataObjectOrders.getString("id");
                     TIJobPrintBluetooth(docketStringModeler.startPrinting(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                    if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
+                        break;
+                    }
                 }
 
                 button_reprint.setEnabled(true);
@@ -587,13 +590,15 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }
     }
 
-private void restartWebservice(){
+private void restartWebservice(int buttonColor){
 //stopAndUnbindServiceWithDelay();
     if (networkHelperViewModel.getNetworkHelper().isNetworkTaskRunning()) {
         networkHelperViewModel.getNetworkHelper().cancelNetworkTask();
     }
     networkHelperViewModel.cancelTimer();
     startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
+    int buttonColorID = ContextCompat.getColor(this, buttonColor);
+    button_ti_print.setBackgroundColor(buttonColorID); // set to yellow if connection to printer is broken
 }
 
     private void updateUIBasedOnServiceStatus() {
@@ -751,10 +756,11 @@ private void restartWebservice(){
                         public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
                             Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
                             //stopService(); //stop the service loop TODO: maybe restart service after some minutes? This kills the process
-                            if (!isLongerConnectionTime) {
+                            if (!isLongerConnectionTime) { // conection to filter failed
                                 period = 5 * 6 * 10000; // check every 5 minutes
                                 delayPeriod = 5 * 6 * 10000; // start after 5 minutes
-                                restartWebservice();
+                                restartWebservice(R.color.warning);
+                                Toast.makeText(context, "Verbindung zum Drucker unterbrochen", Toast.LENGTH_LONG).show();
                                 isLongerConnectionTime = true; //swiched to 5 minutes
                             }
                         }
@@ -765,10 +771,11 @@ private void restartWebservice(){
                             // save the printed order IDs, to prevent reprinting
                             // clearIds is needed as Shared Preferences does not overwrite once saved
                             // this can be optimized, with Shared Preferences overwrite
-                            if (isLongerConnectionTime) {
+                            if (isLongerConnectionTime) { // connection to printer working
                                 period = 1 * 6 * 10000;// switch back to 1 minute
                                 delayPeriod = 0; // start immidiate
-                                restartWebservice();
+                                restartWebservice(R.color.light_green);
+                                Toast.makeText(context, "Verbindung zum Drucker hergestellt", Toast.LENGTH_SHORT).show();
                                 isLongerConnectionTime = false; // stop restarting the service
                             }
                             mediaPlayer.start(); // play if printing done
@@ -828,14 +835,20 @@ private void restartWebservice(){
         if (isPrinterSelected) {
             webViewDialogFragment.setPrinterCircleColor(ContextCompat.getColor(this, R.color.light_green));
         } else {
-            webViewDialogFragment.setPrinterCircleColor(ContextCompat.getColor(this, R.color.colorAccent));
+            webViewDialogFragment.setPrinterCircleColor(ContextCompat.getColor(this, R.color.colorError));
         }
+        if (isLongerConnectionTime){ // connection problems to printer
+            webViewDialogFragment.setPrinterCircleColor(ContextCompat.getColor(this, R.color.warning));
+        }
+
 
         if (isServiceStarted) {
             webViewDialogFragment.setServiceCircleColor(ContextCompat.getColor(this, R.color.light_green));
         } else {
-            webViewDialogFragment.setServiceCircleColor(ContextCompat.getColor(this, R.color.colorAccent));
+            webViewDialogFragment.setServiceCircleColor(ContextCompat.getColor(this, R.color.colorError));
         }
+
+
 
         webViewDialogFragment.show(fm, "dialog_webview");
     }
