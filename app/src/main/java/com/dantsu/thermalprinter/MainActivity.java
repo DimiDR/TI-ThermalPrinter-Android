@@ -496,7 +496,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                                 selectedDevice = null;
                                 isPrinterSelected = false;
                             } else {
-                                selectedDevice = bluetoothDevicesList[index];
+                                selectedDevice = bluetoothDevicesList[index]; //TODO save selected device and reload on restart
                                 int buttonColor = ContextCompat.getColor(this, R.color.light_green);
                                 button_bluetooth_browse.setBackgroundColor(buttonColor);
                                 isPrinterSelected = true;
@@ -589,6 +589,11 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
             isServiceStarted = false;
         }
+    }
+
+    private void changeColorOfButton(int buttonColor, Button button) {
+        int buttonColorID = ContextCompat.getColor(this, buttonColor);
+        button.setBackgroundColor(buttonColorID);
     }
 
 private void restartWebservice(int buttonColor){
@@ -757,21 +762,29 @@ private void restartWebservice(int buttonColor){
                         public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
                             Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
                             //stopService(); //stop the service loop TODO: maybe restart service after some minutes? This kills the process
-                            if (!isLongerConnectionTime) { // conection to filter failed
-                                period = 1 * 6 * 10000; // check every 3 minutes
-                                delayPeriod = 1 * 6 * 10000; // start after 5 minutes
-                                restartWebservice(R.color.warning);
+                            //change button color
+                            WebViewDialogFragment webViewDialogFragment =
+                                    (WebViewDialogFragment) fragmentManager.findFragmentByTag("dialog_webview");
+                            if (webViewDialogFragment != null) {
+                                // Update the colors dynamically
+                                //webViewDialogFragment.setPrinterCircleColor(R.color.warning);
+                                webViewDialogFragment.dismiss(); // need to close the dialog to update the communication on main thread
+                            }
+
+//                            if (!isLongerConnectionTime) { // conection to filter failed
+//                                period = 1 * 6 * 10000; // check every 3 minutes
+//                                delayPeriod = 0; // start after 5 minutes
+//                                // Make UI changes on the main thread
+//                                restartWebservice(R.color.warning);
+                                changeColorOfButton(R.color.warning, button_ti_print);
                                 Toast.makeText(context, "Verbindung zum Drucker unterbrochen", Toast.LENGTH_LONG).show();
                                 isLongerConnectionTime = true; //swiched to 5 minutes
                                 button_ti_print.setText("Druckerverbindung \n gestört");
-                                //change button color
-                                WebViewDialogFragment webViewDialogFragment =
-                                        (WebViewDialogFragment) fragmentManager.findFragmentByTag("dialog_webview");
-                                if (webViewDialogFragment != null) {
-                                    // Update the colors dynamically
-                                    webViewDialogFragment.setPrinterCircleColor(R.color.warning);
-                                }
-                            }
+                                //web browser buttons
+                                button_ti_kitchen_view.setEnabled(false);
+                                button_ti_dashboard.setEnabled(false);
+                                button_ti_landing_page.setEnabled(false);
+//                            }
                         }
 
                         @Override
@@ -780,10 +793,12 @@ private void restartWebservice(int buttonColor){
                             // save the printed order IDs, to prevent reprinting
                             // clearIds is needed as Shared Preferences does not overwrite once saved
                             // this can be optimized, with Shared Preferences overwrite
+
                             if (isLongerConnectionTime) { // connection to printer working
-                                period = 1 * 6 * 10000;// switch back to 1 minute
-                                delayPeriod = 1 * 6 * 10000; // start immidiate
-                                restartWebservice(R.color.light_green);
+//                                period = 1 * 6 * 10000;// switch back to 1 minute
+//                                delayPeriod = 1 * 6 * 10000; // start immidiate
+//                                restartWebservice(R.color.light_green);
+                                changeColorOfButton(R.color.light_green, button_ti_print);
                                 Toast.makeText(context, "Verbindung zum Drucker hergestellt", Toast.LENGTH_SHORT).show();
                                 isLongerConnectionTime = false; // stop restarting the service
                                 button_ti_print.setText("Drucker ist Aktiv");
@@ -794,6 +809,10 @@ private void restartWebservice(int buttonColor){
                                     // Update the colors dynamically
                                     webViewDialogFragment.setPrinterCircleColor(R.color.light_green);
                                 }
+                                //web browser buttons
+                                button_ti_kitchen_view.setEnabled(true);
+                                button_ti_dashboard.setEnabled(true);
+                                button_ti_landing_page.setEnabled(true);
                             }
                             mediaPlayer.start(); // play if printing done
                             printedOrders.add(orderId);
@@ -948,11 +967,12 @@ private void restartWebservice(int buttonColor){
                         button_bluetooth_browse.setEnabled(true);
                         button_ti_print.setEnabled(true);
                         button_ti_clear_ids.setEnabled(true);
+                        button_reprint.setEnabled(true);
+                        button_ti_testprint.setEnabled(true);
+                        //web browser buttons
                         button_ti_kitchen_view.setEnabled(true);
                         button_ti_dashboard.setEnabled(true);
-                        button_reprint.setEnabled(true);
                         button_ti_landing_page.setEnabled(true);
-                        button_ti_testprint.setEnabled(true);
                         dismiss();
                     } else {
                         // activate the error text in the popup
