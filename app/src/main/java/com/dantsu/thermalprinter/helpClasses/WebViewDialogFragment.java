@@ -54,6 +54,14 @@ public class WebViewDialogFragment extends DialogFragment {
         circlePrinter = view.findViewById(R.id.circlePrinter);
         circleService = view.findViewById(R.id.circleService);
 
+        // Apply stored colors when view is created
+        if (printerCircleColor != null) {
+            setPrinterCircleColor(printerCircleColor);
+        }
+        if (serviceCircleColor != null) {
+            setServiceCircleColor(serviceCircleColor);
+        }
+
         // Get the WebView and configure it for login and navigation
         WebView webView = view.findViewById(R.id.webView);
         configureWebView(webView);
@@ -115,19 +123,32 @@ public class WebViewDialogFragment extends DialogFragment {
     }
 
     // Method to change circle colors from MainActivity
+//    public void setPrinterCircleColor(int color) {
+//        if (circlePrinter != null) {
+//            circlePrinter.setBackgroundColor(color);
+//        } else {
+//            printerCircleColor = color; // Store color if circlePrinter is not initialized
+//        }
+//    }
+//
+//    public void setServiceCircleColor(int color) {
+//        if (circleService != null) {
+//            circleService.setBackgroundColor(color);
+//        } else {
+//            serviceCircleColor = color; // Store color if circleService is not initialized
+//        }
+//    }
     public void setPrinterCircleColor(int color) {
+        printerCircleColor = color; // Always store the color
         if (circlePrinter != null) {
-            circlePrinter.setBackgroundColor(color);
-        } else {
-            printerCircleColor = color; // Store color if circlePrinter is not initialized
+            circlePrinter.setBackgroundColor(color); // Apply the color if the view is ready
         }
     }
 
     public void setServiceCircleColor(int color) {
+        serviceCircleColor = color;
         if (circleService != null) {
-            circleService.setBackgroundColor(color);
-        } else {
-            serviceCircleColor = color; // Store color if circleService is not initialized
+            circleService.setBackgroundColor(color); // Apply the color if the view is ready
         }
     }
 }

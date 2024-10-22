@@ -119,6 +119,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private ProgressBar progressBar;
     private Boolean isPrinterSelected = false;
     private Boolean isServiceStarted = false;
+    private FragmentManager fragmentManager = getSupportFragmentManager();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -757,11 +758,19 @@ private void restartWebservice(int buttonColor){
                             Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
                             //stopService(); //stop the service loop TODO: maybe restart service after some minutes? This kills the process
                             if (!isLongerConnectionTime) { // conection to filter failed
-                                period = 5 * 6 * 10000; // check every 5 minutes
-                                delayPeriod = 5 * 6 * 10000; // start after 5 minutes
+                                period = 1 * 6 * 10000; // check every 3 minutes
+                                delayPeriod = 1 * 6 * 10000; // start after 5 minutes
                                 restartWebservice(R.color.warning);
                                 Toast.makeText(context, "Verbindung zum Drucker unterbrochen", Toast.LENGTH_LONG).show();
                                 isLongerConnectionTime = true; //swiched to 5 minutes
+                                button_ti_print.setText("Druckerverbindung \n gestört");
+                                //change button color
+                                WebViewDialogFragment webViewDialogFragment =
+                                        (WebViewDialogFragment) fragmentManager.findFragmentByTag("dialog_webview");
+                                if (webViewDialogFragment != null) {
+                                    // Update the colors dynamically
+                                    webViewDialogFragment.setPrinterCircleColor(R.color.warning);
+                                }
                             }
                         }
 
@@ -773,10 +782,18 @@ private void restartWebservice(int buttonColor){
                             // this can be optimized, with Shared Preferences overwrite
                             if (isLongerConnectionTime) { // connection to printer working
                                 period = 1 * 6 * 10000;// switch back to 1 minute
-                                delayPeriod = 0; // start immidiate
+                                delayPeriod = 1 * 6 * 10000; // start immidiate
                                 restartWebservice(R.color.light_green);
                                 Toast.makeText(context, "Verbindung zum Drucker hergestellt", Toast.LENGTH_SHORT).show();
                                 isLongerConnectionTime = false; // stop restarting the service
+                                button_ti_print.setText("Drucker ist Aktiv");
+                                //change button color
+                                WebViewDialogFragment webViewDialogFragment =
+                                        (WebViewDialogFragment) fragmentManager.findFragmentByTag("dialog_webview");
+                                if (webViewDialogFragment != null) {
+                                    // Update the colors dynamically
+                                    webViewDialogFragment.setPrinterCircleColor(R.color.light_green);
+                                }
                             }
                             mediaPlayer.start(); // play if printing done
                             printedOrders.add(orderId);
@@ -830,28 +847,34 @@ private void restartWebservice(int buttonColor){
     private void showWebViewDialog(String url) {
         FragmentManager fm = getSupportFragmentManager();
         WebViewDialogFragment webViewDialogFragment = WebViewDialogFragment.newInstance(url);
-        //TODO not working as expected. Colors are not changing
-        //change colors of the circles in the popup
+
+        // Set the initial circle colors based on the conditions
+        int printerColor;
+        int serviceColor;
+
         if (isPrinterSelected) {
-            webViewDialogFragment.setPrinterCircleColor(ContextCompat.getColor(this, R.color.light_green));
+            printerColor = ContextCompat.getColor(this, R.color.light_green);
         } else {
-            webViewDialogFragment.setPrinterCircleColor(ContextCompat.getColor(this, R.color.colorError));
-        }
-        if (isLongerConnectionTime){ // connection problems to printer
-            webViewDialogFragment.setPrinterCircleColor(ContextCompat.getColor(this, R.color.warning));
+            printerColor = ContextCompat.getColor(this, R.color.colorError);
         }
 
+        if (isLongerConnectionTime) {
+            printerColor = ContextCompat.getColor(this, R.color.warning);
+        }
 
         if (isServiceStarted) {
-            webViewDialogFragment.setServiceCircleColor(ContextCompat.getColor(this, R.color.light_green));
+            serviceColor = ContextCompat.getColor(this, R.color.light_green);
         } else {
-            webViewDialogFragment.setServiceCircleColor(ContextCompat.getColor(this, R.color.colorError));
+            serviceColor = ContextCompat.getColor(this, R.color.colorError);
         }
 
-
+        // Pass the colors as arguments or set them after the fragment is shown
+        webViewDialogFragment.setPrinterCircleColor(printerColor);
+        webViewDialogFragment.setServiceCircleColor(serviceColor);
 
         webViewDialogFragment.show(fm, "dialog_webview");
     }
+
 
     private void tiClearIds() {
         //clear the id, so that the printing of open orders can be restarted
