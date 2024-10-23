@@ -120,6 +120,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private Boolean isPrinterSelected = false;
     private Boolean isServiceStarted = false;
     private FragmentManager fragmentManager = getSupportFragmentManager();
+    private int storedPrinterIndex = -1; // Initialize the printer selection from dropdown
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -184,18 +185,18 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             RePrintTask task = new RePrintTask();
             task.execute(tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
         });
+
     }
 
     public void initilizeURLs() {
         // Retrieve saved login details from SharedPreferences
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
         shop_id = sharedPreferences.getInt("shop_id", 0);
-//        String savedUsername = sharedPreferences.getString("username", "");
-//        String savedPassword = sharedPreferences.getString("password", "");
-//        String savedDomainShop = sharedPreferences.getString("domain_shop", "");
-//        String savedDomainWebsite = sharedPreferences.getString("domain_website", "");
-//        String savedKitchenViewWebsite = sharedPreferences.getString("kitchen_view", "");
-//        shop_name  = sharedPreferences.getString("shop_name", "");
+
+        //TODO apply for automatic printer selection
+        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+        storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
+        Toast.makeText(context, String.valueOf(storedPrinterIndex), Toast.LENGTH_LONG).show();
 
         if (shop_id == 0) {
             Toast.makeText(context, "No User selected", Toast.LENGTH_SHORT).show();
@@ -496,10 +497,17 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                                 selectedDevice = null;
                                 isPrinterSelected = false;
                             } else {
-                                selectedDevice = bluetoothDevicesList[index]; //TODO save selected device and reload on restart
+                                selectedDevice = bluetoothDevicesList[index];
                                 int buttonColor = ContextCompat.getColor(this, R.color.light_green);
                                 button_bluetooth_browse.setBackgroundColor(buttonColor);
                                 isPrinterSelected = true;
+
+                                // TODO: shared preferences speichern nicht. OnCreate kann man dann anhand vom Index den device selektieren
+                                SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+                                SharedPreferences.Editor editor = prefs.edit(); // Get editor from prefs, not cast
+                                editor.putInt("stored_index_printer", index);
+                                editor.commit();  // Save changes asynchronously (or use .commit() for synchronous save)
+
                             }
                             Button button = (Button) findViewById(R.id.button_bluetooth_browse);
                             button.setText(items[i1]);
