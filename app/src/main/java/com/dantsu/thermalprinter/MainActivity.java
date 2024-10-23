@@ -781,9 +781,9 @@ private void restartWebservice(int buttonColor){
                                 isLongerConnectionTime = true; //swiched to 5 minutes
                                 button_ti_print.setText("Druckerverbindung \n gestört");
                                 //web browser buttons
-                                button_ti_kitchen_view.setEnabled(false);
-                                button_ti_dashboard.setEnabled(false);
-                                button_ti_landing_page.setEnabled(false);
+//                                button_ti_kitchen_view.setEnabled(false);
+//                                button_ti_dashboard.setEnabled(false);
+//                                button_ti_landing_page.setEnabled(false);
 //                            }
                         }
 
@@ -810,9 +810,9 @@ private void restartWebservice(int buttonColor){
                                     webViewDialogFragment.setPrinterCircleColor(R.color.light_green);
                                 }
                                 //web browser buttons
-                                button_ti_kitchen_view.setEnabled(true);
-                                button_ti_dashboard.setEnabled(true);
-                                button_ti_landing_page.setEnabled(true);
+//                                button_ti_kitchen_view.setEnabled(true);
+//                                button_ti_dashboard.setEnabled(true);
+//                                button_ti_landing_page.setEnabled(true);
                             }
                             mediaPlayer.start(); // play if printing done
                             printedOrders.add(orderId);
