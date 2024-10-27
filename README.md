@@ -62,3 +62,21 @@ Here is the structure of the file
       "kitchen_view": "https://dimitrir14.sg-host.com/admin/thoughtco/kitchendisplay/summary/view/1"
     },
 ```
+
+# Version Updater
+The app has an integrated update function outsite the playstore. With this updates can come much faster.
+There is hardcoded link to version updates in "Constants.java" file for APP_DETAILS_URL.
+This is the structure for the update JSON file. 
+
+The app will compare the version in JSON and in the coding and download the latest version from the link storen in JSON for "apk_file".
+
+Structure of the JSON:
+```
+{
+    "app_version": "1.0.6",
+    "update_title": "Jandiweb Installer",
+    "update_description": "Improvement in Bluetooth communication",
+    "date": "2027-27-27T18:25:43.511Z",
+    "apk_file": "https://[PAGE URL]/jandiweb_printer_1.0.6.apk"
+}
+```
