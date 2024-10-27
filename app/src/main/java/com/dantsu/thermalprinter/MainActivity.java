@@ -132,7 +132,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         button_reprint = this.findViewById(R.id.button_reprint);
         progressBar = findViewById(R.id.progressBar);
 
-        button_bluetooth_browse.setOnClickListener(view -> browseBluetoothDevice());
+        button_bluetooth_browse.setOnClickListener(view -> browseBluetoothDevice(-1, true));
         button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
         button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
         textview_ti_header = this.findViewById(R.id.textview_ti_header);
@@ -193,10 +193,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
         shop_id = sharedPreferences.getInt("shop_id", 0);
 
-        //TODO apply for automatic printer selection
+        //apply automatic printer selection of last selected device
         SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
         storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
-        Toast.makeText(context, String.valueOf(storedPrinterIndex), Toast.LENGTH_LONG).show();
+        browseBluetoothDevice(storedPrinterIndex, false);
 
         if (shop_id == 0) {
             Toast.makeText(context, "No User selected", Toast.LENGTH_SHORT).show();
@@ -462,65 +462,77 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
     private BluetoothConnection selectedDevice;
 
-    public void browseBluetoothDevice() {
+    public void browseBluetoothDevice(int selectedIndex, boolean manualOpen) {
+
         this.checkBluetoothPermissions(() -> {
             final BluetoothConnection[] bluetoothDevicesList = (new BluetoothPrintersConnections()).getList();
 
             if (bluetoothDevicesList != null) {
-                //final String[] items = new String[bluetoothDevicesList.length + 1];// removed default printer
                 final String[] items = new String[bluetoothDevicesList.length];
-                //items[0] = "Default printer"; // removed default printer
                 int i = 0;
                 for (BluetoothConnection device : bluetoothDevicesList) {
                     if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                        // TODO: Consider calling
-                        //    ActivityCompat#requestPermissions
-                        // here to request the missing permissions, and then overriding
-                        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                        //                                          int[] grantResults)
-                        // to handle the case where the user grants the permission. See the documentation
-                        // for ActivityCompat#requestPermissions for more details.
                         return;
                     }
-                    //items[++i] = device.getDevice().getName();// removed default printer
                     items[i] = device.getDevice().getName();
+                    i++;
                 }
 
+                // Auto-select the device based on selectedIndex if it's within range
+                if (selectedIndex >= 0 && selectedIndex < bluetoothDevicesList.length) {
+                    selectedDevice = bluetoothDevicesList[selectedIndex];
+                    isPrinterSelected = true;
+
+                    // Update button appearance and store the selected index
+                    int buttonColor = ContextCompat.getColor(this, R.color.light_green);
+                    button_bluetooth_browse.setBackgroundColor(buttonColor);
+
+                    // Save the selected index in SharedPreferences
+                    SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+                    SharedPreferences.Editor editor = prefs.edit();
+                    editor.putInt("stored_index_printer", selectedIndex);
+                    editor.apply();  // Save the index asynchronously
+
+                    // Set button text to the selected device's name
+                    Button button = findViewById(R.id.button_bluetooth_browse);
+                    button.setText(items[selectedIndex]);
+
+                    return; // Return after auto-selection to skip showing the dialog
+                }
+                if (!manualOpen){ // prevents opening of dialog onInit
+                    return;
+                }
+                // Show dialog if selectedIndex is invalid (manual selection)
                 AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
                 alertDialog.setTitle("Bluetooth printer selection");
                 alertDialog.setItems(
                         items,
                         (dialogInterface, i1) -> {
-                            //int index = i1 - 1;// removed default printer
-                            int index = i1;
-                            if (index == -1) {
-                                selectedDevice = null;
-                                isPrinterSelected = false;
-                            } else {
-                                selectedDevice = bluetoothDevicesList[index];
-                                int buttonColor = ContextCompat.getColor(this, R.color.light_green);
-                                button_bluetooth_browse.setBackgroundColor(buttonColor);
-                                isPrinterSelected = true;
+                            selectedDevice = bluetoothDevicesList[i1];
+                            isPrinterSelected = true;
 
-                                // TODO: shared preferences speichern nicht. OnCreate kann man dann anhand vom Index den device selektieren
-                                SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
-                                SharedPreferences.Editor editor = prefs.edit(); // Get editor from prefs, not cast
-                                editor.putInt("stored_index_printer", index);
-                                editor.commit();  // Save changes asynchronously (or use .commit() for synchronous save)
+                            // Update button appearance and store the selected index
+                            int buttonColor = ContextCompat.getColor(this, R.color.light_green);
+                            button_bluetooth_browse.setBackgroundColor(buttonColor);
 
-                            }
-                            Button button = (Button) findViewById(R.id.button_bluetooth_browse);
+                            SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+                            SharedPreferences.Editor editor = prefs.edit();
+                            editor.putInt("stored_index_printer", i1);
+                            editor.apply();
+
+                            // Update button text to the selected device name
+                            Button button = findViewById(R.id.button_bluetooth_browse);
                             button.setText(items[i1]);
                         }
                 );
 
                 AlertDialog alert = alertDialog.create();
-                //alert.setCanceledOnTouchOutside(false);
                 alert.show();
             }
         });
-
     }
+
+
 //    /*==============================================================================================
 //    ===================================Tasty Igniter Part=========================================
 //    ==============================================================================================*/
