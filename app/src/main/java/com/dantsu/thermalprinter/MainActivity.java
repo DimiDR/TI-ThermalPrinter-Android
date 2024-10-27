@@ -221,27 +221,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             }
         }
 
-//        domain_shop = users.get(i).domain_shop;
-//        domain_website = users.get(i).domain_website;
-//        shop_name = users.get(i).shop_name;
-//        tiKitchenViewURL = users.get(i).kitchen_view;
-//        username = users.get(i).username;
-//        tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
-//        tiDashboardURL = domain_shop + "/admin";
-//        //tiKitchenViewURL = domain_shop + "/admin/thoughtco/kitchendisplay/summary/view/1";
-//        tiLandingPage = domain_website + "/";
-
-//        if (!savedUsername.isEmpty() && !savedPassword.isEmpty()) {
-            // Set saved URLs to your URL fields
-//            tiOrdersEndpointURL = savedDomainShop + "/api/orders?sort=order_id desc&pageLimit=50";
-//            tiDashboardURL = savedDomainShop + "/admin";
-            //tiKitchenViewURL = savedDomainShop + "/admin/thoughtco/kitchendisplay/summary/view/1";
-//            tiKitchenViewURL = savedKitchenViewWebsite;
-//            tiLandingPage = savedDomainWebsite + "/";
-//            textview_ti_header.setText(savedUsername);
-//            tiMenusEndpointURL = savedDomainShop + "/api/menus?include=categories&pageLimit=5000";
-//            tiCategoriesEndpointURL = savedDomainShop + "/api/categories";
-
             //activate the buttons
             button_bluetooth_browse.setEnabled(true);
             button_ti_print.setEnabled(true);
@@ -781,43 +760,21 @@ private void restartWebservice(int buttonColor){
                         @Override
                         public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
                             Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
-                            //stopService(); //stop the service loop TODO: maybe restart service after some minutes? This kills the process
-                            //change button color
                             WebViewDialogFragment webViewDialogFragment =
                                     (WebViewDialogFragment) fragmentManager.findFragmentByTag("dialog_webview");
                             if (webViewDialogFragment != null) {
-                                // Update the colors dynamically
-                                //webViewDialogFragment.setPrinterCircleColor(R.color.warning);
                                 webViewDialogFragment.dismiss(); // need to close the dialog to update the communication on main thread
                             }
-
-//                            if (!isLongerConnectionTime) { // conection to filter failed
-//                                period = 1 * 6 * 10000; // check every 3 minutes
-//                                delayPeriod = 0; // start after 5 minutes
-//                                // Make UI changes on the main thread
-//                                restartWebservice(R.color.warning);
                                 changeColorOfButton(R.color.warning, button_ti_print);
                                 Toast.makeText(context, "Verbindung zum Drucker unterbrochen", Toast.LENGTH_LONG).show();
                                 isLongerConnectionTime = true; //swiched to 5 minutes
                                 button_ti_print.setText("Druckerverbindung \n gestört");
-                                //web browser buttons
-//                                button_ti_kitchen_view.setEnabled(false);
-//                                button_ti_dashboard.setEnabled(false);
-//                                button_ti_landing_page.setEnabled(false);
-//                            }
                         }
 
                         @Override
                         public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
                             Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
-                            // save the printed order IDs, to prevent reprinting
-                            // clearIds is needed as Shared Preferences does not overwrite once saved
-                            // this can be optimized, with Shared Preferences overwrite
-
                             if (isLongerConnectionTime) { // connection to printer working
-//                                period = 1 * 6 * 10000;// switch back to 1 minute
-//                                delayPeriod = 1 * 6 * 10000; // start immidiate
-//                                restartWebservice(R.color.light_green);
                                 changeColorOfButton(R.color.light_green, button_ti_print);
                                 Toast.makeText(context, "Verbindung zum Drucker hergestellt", Toast.LENGTH_SHORT).show();
                                 isLongerConnectionTime = false; // stop restarting the service
@@ -829,10 +786,6 @@ private void restartWebservice(int buttonColor){
                                     // Update the colors dynamically
                                     webViewDialogFragment.setPrinterCircleColor(R.color.light_green);
                                 }
-                                //web browser buttons
-//                                button_ti_kitchen_view.setEnabled(true);
-//                                button_ti_dashboard.setEnabled(true);
-//                                button_ti_landing_page.setEnabled(true);
                             }
                             mediaPlayer.start(); // play if printing done
                             printedOrders.add(orderId);
@@ -877,9 +830,6 @@ private void restartWebservice(int buttonColor){
 
         if (!url.startsWith("http://") && !url.startsWith("https://"))
             url = "http://" + url;
-        //Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        //startActivity(browserIntent);
-        // Open the WebViewDialogFragment instead of launching a browser
         showWebViewDialog(url);
     }
 
@@ -1034,12 +984,6 @@ private void restartWebservice(int buttonColor){
                     //save login data
                     SharedPreferences.Editor editor = sharedPreferences.edit();
                     editor.putInt("shop_id", shop_id);
-//                    editor.putString("username", username);
-//                    editor.putString("password", password);
-//                    editor.putString("shop_name", users.get(i).shop_name);
-//                    editor.putString("domain_shop", users.get(i).domain_shop);
-//                    editor.putString("domain_website", users.get(i).domain_website);
-//                    editor.putString("kitchen_view", users.get(i).kitchen_view);
                     editor.apply();
                     //change header text
                     textview_ti_header.setText(shop_name);
