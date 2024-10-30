@@ -3,4 +3,24 @@
     <string name="title_activity_kitchen_display">KitchenDisplay</string>
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="login_button">Login</string>
+    <string name="homepage_button">Homepage</string>
+    <string name="test_print_button">Test Print</string>
+    <string name="kitchen_display_button">Kitchen Display</string>
+    <string name="admin_button">Administration</string>
+    <string name="select_printer_button">Select Printer</string>
+    <string name="service_started_button">Printer On</string>
+    <string name="reprint_button">Reprint</string>
+    <string name="revert_print_ids_button">Revert Print IDs</string>
+    <string name="login_text">Please Login</string>
+    <string name="open_websites_text">Open Websites</string>
+    <string name="bluetooth_printer_text">Bluetooth Printer</string>
+    <string name="service_stoped_button">Printer Off</string>
+    <string name="revert_print_ids_text">Only new orders with the status ‘Received’ are printed</string>
+    <string name="select_printer_text">please select a printer</string>
+    <string name="printer_connection_lost_text">printer connection lost</string>
+    <string name="printer_connection_disrupted_text">printer connection \\n disrupted</string>
+    <string name="printer_connection_reactivated_text">printer connection reactivated</string>
+    <string name="no_user_error_text">Error: User not found</string>
+    <string name="wrong_password_error_text">Error: Wrong Password</string>
 </resources>

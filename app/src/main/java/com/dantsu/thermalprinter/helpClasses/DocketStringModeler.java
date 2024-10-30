@@ -76,9 +76,11 @@ public JSONObject addInformation(){
             JSONObject order_menus_object = order_menus_array.getJSONObject(i);
             String menu_id = order_menus_object.getString("menu_id");
             JSONObject menu = filterById(menus_array, menu_id);
+            // TODO: handle error if no category assigned
             String category_id = menu.getJSONObject("relationships").
                     getJSONObject("categories").getJSONArray("data").
                     getJSONObject(0).getString("id");
+            // TODO: handle error if category is not part of the location
             JSONObject category = filterById(categories_array, category_id);
             String category_name = category.getJSONObject("attributes").getString("name");
             order_menus_object.put("category_id", category_id);
@@ -273,7 +275,137 @@ public JSONObject addInformation(){
 //        return printOutput;
     }
 
+    private void printDocketKitchenReceipt() {
+        try {
+            mediaPlayer.start(); //always play if new order is available
+            String orderID = orders.getString("id");
+            JSONObject orderAttributes = orders.getJSONObject("attributes");
+            String payment = orderAttributes.getString("payment");//stripe, cod, paypalexpress
+            String order_type = orderAttributes.getString("order_type");
+            String order_time_is_asap = orderAttributes.getString("order_time_is_asap");
+            String order_date_time = FormatDate(orderAttributes.getString("order_date_time"));
+            String orderId = String.valueOf(orderAttributes.getInt("order_id"));
+            String orderTotal = String.valueOf(orderAttributes.getDouble("order_total"));
+            //payment translation
+            if (payment.equals("cod")) {
+                payment = "Barzahlung";
+            } else if (payment.equals("stripe")) {
+                payment = "Bezahlt mit Kreditkarte";
+            } else if (payment.equals("paypalexpress")) {
+                payment = "Bezahlt mit PayPal";
+            }
+            //delivery translation
+            if (order_type.equals("delivery")) {
+                order_type = "Lieferung";
+            } else {
+                order_type = "Abholung";
+            }
+            // check if delivery is later, print bigger if delivery later
+            String order_type_time = "";
+            if (order_time_is_asap.equals("false")) {
+                order_type_time = "[C]<b>Gewünschte Zeit: " + " am " + order_date_time + "</b>\n";
+            } else {
+                order_type_time = "[C] Sofort: " + " am " + order_date_time + "\n";
+            }
+            printHeader = "[C]<u><font size='big'>" + shop_name + "</font></u>\n" +
+                    "[L]<font size='big'>Bestellung Nr." + orderId + "</font>\n" +
+                    "[L]\n" +
+                    "[L]<b>" + order_type + " - " + payment + " - <u type='double'>" +
+                    orderTotal + "</u>€ </b>\n" +
+                    order_type_time +
+                    "[C]\n" +
+                    "[L]====================================\n";
 
+            // menu entries, need to sort by category so on the print, a category is visible only once
+            JSONArray order_menus_array = sortJSONArray(orderAttributes.getJSONArray("order_menus"));
+            String category_id_help = "";
+            for (int j = 0; j < order_menus_array.length(); j++) {
+                JSONObject order_menus_object = order_menus_array.getJSONObject(j);
+                String menusName = order_menus_object.getString("name");
+                String menusSubtotal = FormatStringValue(order_menus_object.getString("subtotal"));
+                String menusQuantity = order_menus_object.getString("quantity");
+                String menusComment = order_menus_object.getString("comment");
+                String category_id = order_menus_object.getString("category_id");
+                String category_name = order_menus_object.getString("category_name");
+                if (!category_id.equals(category_id_help)) {
+                    printOrder += "[L]__________________ \n";
+                    printOrder += "[L]<b>" + category_name + "</b> \n";
+                    category_id_help = category_id;
+                }
+
+                printOrder += "[L]<b> " + menusQuantity + "x - " + menusName + ", [R]"
+                        + menusSubtotal + "€</b> \n";
+                if (menusComment != null && !menusComment.isEmpty()) {
+                    printOrder += "[L]  Kommentar: " + menusComment + "\n";
+                }
+                // menu options
+                JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
+                for (int k = 0; k < menu_options_array.length(); k++) {
+                    JSONObject menu_option_object = menu_options_array.getJSONObject(k);
+                    String order_option_name = menu_option_object.getString("order_option_name");
+                    String order_option_price = FormatStringValue(menu_option_object.getString("order_option_price"));
+                    printOrder += "[L]  Option: " + order_option_name + ", [R]" + order_option_price + "€\n";
+                }
+            }
+            //all costs
+            JSONArray order_totals_array = orderAttributes.getJSONArray("order_totals");
+            printAllCosts += "[L]====================================\n";
+            for (int j = 0; j < order_totals_array.length(); j++) {
+                JSONObject order_totals_object = order_totals_array.getJSONObject(j);
+                // assumption, that the JSON is already sorted by priority. The same sequence will be taken
+                String title = order_totals_object.getString("title");
+                String value = FormatStringValue(order_totals_object.getString("value"));
+                printAllCosts += "[L]" + title + "[R]" + value + "€\n";
+            }
+            //customer information
+            String customer_name = orderAttributes.getString("customer_name");
+            String telephone = orderAttributes.getString("telephone");
+            String comment = orderAttributes.getString("comment");
+            String formatted_address = orderAttributes.getString("formatted_address")
+                    .replaceAll("\\s+", " ").replaceAll(",\\s*,", ",");
+            String google_api_url = "https://www.google.com/maps?q=" +
+                    orderAttributes.getString("formatted_address").replaceAll("[,\\s]+", "+");
+            if (formatted_address == "null" || formatted_address.isEmpty()) {
+                formatted_address = "nicht angegeben";
+                isGoogleMaps = false;
+            }
+            if (telephone == "null" || telephone.isEmpty()) {
+                telephone = "nicht angegeben";
+            }
+            if (comment == "null" || comment.isEmpty()) {
+                comment = "nicht angegeben";
+            }
+
+            printCustomer += "[L]Name: " + customer_name + "\n" +
+                    "[L]Telefon: " + telephone + "\n" +
+                    "[L]Adresse: " + formatted_address + "\n" +
+                    "[L]Kommentar: " + comment + "\n";
+            if (isGoogleMaps) {
+                printCustomer += "[C]Google Adresse Scannen \n" +
+                        "[C]<qrcode size='20'>" + google_api_url + "</qrcode> \n";
+            }
+            // create full print String
+            printOutput = printHeader +
+                    printOrder +
+                    printAllCosts +
+                    printPayment +
+                    "[L]====================================\n" +
+                    "[L]Kundeninformation\n" +
+                    printCustomer +
+                    "[C]<b>Dies ist keine Rechnung</b>";
+            this.customerReceipt = printOutput;
+            printOutput = "";
+            printHeader = "";
+            printOrder = "";
+            printAllCosts = "";
+            printCustomer = "";
+            printPayment = "";
+//            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+//        return printOutput;
+    }
 
     private String FormatStringValue(String value) {
         String output = value.substring(0, value.length() - 2);

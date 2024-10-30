@@ -34,7 +34,7 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_margin="10dp"
                 android:background="@drawable/custom_button"
-                android:text="Login"
+                android:text="@string/login_button"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp" />
@@ -46,7 +46,7 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="20dp"
                 android:gravity="center"
-                android:text="Primavera Druck"
+                android:text="Shop"
                 android:textColor="#000000"
                 android:textSize="20sp" />
 
@@ -56,7 +56,7 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="10dp"
                 android:gravity="center"
-                android:text="Zu den Websiten"
+                android:text="@string/open_websites_text"
                 android:textColor="#000000"
                 android:textSize="25sp" />
 
@@ -73,7 +73,7 @@
                     android:background="@drawable/custom_button"
                     android:enabled="false"
                     android:padding="6dp"
-                    android:text="Startseite"
+                    android:text="@string/homepage_button"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp" />
@@ -98,7 +98,7 @@
                     android:background="@drawable/custom_button"
                     android:enabled="false"
                     android:padding="6dp"
-                    android:text="Test Print"
+                    android:text="@string/test_print_button"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp" />
@@ -118,7 +118,7 @@
                     android:background="@drawable/custom_button"
                     android:enabled="false"
                     android:padding="6dp"
-                    android:text="Küchenanzeige"
+                    android:text="@string/kitchen_display_button"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp" />
@@ -131,7 +131,7 @@
                     android:background="@drawable/custom_button"
                     android:enabled="false"
                     android:padding="6dp"
-                    android:text="Administration"
+                    android:text="@string/admin_button"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp" />
@@ -162,7 +162,7 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="20dp"
                 android:gravity="center"
-                android:text="Bluetooth Drucker"
+                android:text="@string/bluetooth_printer_text"
                 android:textColor="#000000"
                 android:textSize="20sp" />
 
@@ -196,7 +196,7 @@
                     android:background="@drawable/action_button"
                     android:enabled="false"
                     android:padding="6dp"
-                    android:text="Drucker Anschalten"
+                    android:text="@string/service_stoped_button"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp" />
@@ -212,7 +212,7 @@
                 android:height="50dp"
                 android:background="@drawable/custom_button"
                 android:enabled="false"
-                android:text="Reprint"
+                android:text="@string/reprint_button"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp" />
@@ -230,7 +230,7 @@
                 android:layout_marginLeft="40dp"
                 android:layout_marginRight="40dp"
                 android:gravity="center"
-                android:text='Nur neue Bestellungen mit Status "Eingegangen" werden gedruckt'
+                android:text='@string/revert_print_ids_text'
                 android:textColor="#000000"
                 android:textSize="12sp" />
 
@@ -243,7 +243,7 @@
                 android:background="@drawable/custom_button"
                 android:enabled="false"
                 android:padding="6dp"
-                android:text="Druck Zurücksetzen"
+                android:text="@string/revert_print_ids_button"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp" />

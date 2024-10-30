@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Jandiweb Printer</string>
+    <string name="title_activity_kitchen_display">KitchenDisplay</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="login_button">Einloggen</string>
+    <string name="homepage_button">Homepage</string>
+    <string name="test_print_button">Test Druck</string>
+    <string name="kitchen_display_button">Küchenanzeige</string>
+    <string name="admin_button">Administration</string>
+    <string name="select_printer_button">Drucker Wählen</string>
+    <string name="service_started_button">Drucker An</string>
+    <string name="reprint_button">Neudruck</string>
+    <string name="revert_print_ids_button">Druck Zurücksetzen</string>
+    <string name="login_text">Bitter Einlogen</string>
+    <string name="open_websites_text">Zu den Webseiten</string>
+    <string name="bluetooth_printer_text">Bluetooth Drucker</string>
+    <string name="service_stoped_button">Drucker Aus</string>
+    <string name="revert_print_ids_text">Nur neue Bestellungen mit Status \"Eingegangen\" werden gedruckt</string>
+    <string name="select_printer_text">Bitte einen Drucker wählen</string>
+    <string name="printer_connection_lost_text">Verbindung zum Drucker unterbrochen</string>
+    <string name="printer_connection_disrupted_text">Druckerverbindung \\n gestört</string>
+    <string name="printer_connection_reactivated_text">Verbindung zum Drucker hergestellt</string>
+    <string name="no_user_error_text">FEHLER: Der Benutzer wurde nicht gefunden</string>
+    <string name="wrong_password_error_text">FEHLER: falsches Passwort</string>
+
+</resources>

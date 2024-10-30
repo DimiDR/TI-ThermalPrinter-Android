@@ -100,6 +100,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static String username = "";
     private static String password = "";
     private static String shop_name = "";
+    private static Integer location_id;
     private static String tiOrdersEndpointURL = "";
     private static String tiDashboardURL  = "";
     private static String tiKitchenViewURL  = "";
@@ -213,10 +214,16 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 tiDashboardURL = user.domain_shop + "/admin";
                 tiKitchenViewURL =  user.kitchen_view;
                 tiLandingPage = user.domain_website + "/";
+                location_id = user.location_id;
                 textview_ti_header.setText(user.shop_name);
-                tiOrdersEndpointURL = user.domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
-                tiMenusEndpointURL = user.domain_shop + "/api/menus?include=categories&pageLimit=5000";
-                tiCategoriesEndpointURL = user.domain_shop + "/api/categories";
+//                tiOrdersEndpointURL = user.domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
+//                tiMenusEndpointURL = user.domain_shop + "/api/menus?include=categories&pageLimit=5000";
+//                tiCategoriesEndpointURL = user.domain_shop + "/api/categories";
+                // with location ID TODO make dynamic
+                tiOrdersEndpointURL = user.domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
+                tiMenusEndpointURL = user.domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
+                tiCategoriesEndpointURL = user.domain_shop + "/api/categories?location="+location_id;
+
                 break; // Exit the loop once the user is found
             }
         }
@@ -520,7 +527,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (!Constants.isServiceActive) {
             // Start printing
             if (selectedDevice == null) {
-                Toast.makeText(context, "Bitte einen Drucker wählen", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.select_printer_text, Toast.LENGTH_SHORT).show();
                 isPrinterSelected = false;
             } else {
                 startService(); // This will handle starting and binding the service
@@ -766,9 +773,9 @@ private void restartWebservice(int buttonColor){
                                 webViewDialogFragment.dismiss(); // need to close the dialog to update the communication on main thread
                             }
                                 changeColorOfButton(R.color.warning, button_ti_print);
-                                Toast.makeText(context, "Verbindung zum Drucker unterbrochen", Toast.LENGTH_LONG).show();
+                                Toast.makeText(context, R.string.printer_connection_lost_text, Toast.LENGTH_LONG).show();
                                 isLongerConnectionTime = true; //swiched to 5 minutes
-                                button_ti_print.setText("Druckerverbindung \n gestört");
+                                button_ti_print.setText(R.string.printer_connection_disrupted_text);
                         }
 
                         @Override
@@ -776,7 +783,7 @@ private void restartWebservice(int buttonColor){
                             Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
                             if (isLongerConnectionTime) { // connection to printer working
                                 changeColorOfButton(R.color.light_green, button_ti_print);
-                                Toast.makeText(context, "Verbindung zum Drucker hergestellt", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(context, R.string.printer_connection_reactivated_text, Toast.LENGTH_SHORT).show();
                                 isLongerConnectionTime = false; // stop restarting the service
                                 button_ti_print.setText("Drucker ist Aktiv");
                                 //change button color
@@ -909,7 +916,6 @@ private void restartWebservice(int buttonColor){
         }
     }
 
-
     public static class LoginUserDialogFragment extends DialogFragment {
         @NonNull
         @Override
@@ -977,7 +983,11 @@ private void restartWebservice(int buttonColor){
                     shop_name = users.get(i).shop_name;
                     tiKitchenViewURL = users.get(i).kitchen_view;
                     username = users.get(i).username;
-                    tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
+                    tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
+
+                    // TODO do I need this here? Its only checking the credentials here. Maybe I need this to update all variables
+                    tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
+
                     tiDashboardURL = domain_shop + "/admin";
                     //tiKitchenViewURL = domain_shop + "/admin/thoughtco/kitchendisplay/summary/view/1";
                     tiLandingPage = domain_website + "/";
@@ -989,9 +999,9 @@ private void restartWebservice(int buttonColor){
                     textview_ti_header.setText(shop_name);
                     return "OK";
                 } else if (!users.get(i).username.equals(username)) {
-                    userMessage = "FEHLER: Der Benutzer wurde nicht gefunden";
+                    userMessage = String.valueOf(R.string.no_user_error_text);
                 } else if (users.get(i).username.equals(username) && !users.get(i).password.equals(password)) {
-                    userMessage = "FEHLER: falsches Passwort";
+                    userMessage = String.valueOf(R.string.wrong_password_error_text);
                 }
             }
             return userMessage;

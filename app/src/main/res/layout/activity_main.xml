@@ -18,7 +18,7 @@
         android:background="@drawable/custom_button"
         android:textColor="#FFFFFF"
         android:textAllCaps="false"
-        android:text="Login" />
+        android:text = "@string/login_button" />
     <TextView
         android:id="@+id/textview_ti_header"
         android:layout_width="wrap_content"
@@ -27,7 +27,7 @@
         android:gravity="center"
         android:textColor="#000000"
         android:textSize="30sp"
-        android:text="Bitte Einloggen" />
+        android:text="@string/login_text" />
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -35,7 +35,7 @@
         android:gravity="center"
         android:textColor="#000000"
         android:textSize="25sp"
-        android:text="Zu den Websiten" />
+        android:text="@string/open_websites_text" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -54,7 +54,7 @@
             android:background="@drawable/custom_button"
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
-            android:text="Startseite"
+            android:text="@string/homepage_button"
             android:enabled="false"/>
 
         <Button
@@ -82,7 +82,7 @@
             android:background="@drawable/custom_button"
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
-            android:text="Test Print"
+            android:text="@string/test_print_button"
             android:enabled="false"/>
     </LinearLayout>
 
@@ -103,7 +103,7 @@
             android:background="@drawable/custom_button"
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
-            android:text="Küchenanzeige"
+            android:text="@string/kitchen_display_button"
             android:enabled="false"/>
 
         <Button
@@ -117,7 +117,7 @@
             android:background="@drawable/custom_button"
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
-            android:text="Administration"
+            android:text="@string/admin_button"
             android:enabled="false"/>
     </LinearLayout>
 
@@ -150,7 +150,7 @@
                 android:height="50dp"
                 android:background="@drawable/action_button"
                 android:enabled="false"
-                android:text="Drucker wählen"
+                android:text="@string/bluetooth_printer_text"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp" />
@@ -164,7 +164,7 @@
                 android:height="50dp"
                 android:background="@drawable/action_button"
                 android:enabled="false"
-                android:text="Drucker Anschalten"
+                android:text="@string/service_stoped_button"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp" />
@@ -180,7 +180,7 @@
             android:height="50dp"
             android:background="@drawable/custom_button"
             android:enabled="false"
-            android:text="Reprint"
+            android:text="@string/reprint_button"
             android:textAllCaps="false"
             android:textColor="#FFFFFF"
             android:textSize="16sp" />
@@ -202,7 +202,7 @@
         android:layout_marginRight="40dp"
         android:gravity="center"
         android:textColor="#000000"
-        android:text='Nur neue Bestellungen mit Status "Eingegangen" werden gedruckt' />
+        android:text='@string/revert_print_ids_text' />
     <Button
         android:id="@+id/button_ti_clear_ids"
         android:layout_width="wrap_content"
@@ -214,7 +214,7 @@
         android:background="@drawable/custom_button"
         android:textColor="#FFFFFF"
         android:textAllCaps="false"
-        android:text="Druck Zurücksetzen"
+        android:text="@string/revert_print_ids_button"
         android:enabled="false"/>
 
     <LinearLayout

@@ -36,7 +36,9 @@ public class UserUtils {
                 String domain_shop = userObject.getString("domain_shop");
                 String domain_website = userObject.getString("domain_website");
                 String kitchen_view = userObject.getString("kitchen_view");
-                users.add(new User(shop_id, username, password, shop_name, domain_shop, domain_website, kitchen_view));
+                Integer location_id = userObject.getInt("location_id");
+                users.add(new User(shop_id, username, password, shop_name, domain_shop,
+                        domain_website, kitchen_view, location_id));
             }
 
         } catch (IOException | JSONException e) {
@@ -55,8 +57,10 @@ public class UserUtils {
         public String domain_website;
         public String kitchen_view;
         public Integer shop_id;
+        public Integer location_id;
 
-        public User(Integer shop_id, String username, String password, String shop_name, String domain_shop, String domain_website, String kitchen_view) {
+        public User(Integer shop_id, String username, String password, String shop_name,
+                    String domain_shop, String domain_website, String kitchen_view, Integer location_id) {
             this.shop_id = shop_id;
             this.username = username;
             this.password = password;
@@ -64,6 +68,8 @@ public class UserUtils {
             this.domain_shop = domain_shop;
             this.domain_website = domain_website;
             this.kitchen_view = kitchen_view;
+            this.location_id = location_id;
+
         }
     }
 }
