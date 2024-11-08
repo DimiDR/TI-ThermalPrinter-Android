@@ -9,6 +9,7 @@ import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.net.http.SslError;
@@ -22,6 +23,8 @@ import com.dantsu.thermalprinter.R;
 
 public class WebViewDialogFragment extends DialogFragment {
 
+    private WebView webView;
+    private Button btnBack, btnZoomIn, btnZoomOut;
     private View circlePrinter, circleService;
     private static final String ARG_URL = "url";
 
@@ -62,8 +65,8 @@ public class WebViewDialogFragment extends DialogFragment {
             setServiceCircleColor(serviceCircleColor);
         }
 
-        // Get the WebView and configure it for login and navigation
-        WebView webView = view.findViewById(R.id.webView);
+        // Get the WebView and configure it
+        webView = view.findViewById(R.id.webView);
         configureWebView(webView);
 
         // Load the URL passed as an argument
@@ -72,25 +75,45 @@ public class WebViewDialogFragment extends DialogFragment {
             webView.loadUrl(url);
         }
 
+        // Initialize buttons
+        btnBack = view.findViewById(R.id.btn_back);
+        btnZoomIn = view.findViewById(R.id.btn_zoom_in);
+        btnZoomOut = view.findViewById(R.id.btn_zoom_out);
+
+        // Handle back button click
+        btnBack.setOnClickListener(v -> {
+            if (webView.canGoBack()) {
+                webView.goBack();
+            }
+        });
+
+        // Handle zoom in button click
+        btnZoomIn.setOnClickListener(v -> {
+            WebSettings settings = webView.getSettings();
+            settings.setTextZoom(settings.getTextZoom() + 10); // Increase zoom by 10%
+        });
+
+        // Handle zoom out button click
+        btnZoomOut.setOnClickListener(v -> {
+            WebSettings settings = webView.getSettings();
+            settings.setTextZoom(settings.getTextZoom() - 10); // Decrease zoom by 10%
+        });
+
         // Handle close button
         Button btnClose = view.findViewById(R.id.btn_close);
         btnClose.setOnClickListener(v -> dismiss());
 
-        // Set colors if they were set before the view was created
-        if (printerCircleColor != null) {
-            setPrinterCircleColor(printerCircleColor);
-        }
-        if (serviceCircleColor != null) {
-            setServiceCircleColor(serviceCircleColor);
-        }
-
         return view;
     }
 
-    // Method to configure WebView settings for login functionality
+    // Method to configure WebView settings
     private void configureWebView(WebView webView) {
         // Enable JavaScript
         webView.getSettings().setJavaScriptEnabled(true);
+
+        // Enable built-in zoom controls (but hide default controls)
+        webView.getSettings().setBuiltInZoomControls(true);
+        webView.getSettings().setDisplayZoomControls(false);
 
         // Enable cookies
         CookieManager cookieManager = CookieManager.getInstance();
@@ -123,23 +146,8 @@ public class WebViewDialogFragment extends DialogFragment {
     }
 
     // Method to change circle colors from MainActivity
-//    public void setPrinterCircleColor(int color) {
-//        if (circlePrinter != null) {
-//            circlePrinter.setBackgroundColor(color);
-//        } else {
-//            printerCircleColor = color; // Store color if circlePrinter is not initialized
-//        }
-//    }
-//
-//    public void setServiceCircleColor(int color) {
-//        if (circleService != null) {
-//            circleService.setBackgroundColor(color);
-//        } else {
-//            serviceCircleColor = color; // Store color if circleService is not initialized
-//        }
-//    }
     public void setPrinterCircleColor(int color) {
-        printerCircleColor = color; // Always store the color
+        printerCircleColor = color; // Store color if the view is not created yet
         if (circlePrinter != null) {
             circlePrinter.setBackgroundColor(color); // Apply the color if the view is ready
         }

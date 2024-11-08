@@ -3,7 +3,6 @@ package com.dantsu.thermalprinter.helpClasses;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.media.MediaPlayer;
-import android.os.AsyncTask;
 import android.util.DisplayMetrics;
 
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
@@ -15,24 +14,16 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.concurrent.ExecutionException;
 
 public class DocketStringModeler {
     private static Set<String> printedOrders;
@@ -52,7 +43,7 @@ public class DocketStringModeler {
     JSONObject jsonObjectCategories;
 
 
-    public String startPrinting(JSONObject dataObject,   JSONObject  jsonObjectMenus, JSONObject jsonObjectCategories, MediaPlayer mediaPlayer, String shop_name){
+    public String startPrintingReceipt(JSONObject dataObject, JSONObject  jsonObjectMenus, JSONObject jsonObjectCategories, MediaPlayer mediaPlayer, String shop_name){
         this.orders = dataObject;
         this.mediaPlayer = mediaPlayer;
         this.jsonObjectMenus = jsonObjectMenus;
@@ -62,6 +53,19 @@ public class DocketStringModeler {
         // add category id and category name to orders for printing
         addInformation();
         printDocketCustomerReceipt();
+        return customerReceipt;
+    }
+
+    public String startPrintingKitchen(JSONObject dataObject, JSONObject  jsonObjectMenus, JSONObject jsonObjectCategories, MediaPlayer mediaPlayer, String shop_name){
+        this.orders = dataObject;
+        this.mediaPlayer = mediaPlayer;
+        this.jsonObjectMenus = jsonObjectMenus;
+        this.jsonObjectCategories = jsonObjectCategories;
+        this.shop_name = shop_name;
+
+        // add category id and category name to orders for printing
+        addInformation();
+        printDocketKitchenReceipt();
         return customerReceipt;
     }
 
@@ -171,17 +175,17 @@ public JSONObject addInformation(){
                 // check if delivery is later, print bigger if delivery later
                 String order_type_time = "";
                 if (order_time_is_asap.equals("false")) {
-                    order_type_time = "[C]<b>Gewünschte Zeit: " + " am " + order_date_time + "</b>\n";
+                    order_type_time = "[L]<b>Gewünschte Zeit: " + " am " + order_date_time + "</b>\n";
                 } else {
-                    order_type_time = "[C] Sofort: " + " am " + order_date_time + "\n";
+                    order_type_time = "[L] Sofort: " + " am " + order_date_time + "\n";
                 }
                 printHeader = "[C]<u><font size='big'>" + shop_name + "</font></u>\n" +
                         "[L]<font size='big'>Bestellung Nr." + orderId + "</font>\n" +
-                        "[L]\n" +
+//                        "[L]\n" +
                         "[L]<b>" + order_type + " - " + payment + " - <u type='double'>" +
                         orderTotal + "</u>€ </b>\n" +
                         order_type_time +
-                        "[C]\n" +
+//                        "[C]\n" +
                         "[L]====================================\n";
 
                 // menu entries, need to sort by category so on the print, a category is visible only once
@@ -203,7 +207,7 @@ public JSONObject addInformation(){
 
                     printOrder += "[L]<b> " + menusQuantity + "x - " + menusName + ", [R]"
                             + menusSubtotal + "€</b> \n";
-                    if (menusComment != null && !menusComment.isEmpty()) {
+                    if (!"null".equals(menusComment) && !menusComment.isEmpty()) {
                         printOrder += "[L]  Kommentar: " + menusComment + "\n";
                     }
                     // menu options
@@ -286,35 +290,16 @@ public JSONObject addInformation(){
             String order_date_time = FormatDate(orderAttributes.getString("order_date_time"));
             String orderId = String.valueOf(orderAttributes.getInt("order_id"));
             String orderTotal = String.valueOf(orderAttributes.getDouble("order_total"));
-            //payment translation
-            if (payment.equals("cod")) {
-                payment = "Barzahlung";
-            } else if (payment.equals("stripe")) {
-                payment = "Bezahlt mit Kreditkarte";
-            } else if (payment.equals("paypalexpress")) {
-                payment = "Bezahlt mit PayPal";
-            }
-            //delivery translation
-            if (order_type.equals("delivery")) {
-                order_type = "Lieferung";
-            } else {
-                order_type = "Abholung";
-            }
             // check if delivery is later, print bigger if delivery later
             String order_type_time = "";
             if (order_time_is_asap.equals("false")) {
-                order_type_time = "[C]<b>Gewünschte Zeit: " + " am " + order_date_time + "</b>\n";
+                order_type_time = "<b>Gewünschte Zeit: " + " am " + order_date_time + "</b>\n";
             } else {
-                order_type_time = "[C] Sofort: " + " am " + order_date_time + "\n";
+                order_type_time = "Sofort: " + " am " + order_date_time + "\n";
             }
             printHeader = "[C]<u><font size='big'>" + shop_name + "</font></u>\n" +
                     "[L]<font size='big'>Bestellung Nr." + orderId + "</font>\n" +
-                    "[L]\n" +
-                    "[L]<b>" + order_type + " - " + payment + " - <u type='double'>" +
-                    orderTotal + "</u>€ </b>\n" +
-                    order_type_time +
-                    "[C]\n" +
-                    "[L]====================================\n";
+                    "[L]<font size='big'>" + order_type_time + "</font>\n";
 
             // menu entries, need to sort by category so on the print, a category is visible only once
             JSONArray order_menus_array = sortJSONArray(orderAttributes.getJSONArray("order_menus"));
@@ -329,13 +314,12 @@ public JSONObject addInformation(){
                 String category_name = order_menus_object.getString("category_name");
                 if (!category_id.equals(category_id_help)) {
                     printOrder += "[L]__________________ \n";
-                    printOrder += "[L]<b>" + category_name + "</b> \n";
+                    printOrder += "[L]<font size='big'>" + category_name + "</font> \n";
                     category_id_help = category_id;
                 }
 
-                printOrder += "[L]<b> " + menusQuantity + "x - " + menusName + ", [R]"
-                        + menusSubtotal + "€</b> \n";
-                if (menusComment != null && !menusComment.isEmpty()) {
+                printOrder += "[L]<font size='big'>" + menusQuantity + "x - " + menusName + "</font>\n";
+                if (!"null".equals(menusComment) && !menusComment.isEmpty()) {
                     printOrder += "[L]  Kommentar: " + menusComment + "\n";
                 }
                 // menu options
@@ -347,52 +331,52 @@ public JSONObject addInformation(){
                     printOrder += "[L]  Option: " + order_option_name + ", [R]" + order_option_price + "€\n";
                 }
             }
-            //all costs
-            JSONArray order_totals_array = orderAttributes.getJSONArray("order_totals");
-            printAllCosts += "[L]====================================\n";
-            for (int j = 0; j < order_totals_array.length(); j++) {
-                JSONObject order_totals_object = order_totals_array.getJSONObject(j);
-                // assumption, that the JSON is already sorted by priority. The same sequence will be taken
-                String title = order_totals_object.getString("title");
-                String value = FormatStringValue(order_totals_object.getString("value"));
-                printAllCosts += "[L]" + title + "[R]" + value + "€\n";
-            }
-            //customer information
-            String customer_name = orderAttributes.getString("customer_name");
-            String telephone = orderAttributes.getString("telephone");
-            String comment = orderAttributes.getString("comment");
-            String formatted_address = orderAttributes.getString("formatted_address")
-                    .replaceAll("\\s+", " ").replaceAll(",\\s*,", ",");
-            String google_api_url = "https://www.google.com/maps?q=" +
-                    orderAttributes.getString("formatted_address").replaceAll("[,\\s]+", "+");
-            if (formatted_address == "null" || formatted_address.isEmpty()) {
-                formatted_address = "nicht angegeben";
-                isGoogleMaps = false;
-            }
-            if (telephone == "null" || telephone.isEmpty()) {
-                telephone = "nicht angegeben";
-            }
-            if (comment == "null" || comment.isEmpty()) {
-                comment = "nicht angegeben";
-            }
-
-            printCustomer += "[L]Name: " + customer_name + "\n" +
-                    "[L]Telefon: " + telephone + "\n" +
-                    "[L]Adresse: " + formatted_address + "\n" +
-                    "[L]Kommentar: " + comment + "\n";
-            if (isGoogleMaps) {
-                printCustomer += "[C]Google Adresse Scannen \n" +
-                        "[C]<qrcode size='20'>" + google_api_url + "</qrcode> \n";
-            }
+//            //all costs
+//            JSONArray order_totals_array = orderAttributes.getJSONArray("order_totals");
+//            printAllCosts += "[L]====================================\n";
+//            for (int j = 0; j < order_totals_array.length(); j++) {
+//                JSONObject order_totals_object = order_totals_array.getJSONObject(j);
+//                // assumption, that the JSON is already sorted by priority. The same sequence will be taken
+//                String title = order_totals_object.getString("title");
+//                String value = FormatStringValue(order_totals_object.getString("value"));
+//                printAllCosts += "[L]" + title + "[R]" + value + "€\n";
+//            }
+//            //customer information
+//            String customer_name = orderAttributes.getString("customer_name");
+//            String telephone = orderAttributes.getString("telephone");
+//            String comment = orderAttributes.getString("comment");
+//            String formatted_address = orderAttributes.getString("formatted_address")
+//                    .replaceAll("\\s+", " ").replaceAll(",\\s*,", ",");
+//            String google_api_url = "https://www.google.com/maps?q=" +
+//                    orderAttributes.getString("formatted_address").replaceAll("[,\\s]+", "+");
+//            if (formatted_address == "null" || formatted_address.isEmpty()) {
+//                formatted_address = "nicht angegeben";
+//                isGoogleMaps = false;
+//            }
+//            if (telephone == "null" || telephone.isEmpty()) {
+//                telephone = "nicht angegeben";
+//            }
+//            if (comment == "null" || comment.isEmpty()) {
+//                comment = "nicht angegeben";
+//            }
+//
+//            printCustomer += "[L]Name: " + customer_name + "\n" +
+//                    "[L]Telefon: " + telephone + "\n" +
+//                    "[L]Adresse: " + formatted_address + "\n" +
+//                    "[L]Kommentar: " + comment + "\n";
+//            if (isGoogleMaps) {
+//                printCustomer += "[C]Google Adresse Scannen \n" +
+//                        "[C]<qrcode size='20'>" + google_api_url + "</qrcode> \n";
+//            }
             // create full print String
             printOutput = printHeader +
                     printOrder +
-                    printAllCosts +
-                    printPayment +
-                    "[L]====================================\n" +
-                    "[L]Kundeninformation\n" +
-                    printCustomer +
-                    "[C]<b>Dies ist keine Rechnung</b>";
+                    printAllCosts;
+//                    printPayment +
+//                    "[L]====================================\n" +
+//                    "[L]Kundeninformation\n" +
+//                    printCustomer +
+//                    "[C]<b>Dies ist keine Rechnung</b>";
             this.customerReceipt = printOutput;
             printOutput = "";
             printHeader = "";

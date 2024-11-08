@@ -1,72 +1,118 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
     android:background="@android:color/white">
 
-    <!-- Header section with circles, texts, and close button -->
+    <!-- Main LinearLayout for other elements -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_gravity="center_vertical"
-        android:weightSum="1">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="2dp">
 
-        <!-- Circles and Texts on the left -->
+        <!-- Header section with circles, texts, and zoom buttons -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="0.9"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_gravity="center_vertical"
+            android:weightSum="10">
 
-            <View
-                android:id="@+id/circlePrinter"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/circle_green" />
+            <!-- Circles and Texts on the left -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="7"
+                android:orientation="horizontal">
 
+                <Button
+                    android:id="@+id/btn_back"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:text="←"
+                    android:textSize="20sp"
+                    android:textColor="@android:color/black" />
+                <View
+                    android:id="@+id/circlePrinter"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/circle_green" />
+
+                <TextView
+                    android:id="@+id/text1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Drucker"
+                    android:textSize="12sp"
+                    android:layout_marginEnd="16dp" />
+
+                <View
+                    android:id="@+id/circleService"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/circle_green" />
+
+                <TextView
+                    android:id="@+id/text2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Überwachung"
+                    android:textSize="12sp"
+                    android:layout_marginStart="16dp" />
+            </LinearLayout>
+
+            <!-- Zoom In and Zoom Out buttons -->
             <TextView
-                android:id="@+id/text1"
+                android:id="@+id/zoom_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Drucker"
-                android:textSize="12sp"
-                android:layout_marginEnd="16dp" />
-
-            <View
-                android:id="@+id/circleService"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:background="@drawable/circle_green" />
-
-            <TextView
-                android:id="@+id/text2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Überwachung"
+                android:text="Zoom"
                 android:textSize="12sp"
                 android:layout_marginStart="16dp" />
+            <Button
+                android:id="@+id/btn_zoom_in"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="+"
+                android:textSize="20sp"
+                android:background="@android:color/transparent"
+                android:textColor="@android:color/black" />
+
+            <Button
+                android:id="@+id/btn_zoom_out"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="-"
+                android:textSize="20sp"
+                android:background="@android:color/transparent"
+                android:textColor="@android:color/black" />
+
         </LinearLayout>
 
-        <!-- X button on the right -->
-        <Button
-            android:id="@+id/btn_close"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="0.1"
-            android:background="@android:color/transparent"
-            android:text="X"
-            android:textColor="@android:color/black" />
+        <!-- WebView to display the webpage -->
+        <WebView
+            android:id="@+id/webView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:overScrollMode="never" />
     </LinearLayout>
 
-    <!-- WebView to display the webpage -->
-    <WebView
-        android:id="@+id/webView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:overScrollMode="never" />
-</LinearLayout>
+    <!-- Close button overlayed in the top-right corner -->
+    <Button
+        android:id="@+id/btn_close"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:background="@android:color/transparent"
+        android:text="X"
+        android:textColor="@android:color/black"
+        android:padding="8dp" />
+
+</FrameLayout>

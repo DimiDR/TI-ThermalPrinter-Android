@@ -72,6 +72,8 @@ import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 import com.dantsu.thermalprinter.helpClasses.UserUtils;
 import com.dantsu.thermalprinter.helpClasses.WebViewDialogFragment;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 
 import android.net.Uri;
 
@@ -109,6 +111,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static String tiCategoriesEndpointURL = "";
     private final String tiUpdates  = "";
     private static List<UserUtils.User> users;
+    private ChipGroup chipGroupPrinters;
+    private Chip chipReceipt, chipKitchen;
     MediaPlayer mediaPlayer;
     String resultJson;
     long period = 6 * 10000; // set to 60000 for 1 minute
@@ -152,6 +156,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         button_ti_testprint.setOnLongClickListener(view -> TITestPrinter(false));
         button_ti_login = this.findViewById(R.id.button_ti_login);
         button_ti_login.setOnClickListener(view -> LoginUser());
+        // Initialize the ChipGroup and Chips
+        chipGroupPrinters = findViewById(R.id.chipGroup_printers);
+        chipReceipt = findViewById(R.id.chip_receipt);
+        chipKitchen = findViewById(R.id.chip_kitchen);
         //get the already printed IDs or orders
         context = this;
         printedOrders = IdManager.getIds(context);
@@ -268,7 +276,15 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         OrdersAdapter adapter = new OrdersAdapter(this, ordersList, new OrdersAdapter.PrintButtonClickListener() {
             @Override
             public void onPrintButtonClick(int position, String orderId) {
-                TIJobPrintBluetooth(docketStringModeler.startPrinting(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
+//                TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
+                //print receipt
+                if (chipReceipt.isChecked()) {
+                    TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
+                }
+                // print receipt for kitchen
+                if (chipKitchen.isChecked()) {
+                    TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
+                }
             }
         });
         listViewOrders.setAdapter(adapter);
@@ -360,7 +376,16 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 for (int i = 0; i < filteredOrders.length(); i++) {
                     dataObjectOrders = filteredOrders.getJSONObject(i);
                     orderID = dataObjectOrders.getString("id");
-                    TIJobPrintBluetooth(docketStringModeler.startPrinting(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+
+                    //print receipt
+                    if (chipReceipt.isChecked()) {
+                        TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                    }
+                    // print receipt for kitchen
+                    if (chipKitchen.isChecked()) {
+                        TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                    }
+
                     if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
                         break;
                     }
