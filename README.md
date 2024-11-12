@@ -46,7 +46,8 @@ Also set the API for Order in admin dashboard API/Orders - All Resources Get to 
 - User: admin
 - PW: XXX
 
-# Users File
+# Steps to make the app operational 
+## 1. Users File
 The file app\src\main\assets\users.json has the user information. It is part of gitignore to not expose the user information.
 Here is the structure of the file
 
@@ -59,15 +60,27 @@ Here is the structure of the file
       "shop_name": "testshop",
       "domain_shop": "https://dimitrir14.sg-host.com",
       "domain_website": "https://dimitrir14.sg-host.com",
-      "kitchen_view": "https://dimitrir14.sg-host.com/admin/thoughtco/kitchendisplay/summary/view/1"
-    },
+      "kitchen_view": "https://dimitrir14.sg-host.com/admin/thoughtco/kitchendisplay/summary/view/1",
+      "location_id": "10"
+    }, ... ]
 ```
 
-# Version Updater
-The app has an integrated update function outsite the playstore. With this updates can come much faster.
-There is hardcoded link to version updates in "Constants.java" file for APP_DETAILS_URL.
-This is the structure for the update JSON file. 
+shop_id - id for the shop. Only app interany. Should be unique in the users file.
+username - Login name. Should be unique in users file. 
+password - password to login to the app
+shop_name - Display name in the app
+domain_shop - URL of the shop
+domain_website - URL of the restaurant website
+kitchen_view - URL of kitchen view
+location_id - location id of the shop from TI.
 
+
+
+## 2. Version Updater (optional)
+The app has an integrated update function outsite the playstore. With this updates can come much faster.
+There is hardcoded link to version updates in "Constants.java" file for APP_DETAILS_URL. Where creating a new APK change the variable "currentAppVersion" to a higher number.
+
+This is the structure for the update JSON file. 
 The app will compare the version in JSON and in the coding and download the latest version from the link storen in JSON for "apk_file".
 
 Structure of the JSON:
@@ -80,3 +93,8 @@ Structure of the JSON:
     "apk_file": "https://[PAGE URL]/jandiweb_printer_1.0.6.apk"
 }
 ```
+
+Put the JSON into the location URL of APP_DETAILS_URL and the file location for "apk_file". Then the app will notify the owner that there was an update.
+
+## 3. Create APK
+Download Android Studio and install it. In "Build" --> "Build App Bundle(s)/APK(s)" create the APK.
