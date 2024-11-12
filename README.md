@@ -65,14 +65,14 @@ Here is the structure of the file
     }, ... ]
 ```
 
-shop_id - id for the shop. Only app interany. Should be unique in the users file.
-username - Login name. Should be unique in users file. 
-password - password to login to the app
-shop_name - Display name in the app
-domain_shop - URL of the shop
-domain_website - URL of the restaurant website
-kitchen_view - URL of kitchen view
-location_id - location id of the shop from TI.
+- shop_id - id for the shop. Only app interany. Should be unique in the users file.
+- username - Login name. Should be unique in users file. 
+- password - password to login to the app
+- shop_name - Display name in the app
+- domain_shop - URL of the shop
+- domain_website - URL of the restaurant website
+- kitchen_view - URL of kitchen view
+- location_id - location id of the shop from TI.
 
 
 
