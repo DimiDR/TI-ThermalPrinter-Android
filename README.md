@@ -47,6 +47,12 @@ Also set the API for Order in admin dashboard API/Orders - All Resources Get to 
 - PW: XXX
 
 # Steps to make the app operational 
+## 1. Open API communication
+The app is getting information from 3 APIs. Please install the API addon for TI and set the following 3 API to ALL for "List all resources (GET)"
+- /api/orders
+- /api/menus
+- /api/categories
+
 ## 1. Users File
 The file app\src\main\assets\users.json has the user information. It is part of gitignore to not expose the user information.
 Here is the structure of the file
