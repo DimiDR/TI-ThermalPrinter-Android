@@ -320,7 +320,7 @@ public JSONObject addInformation(){
 
                 printOrder += "[L]<font size='big'>" + menusQuantity + "x - " + menusName + "</font>\n";
                 if (!"null".equals(menusComment) && !menusComment.isEmpty()) {
-                    printOrder += "[L]  Kommentar: " + menusComment + "\n";
+                    printOrder += "[L]<font size='big'>  Kommentar: " + menusComment + "</font>\n";
                 }
                 // menu options
                 JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
@@ -328,7 +328,7 @@ public JSONObject addInformation(){
                     JSONObject menu_option_object = menu_options_array.getJSONObject(k);
                     String order_option_name = menu_option_object.getString("order_option_name");
                     String order_option_price = FormatStringValue(menu_option_object.getString("order_option_price"));
-                    printOrder += "[L]  Option: " + order_option_name + ", [R]" + order_option_price + "€\n";
+                    printOrder += "[L]<font size='big'>  Option: " + order_option_name + "</font>\n";
                 }
             }
 //            //all costs
