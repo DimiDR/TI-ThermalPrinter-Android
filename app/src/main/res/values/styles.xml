@@ -1,40 +1,11 @@
 <resources>
-
-    <!-- Base application theme with Material Components. -->
     <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <!-- Primary theme colors -->
         <item name="colorPrimary">@color/light_blue_900</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/light_blue_900</item>
-
-        <!-- Button color adjustments -->
-<!--        <item name="colorButtonNormal">@color/colorPrimary</item>-->
-<!--        <item name="android:textColorPrimaryInverse">@color/white</item>-->
-<!--        <item name="android:textColorSecondary">@color/white</item>-->
-
-        <!-- Apply custom button style for blue buttons -->
-<!--        <item name="materialButtonStyle">@style/Widget.CustomButton</item>-->
     </style>
-
-    <!-- Custom button style to maintain blue color -->
-<!--    <style name="Widget.CustomButton" parent="Widget.MaterialComponents.Button">-->
-<!--        <item name="backgroundTint">@color/light_blue_900</item>-->
-<!--        <item name="android:textColor">@color/colorAccent</item>-->
-<!--    </style>-->
 
     <style name="Widget.AppTheme.ActionBar.Fullscreen" parent="Widget.AppCompat.ActionBar">
         <item name="android:background">@color/black_overlay</item>
     </style>
-
-<!--    <style name="Widget.AppTheme.ButtonBar.Fullscreen" parent="Widget.AppCompat.ButtonBar">-->
-<!--        <item name="android:background">@color/black_overlay</item>-->
-<!--        <item name="android:buttonBarStyle">?android:attr/buttonBarStyle</item>-->
-<!--    </style>-->
-
-    <!-- Custom button style -->
-<!--    <style name="CustomButtonStyle" parent="Widget.AppCompat.Button">-->
-<!--        <item name="android:background">@drawable/custom_button</item>-->
-<!--        <item name="android:textColor">#FFFFFF</item>-->
-<!--    </style>-->
-
 </resources>
