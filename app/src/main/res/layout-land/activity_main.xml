@@ -250,6 +250,16 @@
                 android:textColor="#FFFFFF"
                 android:textSize="16sp" />
 
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="40dp"
+                android:layout_marginRight="40dp"
+                android:gravity="center"
+                android:text='Auswahl zwischen Beleg- und Küchendruck'
+                android:textColor="#000000"
+                android:textSize="12sp" />
+
             <com.google.android.material.chip.ChipGroup
                 android:id="@+id/chipGroup_printers"
                 android:layout_width="wrap_content"
