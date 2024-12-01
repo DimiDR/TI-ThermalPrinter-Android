@@ -271,7 +271,7 @@
                     android:id="@+id/chip_receipt"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Receipt"
+                    android:text="Beleg"
                     android:checked="true"
                     android:checkable="true" />
 
@@ -279,7 +279,7 @@
                     android:id="@+id/chip_kitchen"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Kitchen"
+                    android:text="Küche"
                     android:checked="false"
                     android:checkable="true" />
             </com.google.android.material.chip.ChipGroup>
