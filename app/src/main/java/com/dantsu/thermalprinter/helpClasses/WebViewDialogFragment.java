@@ -67,6 +67,7 @@ public class WebViewDialogFragment extends DialogFragment {
 
         // Get the WebView and configure it
         webView = view.findViewById(R.id.webView);
+
         configureWebView(webView);
 
         // Load the URL passed as an argument
@@ -87,16 +88,25 @@ public class WebViewDialogFragment extends DialogFragment {
             }
         });
 
+        final int[] zoomLevel = {130};
+        webView.setInitialScale(zoomLevel[0]);
+
         // Handle zoom in button click
         btnZoomIn.setOnClickListener(v -> {
+            zoomLevel[0] += 10;
             WebSettings settings = webView.getSettings();
-            settings.setTextZoom(settings.getTextZoom() + 10); // Increase zoom by 10%
+            webView.setInitialScale(zoomLevel[0]);
+//            settings.setTextZoom(zoomLevel[0]); // Increase zoom by 10%
+//            settings.setTextZoom(settings.getTextZoom() + 10); // Increase zoom by 10%
         });
 
         // Handle zoom out button click
         btnZoomOut.setOnClickListener(v -> {
+            zoomLevel[0] -= 10;
             WebSettings settings = webView.getSettings();
-            settings.setTextZoom(settings.getTextZoom() - 10); // Decrease zoom by 10%
+            webView.setInitialScale(zoomLevel[0]);
+//            settings.setTextZoom(zoomLevel[0]); // Decrease zoom by 10%
+//            settings.setTextZoom(settings.getTextZoom() - 10); // Decrease zoom by 10%
         });
 
         // Handle close button
