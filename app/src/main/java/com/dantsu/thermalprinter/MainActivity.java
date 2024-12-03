@@ -834,7 +834,9 @@ private void restartWebservice(int buttonColor){
     public AsyncEscPosPrinter TIgetAsyncEscPosPrinter(DeviceConnection printerConnection, String print_info) {
 //        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
         AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
-        return printer.addTextToPrint(print_info);
+         printer.addTextToPrint(print_info);
+         printer.getPrinterConnection().disconnect(); // important so that the printer can recconect
+        return printer;
     }
 
     private void openWebpage(String action) {
