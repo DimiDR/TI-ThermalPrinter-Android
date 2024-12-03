@@ -119,11 +119,11 @@ public class WebViewDialogFragment extends DialogFragment {
     // Method to configure WebView settings
     private void configureWebView(WebView webView) {
         // Enable JavaScript
-//        webView.getSettings().setJavaScriptEnabled(true);
+        webView.getSettings().setJavaScriptEnabled(true);
 
         // Enable built-in zoom controls (but hide default controls)
-//        webView.getSettings().setBuiltInZoomControls(true);
-//        webView.getSettings().setDisplayZoomControls(false);
+        webView.getSettings().setBuiltInZoomControls(true);
+        webView.getSettings().setDisplayZoomControls(false);
 
         // Enable cookies
         CookieManager cookieManager = CookieManager.getInstance();
