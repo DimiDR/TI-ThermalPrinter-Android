@@ -458,7 +458,7 @@ public JSONObject addInformation(){
         } else {
             print_info = "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, context.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +
                     "[L]\n" +
-                    "[C]<u><font size='big'>TEST ORDER N°045</font></u>\n" +
+                    "[C]<u><font size='big'>TEST ÖRDER N°045</font></u>\n" +
                     "[L]\n" +
                     "[C]<u type='double'>" + format.format(new Date()) + "</u>\n" +
                     "[C]\n" +

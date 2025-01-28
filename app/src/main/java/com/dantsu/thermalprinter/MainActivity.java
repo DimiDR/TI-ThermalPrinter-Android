@@ -248,9 +248,17 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 //        }
     }
 
-    // Inside your MainActivity
+    @SuppressLint("SimpleDateFormat")
+    public AsyncEscPosPrinter TIgetAsyncEscPosPrinter(DeviceConnection printerConnection, String print_info) {
+//        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
+        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
+        printer.addTextToPrint(print_info);
+        printer.getPrinterConnection().disconnect(); // important so that the printer can recconect
+        return printer;
+    }
 
     private void showOrdersPopup(List<JSONObject> ordersList, JSONObject jsonObjectMenus, JSONObject jsonObjectCategories) {
+        // reprint functionality
         // Inflate the popup layout
         View popupView = getLayoutInflater().inflate(R.layout.popup_orders, null);
 
@@ -828,15 +836,6 @@ private void restartWebservice(int buttonColor){
             )
                     .execute(this.TIgetAsyncEscPosPrinter(selectedDevice, print_info));
         });
-    }
-
-    @SuppressLint("SimpleDateFormat")
-    public AsyncEscPosPrinter TIgetAsyncEscPosPrinter(DeviceConnection printerConnection, String print_info) {
-//        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
-        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
-         printer.addTextToPrint(print_info);
-         printer.getPrinterConnection().disconnect(); // important so that the printer can recconect
-        return printer;
     }
 
     private void openWebpage(String action) {

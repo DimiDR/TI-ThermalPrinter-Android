@@ -32,6 +32,8 @@ The implementation of this kind of solution would be difficult and require a lot
 The API Orders implementation provided by Tasty Igniter is fast, but lacks extensive filter settings.
 This is why I'm getting the last 50 Orders. If you know better ways to filter the request, please open an issue.
 
+Promissing Library: https://github.com/tr3v3r/react-native-esc-pos-printer
+
 # CORS Problems
 In cases of cross-origin errors, I added the following lines at the top of the file ".htaccess"
 
