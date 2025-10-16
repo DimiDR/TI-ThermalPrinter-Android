@@ -1,12 +1,14 @@
 package com.dantsu.thermalprinter.model;
 
 import android.app.Activity;
+import android.app.Application;
 import android.content.Context;
 import android.content.pm.PackageManager;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.lifecycle.ViewModel;
+import androidx.lifecycle.AndroidViewModel;
 
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
 import com.dantsu.thermalprinter.MainActivity;
@@ -14,14 +16,15 @@ import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 
 import java.util.Timer;
 
-public class NetworkHelperViewModel extends ViewModel {
+public class NetworkHelperViewModel extends AndroidViewModel {
     private NetworkHelper networkHelper;
     private Timer timer;
     private BluetoothConnection selectedDevice;
     private boolean isUpdatePopupShown = false;
 
-    public NetworkHelperViewModel() {
-        networkHelper = new NetworkHelper();
+    public NetworkHelperViewModel(@NonNull Application application) {
+        super(application);
+        networkHelper = new NetworkHelper(application.getApplicationContext());
     }
 
     public NetworkHelper getNetworkHelper() {

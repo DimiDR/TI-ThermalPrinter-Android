@@ -43,16 +43,17 @@ public class MyBackgroundService extends Service {
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
-                networkHelper = new NetworkHelper();
-                String[] urls = {ordersUrl, menusUrl, categoriesUrl};
+                networkHelper = new NetworkHelper(MyBackgroundService.this);
+                // String[] urls = {ordersUrl, menusUrl, categoriesUrl}; // Diese Zeile entfernen oder auskommentieren
 
                 Log.e("timerrrrrr", "running: ");
-                // Ensure the activity is still bound and the task can be executed
-                networkHelper.fetchData(urls, (NetworkHelper.NetworkCallback) activity);
 
+                // KORRIGIERTER AUFRUF: Übergeben Sie die URLs als separate Argumente
+                networkHelper.fetchData(new String[]{ordersUrl, menusUrl, categoriesUrl}, ordersUrl, menusUrl, categoriesUrl, (NetworkHelper.NetworkCallback) activity);
             }
         }, 0, period);
     }
+
 
     @Override
     public void onRebind(Intent intent) {

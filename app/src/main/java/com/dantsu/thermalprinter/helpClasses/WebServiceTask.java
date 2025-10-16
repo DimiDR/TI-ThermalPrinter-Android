@@ -3,55 +3,80 @@ package com.dantsu.thermalprinter.helpClasses;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
-
+import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-//needs to be switched later to this implementation. Execution in MainActivity:
-//Global:WebServiceTask webServiceTask;
-// onInit: webServiceTask = new WebServiceTask(this);
-
-//private void startService() {
-//        timer = new Timer();
-//        // keep screen on
-//        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-//        timer.scheduleAtFixedRate(new TimerTask() {
-//@Override
-//public void run() {
-//        webServiceTask.execute(tiOrdersEndpointURL);
-//        SharedPreferences sharedPreferences = getSharedPreferences("currentJSONResponse", MODE_PRIVATE);
-//        String jsonResult = sharedPreferences.getString("jsonResult", "");
-//        printDocketCustomerReceipt(jsonResult);
-//        }
-//        }, 0, period);
-//
-//        isServiceActive = true;
-//        }
-
-// AsyncTask is deprecated and this implementation should be used.
-// However the printer implementation is also using async task executing
-//public void TIJobPrintBluetooth(String print_info, String orderId) {
-//        this.checkBluetoothPermissions(() -> {
-//        new AsyncBluetoothEscPosPrint(
-
-//This creates an error if I mixe up new and also async implementation
-//java.lang.RuntimeException: Can't create handler inside thread Thread[Timer-0,5,main] that has not called Looper.prepare()
-
-// for now I will use the async implementation in MainActivity
-
 public class WebServiceTask {
     private Context context;
+    private String token;
 
     public WebServiceTask(Context context) {
         this.context = context;
+    }
+
+    public void generateToken(String url, String username, String password) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.submit(() -> {
+            try {
+                URL urlObj = new URL(url);
+                HttpURLConnection urlConnection = (HttpURLConnection) urlObj.openConnection();
+                urlConnection.setRequestMethod("POST");
+                urlConnection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                urlConnection.setRequestProperty("Accept", "application/json");
+                urlConnection.setDoOutput(true);
+
+                JSONObject jsonParam = new JSONObject();
+                jsonParam.put("username", username);
+                jsonParam.put("password", password);
+                jsonParam.put("device_name", "my_device");
+
+
+                OutputStream os = urlConnection.getOutputStream();
+                os.write(jsonParam.toString().getBytes(StandardCharsets.UTF_8));
+                os.close();
+
+
+                int responseCode = urlConnection.getResponseCode();
+
+
+                if (responseCode == HttpURLConnection.HTTP_CREATED) {
+                    BufferedReader in = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+                    String inputLine;
+                    StringBuilder response = new StringBuilder();
+                    while ((inputLine = in.readLine()) != null) {
+                        response.append(inputLine);
+                    }
+                    in.close();
+
+
+                    JSONObject jsonResponse = new JSONObject(response.toString());
+                    this.token = jsonResponse.getString("token");
+
+
+                    SharedPreferences.Editor editor = context.getSharedPreferences("api_token", Context.MODE_PRIVATE).edit();
+                    editor.putString("token", this.token);
+                    editor.apply();
+
+
+                } else {
+                    Log.e("WebServiceTask", "Token generation failed. Response code: " + responseCode);
+                }
+            } catch (Exception e) {
+                Log.e("WebServiceTask", "Error generating token", e);
+            }
+        });
+        executor.shutdown();
     }
 
     public void execute(String url) {
@@ -67,6 +92,9 @@ public class WebServiceTask {
                     URL urlObj = new URL(url);
                     urlConnection = (HttpURLConnection) urlObj.openConnection();
                     urlConnection.setRequestMethod("GET");
+                    if (token != null) {
+                        urlConnection.setRequestProperty("Authorization", "Bearer " + token);
+                    }
                     urlConnection.connect();
 
                     InputStream inputStream = urlConnection.getInputStream();
@@ -105,7 +133,7 @@ public class WebServiceTask {
         });
 
         try {
-            String result = future.get(); // This line will block until the result is available
+            String result = future.get();
             if (result != null) {
                 Log.d("WebServiceResponse", result);
                 SharedPreferences.Editor editor = context.getSharedPreferences("currentJSONResponse", Context.MODE_PRIVATE).edit();

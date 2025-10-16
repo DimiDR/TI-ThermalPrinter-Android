@@ -191,8 +191,52 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         button_reprint.setOnClickListener(v -> {
             progressBar.setVisibility(View.VISIBLE);
             button_reprint.setVisibility(View.GONE);
-            RePrintTask task = new RePrintTask();
-            task.execute(tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
+            String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
+            networkHelperViewModel.getNetworkHelper().fetchData(urls, username, password, domain_shop, new NetworkHelper.NetworkCallback() {
+                @Override
+                public void onSuccess(String[] results) {
+                    progressBar.setVisibility(View.GONE);
+                    button_reprint.setVisibility(View.VISIBLE);
+                    JSONObject dataObjectOrders;
+                    List<JSONObject> ordersList = new ArrayList<>();
+                    JSONObject jsonObjectOrders, jsonObjectMenus = null, jsonObjectCategories = null;
+                    if (results != null && results[0] != null && results[1] != null) {
+                        try {
+                            jsonObjectOrders = new JSONObject(results[0]);
+                            jsonObjectMenus = new JSONObject(results[1]);
+                            jsonObjectCategories = new JSONObject(results[2]);
+
+                            Log.e("MainActivity", "Full Orders JSON: " + jsonObjectOrders.toString());
+
+                            JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
+                            for (int i = 0; i < dataArrayOrders.length(); i++) {
+                                dataObjectOrders = dataArrayOrders.getJSONObject(i);
+                                ordersList.add(dataObjectOrders);
+                            }
+
+                            Log.e("MainActivity", "Orders List Size: " + ordersList.size());
+
+                        } catch (JSONException e) {
+                            Toast.makeText(context, "" + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+
+                        if (!ordersList.isEmpty()) {
+                            showOrdersPopup(ordersList, jsonObjectMenus, jsonObjectCategories);
+                        } else {
+                            showError("No re-printable orders found");
+                        }
+                    } else {
+                        showError("Failed to fetch data from web service");
+                    }
+                }
+
+                @Override
+                public void onError(Exception exception) {
+                    progressBar.setVisibility(View.GONE);
+                    button_reprint.setVisibility(View.VISIBLE);
+                    Toast.makeText(context, "" + exception.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
         });
 
     }
@@ -685,109 +729,12 @@ private void restartWebservice(int buttonColor){
 
                 Log.e("timer", "running: ");
                 // Ensure the activity is still bound and the task can be executed
-                networkHelperViewModel.getNetworkHelper().fetchData(urls, (NetworkHelper.NetworkCallback) activity);
+                networkHelperViewModel.getNetworkHelper().fetchData(urls, username, password, domain_shop, (NetworkHelper.NetworkCallback) activity);
 
             }
         }, delayPeriod, period);
     }
 
-    class RePrintTask extends AsyncTask<String, Void, String[]> {
-        Exception exception;
-
-        @Override
-        protected String[] doInBackground(String... urls) {
-            String[] results = new String[urls.length];
-            for (int i = 0; i < urls.length; i++) {
-                HttpURLConnection urlConnection = null;
-                BufferedReader reader = null;
-
-                try {
-                    URL url = new URL(urls[i]);
-                    urlConnection = (HttpURLConnection) url.openConnection();
-                    urlConnection.setRequestMethod("GET");
-                    urlConnection.connect();
-
-                    InputStream inputStream = urlConnection.getInputStream();
-                    StringBuilder buffer = new StringBuilder();
-                    if (inputStream == null) {
-                        return null;
-                    }
-                    reader = new BufferedReader(new InputStreamReader(inputStream));
-
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        buffer.append(line).append("\n");
-                    }
-
-                    if (buffer.length() == 0) {
-                        return null;
-                    }
-                    results[i] = buffer.toString();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    exception = e;
-                    return null;
-                } finally {
-                    if (urlConnection != null) {
-                        urlConnection.disconnect();
-                    }
-                    if (reader != null) {
-                        try {
-                            reader.close();
-                        } catch (final IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }
-            return results;
-        }
-
-        @Override
-        protected void onPostExecute(String[] results) {
-            if (exception != null) {
-                progressBar.setVisibility(View.GONE);
-                button_reprint.setVisibility(View.VISIBLE);
-                Toast.makeText(context, ""+exception.getMessage(), Toast.LENGTH_SHORT).show();
-            } else {
-                progressBar.setVisibility(View.GONE);
-                button_reprint.setVisibility(View.VISIBLE);
-                JSONObject dataObjectOrders;
-                List<JSONObject> ordersList = new ArrayList<>();
-                JSONObject jsonObjectOrders, jsonObjectMenus = null, jsonObjectCategories = null;
-                if (results != null && results[0] != null && results[1] != null) {
-                    try {
-                        jsonObjectOrders = new JSONObject(results[0]);
-                        jsonObjectMenus = new JSONObject(results[1]);
-                        jsonObjectCategories = new JSONObject(results[2]);
-
-                        // Log the entire orders JSON before filtering
-                        Log.e("MainActivity", "Full Orders JSON: " + jsonObjectOrders.toString());
-
-                        JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
-                        for (int i = 0; i < dataArrayOrders.length(); i++) {
-                            dataObjectOrders = dataArrayOrders.getJSONObject(i);
-                            ordersList.add(dataObjectOrders); // Add to orders list
-                        }
-
-                        Log.e("MainActivity", "Orders List Size: " + ordersList.size());
-
-                    } catch (JSONException e) {
-                        Toast.makeText(context, ""+e.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-
-                    // Show the popup when the button is clicked, only if ordersList is not empty
-                    if (!ordersList.isEmpty()) {
-                        showOrdersPopup(ordersList, jsonObjectMenus, jsonObjectCategories);
-                    } else {
-                        showError("No re-printable orders found");
-                    }
-                } else {
-                    showError("Failed to fetch data from web service");
-                }
-            }
-        }
-    }
     private void showError(String errorMessage) {
         // Show the error message in an AlertDialog
         Toast.makeText(context, ""+errorMessage, Toast.LENGTH_SHORT).show();
