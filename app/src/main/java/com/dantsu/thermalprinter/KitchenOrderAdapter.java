@@ -23,13 +23,18 @@ import java.util.Locale;
 
 public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapter.OrderViewHolder> {
     
-    private List<JSONObject> orders;
+    public List<JSONObject> orders;
     public JSONObject menusData;
     public JSONObject categoriesData;
     private PrintButtonClickListener printListener;
+    private StatusChangeClickListener statusChangeListener;
     
     public interface PrintButtonClickListener {
         void onPrintButtonClick(JSONObject order);
+    }
+    
+    public interface StatusChangeClickListener {
+        void onStatusChangeClick(JSONObject order, String statusName);
     }
     
     public KitchenOrderAdapter(List<JSONObject> orders) {
@@ -41,20 +46,24 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         this.printListener = printListener;
     }
     
+    public KitchenOrderAdapter(List<JSONObject> orders, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener) {
+        this.orders = orders != null ? orders : new ArrayList<>();
+        this.printListener = printListener;
+        this.statusChangeListener = statusChangeListener;
+    }
+    
     public void updateOrders(List<JSONObject> newOrders, JSONObject menusData, JSONObject categoriesData) {
-        // Filter out completed orders
+        // Filter out completed orders (status_id = 5)
         List<JSONObject> filteredOrders = new ArrayList<>();
         if (newOrders != null) {
             for (JSONObject order : newOrders) {
                 try {
-                    JSONObject status = order.optJSONObject("status");
-                    if (status != null) {
-                        String statusName = status.optString("status_name", "").toLowerCase();
-                        if (!statusName.equals("completed")) {
-                            filteredOrders.add(order);
-                        }
-                    } else {
-                        // If no status info, include the order
+                    // Check if order has attributes object (JSON:API format)
+                    JSONObject attributes = order.optJSONObject("attributes");
+                    JSONObject orderData = attributes != null ? attributes : order;
+                    
+                    int statusId = orderData.optInt("status_id", -1);
+                    if (statusId != 5) { // Exclude completed orders (status_id = 5)
                         filteredOrders.add(order);
                     }
                 } catch (Exception e) {
@@ -70,6 +79,32 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         notifyDataSetChanged();
     }
     
+    public void appendOrders(List<JSONObject> newOrders) {
+        // Filter out completed orders (status_id = 5) and append to existing list
+        List<JSONObject> filteredOrders = new ArrayList<>();
+        if (newOrders != null) {
+            for (JSONObject order : newOrders) {
+                try {
+                    // Check if order has attributes object (JSON:API format)
+                    JSONObject attributes = order.optJSONObject("attributes");
+                    JSONObject orderData = attributes != null ? attributes : order;
+                    
+                    int statusId = orderData.optInt("status_id", -1);
+                    if (statusId != 5) { // Exclude completed orders (status_id = 5)
+                        filteredOrders.add(order);
+                    }
+                } catch (Exception e) {
+                    // If there's an error checking status, include the order
+                    filteredOrders.add(order);
+                }
+            }
+        }
+        
+        int startPosition = this.orders.size();
+        this.orders.addAll(filteredOrders);
+        notifyItemRangeInserted(startPosition, filteredOrders.size());
+    }
+    
     @NonNull
     @Override
     public OrderViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -82,7 +117,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
         JSONObject order = orders.get(position);
         try {
-            holder.bind(order, menusData, categoriesData, printListener);
+            holder.bind(order, menusData, categoriesData, printListener, statusChangeListener);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -107,6 +142,9 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         private TextView textPaymentMethod;
         private View viewStatusIndicator;
         private Button buttonPrint;
+        private Button buttonStatusPreparation;
+        private Button buttonStatusDelivery;
+        private Button buttonStatusCompleted;
         
         public OrderViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -123,14 +161,21 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             textPaymentMethod = itemView.findViewById(R.id.textPaymentMethod);
             viewStatusIndicator = itemView.findViewById(R.id.viewStatusIndicator);
             buttonPrint = itemView.findViewById(R.id.buttonPrint);
+            buttonStatusPreparation = itemView.findViewById(R.id.buttonStatusPreparation);
+            buttonStatusDelivery = itemView.findViewById(R.id.buttonStatusDelivery);
+            buttonStatusCompleted = itemView.findViewById(R.id.buttonStatusCompleted);
         }
         
-        public void bind(JSONObject order, JSONObject menusData, JSONObject categoriesData, PrintButtonClickListener printListener) throws JSONException {
+        public void bind(JSONObject order, JSONObject menusData, JSONObject categoriesData, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener) throws JSONException {
+            // Check if order has attributes object (JSON:API format)
+            JSONObject attributes = order.optJSONObject("attributes");
+            JSONObject orderData = attributes != null ? attributes : order;
+            
             // Order ID
             textOrderId.setText("#" + order.getString("id"));
             
             // Order time
-            String orderTime = order.optString("order_time", "");
+            String orderTime = orderData.optString("order_time", "");
             if (!orderTime.isEmpty()) {
                 try {
                     SimpleDateFormat inputFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
@@ -145,26 +190,23 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             }
             
             // Order value
-            JSONObject totals = order.optJSONObject("totals");
-            if (totals != null) {
-                double total = totals.optDouble("total", 0.0);
-                textOrderValue.setText(String.format("€%.2f", total));
-            }
+            double orderTotal = orderData.optDouble("order_total", 0.0);
+            textOrderValue.setText(String.format("€%.2f", orderTotal));
             
             // Customer name
-            String firstName = order.optString("first_name", "");
-            String lastName = order.optString("last_name", "");
+            String firstName = orderData.optString("first_name", "");
+            String lastName = orderData.optString("last_name", "");
             textCustomerName.setText(firstName + " " + lastName);
             
             // Order type
-            String orderType = order.optString("order_type", "collection");
+            String orderType = orderData.optString("order_type", "collection");
             textOrderType.setText(orderType.toUpperCase());
             
             // Phone
-            textPhone.setText(order.optString("telephone", ""));
+            textPhone.setText(orderData.optString("telephone", ""));
             
             // Address
-            JSONObject address = order.optJSONObject("address");
+            JSONObject address = orderData.optJSONObject("address");
             if (address != null) {
                 String addressText = address.optString("address_1", "") + 
                                    (address.optString("address_2", "").isEmpty() ? "" : ", " + address.optString("address_2", "")) +
@@ -175,12 +217,12 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             }
             
             // Order items
-            JSONArray orderMenus = order.optJSONArray("order_menus");
+            JSONArray orderMenus = orderData.optJSONArray("order_menus");
             StringBuilder itemsText = new StringBuilder();
             if (orderMenus != null) {
                 for (int i = 0; i < orderMenus.length(); i++) {
                     JSONObject menuItem = orderMenus.getJSONObject(i);
-                    int quantity = menuItem.optInt("quantity", 1);
+                    int quantity = menuItem.optInt("qty", 1);
                     String name = menuItem.optString("name", "");
                     itemsText.append(quantity).append("x ").append(name).append("\n");
                 }
@@ -188,7 +230,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             textOrderItems.setText(itemsText.toString().trim());
             
             // Order comment
-            String comment = order.optString("comment", "");
+            String comment = orderData.optString("comment", "");
             if (!comment.isEmpty()) {
                 textOrderComment.setText(comment);
                 textOrderComment.setVisibility(View.VISIBLE);
@@ -196,30 +238,18 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                 textOrderComment.setVisibility(View.GONE);
             }
             
-            // Order status
-            JSONObject status = order.optJSONObject("status");
-            if (status != null) {
-                String statusName = status.optString("status_name", "Unknown");
-                textOrderStatus.setText(statusName);
-                
-                // Set status color
-                String statusColor = status.optString("status_color", "#FF0000");
-                try {
-                    int color = Color.parseColor(statusColor);
-                    viewStatusIndicator.setBackgroundColor(color);
-                } catch (IllegalArgumentException e) {
-                    viewStatusIndicator.setBackgroundColor(Color.parseColor("#FF0000"));
-                }
-            }
+            // Order status - get from status_id and map to status name
+            int statusId = orderData.optInt("status_id", -1);
+            String statusName = getStatusNameById(statusId);
+            textOrderStatus.setText(statusName);
+            
+            // Set status color based on status ID
+            int statusColor = getStatusColorById(statusId);
+            viewStatusIndicator.setBackgroundColor(statusColor);
             
             // Payment method
-            JSONObject payment = order.optJSONObject("payment_method");
-            if (payment != null) {
-                String paymentCode = payment.optString("code", "CASH");
-                textPaymentMethod.setText(paymentCode.toUpperCase());
-            } else {
-                textPaymentMethod.setText("CASH");
-            }
+            String paymentCode = orderData.optString("payment", "cod");
+            textPaymentMethod.setText(paymentCode.toUpperCase());
             
             // Set up print button click listener
             if (buttonPrint != null) {
@@ -228,6 +258,65 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                         printListener.onPrintButtonClick(order);
                     }
                 });
+            }
+            
+            // Set up status change button click listeners
+            if (buttonStatusPreparation != null) {
+                buttonStatusPreparation.setOnClickListener(v -> {
+                    if (statusChangeListener != null) {
+                        statusChangeListener.onStatusChangeClick(order, "preparation");
+                    }
+                });
+            }
+            
+            if (buttonStatusDelivery != null) {
+                buttonStatusDelivery.setOnClickListener(v -> {
+                    if (statusChangeListener != null) {
+                        statusChangeListener.onStatusChangeClick(order, "delivery");
+                    }
+                });
+            }
+            
+            if (buttonStatusCompleted != null) {
+                buttonStatusCompleted.setOnClickListener(v -> {
+                    if (statusChangeListener != null) {
+                        statusChangeListener.onStatusChangeClick(order, "completed");
+                    }
+                });
+            }
+        }
+        
+        private String getStatusNameById(int statusId) {
+            switch (statusId) {
+                case 1:
+                    return "Pending";
+                case 2:
+                    return "Confirmed";
+                case 3:
+                    return "Preparation";
+                case 4:
+                    return "Delivery";
+                case 5:
+                    return "Completed";
+                default:
+                    return "Unknown";
+            }
+        }
+        
+        private int getStatusColorById(int statusId) {
+            switch (statusId) {
+                case 1:
+                    return Color.parseColor("#FFA500"); // Orange for Pending
+                case 2:
+                    return Color.parseColor("#FFD700"); // Gold for Confirmed
+                case 3:
+                    return Color.parseColor("#FF6B35"); // Orange-Red for Preparation
+                case 4:
+                    return Color.parseColor("#4CAF50"); // Green for Delivery
+                case 5:
+                    return Color.parseColor("#9E9E9E"); // Gray for Completed
+                default:
+                    return Color.parseColor("#FF0000"); // Red for Unknown
             }
         }
     }
