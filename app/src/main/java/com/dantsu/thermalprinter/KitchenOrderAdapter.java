@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -28,6 +29,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     public JSONObject categoriesData;
     private PrintButtonClickListener printListener;
     private StatusChangeClickListener statusChangeListener;
+    private ReceiptPreviewClickListener receiptPreviewListener;
     
     public interface PrintButtonClickListener {
         void onPrintButtonClick(JSONObject order);
@@ -35,6 +37,10 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     
     public interface StatusChangeClickListener {
         void onStatusChangeClick(JSONObject order, String statusName);
+    }
+    
+    public interface ReceiptPreviewClickListener {
+        void onReceiptPreviewClick(JSONObject order);
     }
     
     public KitchenOrderAdapter(List<JSONObject> orders) {
@@ -50,6 +56,13 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         this.orders = orders != null ? orders : new ArrayList<>();
         this.printListener = printListener;
         this.statusChangeListener = statusChangeListener;
+    }
+    
+    public KitchenOrderAdapter(List<JSONObject> orders, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener) {
+        this.orders = orders != null ? orders : new ArrayList<>();
+        this.printListener = printListener;
+        this.statusChangeListener = statusChangeListener;
+        this.receiptPreviewListener = receiptPreviewListener;
     }
     
     public void updateOrders(List<JSONObject> newOrders, JSONObject menusData, JSONObject categoriesData) {
@@ -117,7 +130,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
         JSONObject order = orders.get(position);
         try {
-            holder.bind(order, menusData, categoriesData, printListener, statusChangeListener);
+            holder.bind(order, menusData, categoriesData, printListener, statusChangeListener, receiptPreviewListener);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -145,6 +158,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         private Button buttonStatusPreparation;
         private Button buttonStatusDelivery;
         private Button buttonStatusCompleted;
+        private ImageView btnViewReceipt;
         
         public OrderViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -164,9 +178,10 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             buttonStatusPreparation = itemView.findViewById(R.id.buttonStatusPreparation);
             buttonStatusDelivery = itemView.findViewById(R.id.buttonStatusDelivery);
             buttonStatusCompleted = itemView.findViewById(R.id.buttonStatusCompleted);
+            btnViewReceipt = itemView.findViewById(R.id.btnViewReceipt);
         }
         
-        public void bind(JSONObject order, JSONObject menusData, JSONObject categoriesData, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener) throws JSONException {
+        public void bind(JSONObject order, JSONObject menusData, JSONObject categoriesData, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener) throws JSONException {
             // Check if order has attributes object (JSON:API format)
             JSONObject attributes = order.optJSONObject("attributes");
             JSONObject orderData = attributes != null ? attributes : order;
@@ -281,6 +296,15 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                 buttonStatusCompleted.setOnClickListener(v -> {
                     if (statusChangeListener != null) {
                         statusChangeListener.onStatusChangeClick(order, "completed");
+                    }
+                });
+            }
+            
+            // Set up receipt preview button click listener
+            if (btnViewReceipt != null) {
+                btnViewReceipt.setOnClickListener(v -> {
+                    if (receiptPreviewListener != null) {
+                        receiptPreviewListener.onReceiptPreviewClick(order);
                     }
                 });
             }

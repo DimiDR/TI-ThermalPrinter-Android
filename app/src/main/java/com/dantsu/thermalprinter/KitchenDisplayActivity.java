@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class KitchenDisplayActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback {
+public class KitchenDisplayActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback, KitchenOrderAdapter.ReceiptPreviewClickListener {
     
     private RecyclerView recyclerViewOrders;
     private KitchenOrderAdapter orderAdapter;
@@ -103,7 +103,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             public void onStatusChangeClick(JSONObject order, String statusName) {
                 updateSingleOrderStatus(order, statusName);
             }
-        });
+        }, this);
         recyclerViewOrders.setAdapter(orderAdapter);
         
         // Add scroll listener for pagination
@@ -513,5 +513,32 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         printer.addTextToPrint(print_info);
         printer.getPrinterConnection().disconnect();
         return printer;
+    }
+    
+    @Override
+    public void onReceiptPreviewClick(JSONObject order) {
+        showReceiptPreview(order);
+    }
+    
+    private void showReceiptPreview(JSONObject order) {
+        try {
+            // Get the current menus and categories data from the adapter
+            JSONObject menusData = orderAdapter.menusData;
+            JSONObject categoriesData = orderAdapter.categoriesData;
+            
+            if (menusData == null || categoriesData == null) {
+                Toast.makeText(this, "Menu data not available. Please refresh and try again.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Create and show the receipt preview dialog
+            ReceiptPreviewDialogFragment dialog = ReceiptPreviewDialogFragment.newInstance(
+                order, menusData, categoriesData, shop_name);
+            dialog.show(getSupportFragmentManager(), "ReceiptPreviewDialog");
+            
+        } catch (Exception e) {
+            Log.e("KitchenDisplay", "Error showing receipt preview", e);
+            Toast.makeText(this, "Error showing receipt preview: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 }

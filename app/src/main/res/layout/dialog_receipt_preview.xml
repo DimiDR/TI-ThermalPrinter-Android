@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@android:color/white"
+    android:padding="8dp">
+
+    <!-- Close Button -->
+    <ImageView
+        android:id="@+id/btnClose"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="end"
+        android:layout_marginBottom="16dp"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="12dp"
+        android:contentDescription="Close" />
+
+    <!-- Receipt Content -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/receiptContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <!-- Shop Name Header -->
+            <TextView
+                android:id="@+id/textShopName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Shop Name"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginBottom="12dp"
+                android:drawableBottom="@drawable/underline_divider" />
+
+            <!-- Order Number -->
+            <TextView
+                android:id="@+id/textOrderNumber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Bestellung Nr.123"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="6dp" />
+
+            <!-- Order Type, Payment, Total -->
+            <TextView
+                android:id="@+id/textOrderDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Lieferung - Barzahlung - 25.50€"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="6dp" />
+
+            <!-- Order Time -->
+            <TextView
+                android:id="@+id/textOrderTime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Sofort: am Mo, Jan 1, 2024 12:30"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Order Items Container -->
+            <LinearLayout
+                android:id="@+id/orderItemsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- Order Totals Container -->
+            <LinearLayout
+                android:id="@+id/orderTotalsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="8dp" />
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Customer Information -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Kundeninformation"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <LinearLayout
+                android:id="@+id/customerInfoContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- QR Code Section -->
+            <LinearLayout
+                android:id="@+id/qrCodeContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginTop="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Google Adresse Scannen"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="4dp" />
+
+                <ImageView
+                    android:id="@+id/qrCodeImage"
+                    android:layout_width="250dp"
+                    android:layout_height="250dp"
+                    android:background="@android:color/white"
+                    android:padding="12dp" />
+
+            </LinearLayout>
+
+            <!-- Footer -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Dies ist keine Rechnung"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginTop="16dp" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+</LinearLayout>
