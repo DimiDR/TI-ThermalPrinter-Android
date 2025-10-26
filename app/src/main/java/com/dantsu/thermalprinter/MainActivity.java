@@ -961,6 +961,8 @@ private void restartWebservice(int buttonColor){
 
     private void openNativeKitchenDisplay() {
         Intent intent = new Intent(this, KitchenDisplayActivity.class);
+        intent.putExtra("chip_receipt_checked", chipReceipt.isChecked());
+        intent.putExtra("chip_kitchen_checked", chipKitchen.isChecked());
         startActivity(intent);
     }
 

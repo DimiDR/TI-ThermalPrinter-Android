@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+
 import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
@@ -61,6 +62,10 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     private DocketStringModeler docketStringModeler;
     private MediaPlayer mediaPlayer;
     private String shop_name;
+    
+    // Chip selection from main screen
+    private boolean chipReceiptChecked = true;  // default to receipt
+    private boolean chipKitchenChecked = false; // default to not kitchen
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +76,10 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         recyclerViewOrders = findViewById(R.id.recyclerViewOrders);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         progressBar = findViewById(R.id.progressBar);
+        
+        // Get chip settings from main screen
+        chipReceiptChecked = getIntent().getBooleanExtra("chip_receipt_checked", true);
+        chipKitchenChecked = getIntent().getBooleanExtra("chip_kitchen_checked", false);
         
         // Setup RecyclerView
         recyclerViewOrders.setLayoutManager(new LinearLayoutManager(this));
@@ -254,32 +263,51 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 return;
             }
             
-            // Print kitchen receipt
-            String printInfo = docketStringModeler.startPrintingKitchen(order, menusData, categoriesData, mediaPlayer, shop_name);
             String orderId = order.optString("id");
+            boolean hasPrinted = false;
             
-            // Execute printing
-            new AsyncBluetoothEscPosPrint(
-                this,
-                new AsyncEscPosPrint.OnPrintFinished() {
-                    @Override
-                    public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
-                        Log.e("KitchenDisplay", "Print error: " + codeException);
-                        Toast.makeText(KitchenDisplayActivity.this, "Print failed", Toast.LENGTH_SHORT).show();
-                    }
-
-                    @Override
-                    public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
-                        Log.i("KitchenDisplay", "Print successful");
-                        Toast.makeText(KitchenDisplayActivity.this, "Order printed successfully", Toast.LENGTH_SHORT).show();
-                    }
-                }
-            ).execute(getAsyncEscPosPrinter(selectedDevice, printInfo));
+            // Print receipt if chip is checked
+            if (chipReceiptChecked) {
+                String receiptPrintInfo = docketStringModeler.startPrintingReceipt(order, menusData, categoriesData, mediaPlayer, shop_name);
+                executePrint(receiptPrintInfo, "Receipt");
+                hasPrinted = true;
+            }
+            
+            // Print kitchen receipt if chip is checked
+            if (chipKitchenChecked) {
+                String kitchenPrintInfo = docketStringModeler.startPrintingKitchen(order, menusData, categoriesData, mediaPlayer, shop_name);
+                executePrint(kitchenPrintInfo, "Kitchen");
+                hasPrinted = true;
+            }
+            
+            if (!hasPrinted) {
+                Toast.makeText(this, "Please select at least one print option (Receipt or Kitchen)", Toast.LENGTH_SHORT).show();
+            }
             
         } catch (Exception e) {
             Log.e("KitchenDisplay", "Error printing order", e);
             Toast.makeText(this, "Error printing order: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    private void executePrint(String printInfo, String printType) {
+        // Execute printing
+        new AsyncBluetoothEscPosPrint(
+            this,
+            new AsyncEscPosPrint.OnPrintFinished() {
+                @Override
+                public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                    Log.e("KitchenDisplay", "Print error for " + printType + ": " + codeException);
+                    Toast.makeText(KitchenDisplayActivity.this, printType + " print failed", Toast.LENGTH_SHORT).show();
+                }
+
+                @Override
+                public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+                    Log.i("KitchenDisplay", printType + " print successful");
+                    Toast.makeText(KitchenDisplayActivity.this, printType + " printed successfully", Toast.LENGTH_SHORT).show();
+                }
+            }
+        ).execute(getAsyncEscPosPrinter(selectedDevice, printInfo));
     }
     
     private AsyncEscPosPrinter getAsyncEscPosPrinter(BluetoothConnection printerConnection, String print_info) {
