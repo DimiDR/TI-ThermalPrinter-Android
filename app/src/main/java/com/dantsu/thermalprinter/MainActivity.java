@@ -984,7 +984,7 @@ private void restartWebservice(int buttonColor){
         
         // Stop any running services
         stopService();
-        
+            
         // Clear web view cookies and logout from website
         clearWebViewCookies();
         
