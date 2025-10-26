@@ -22,17 +22,22 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.PopupWindow;
+import android.widget.Spinner;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+
+import java.util.ArrayList;
+import java.util.List;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -1037,9 +1042,11 @@ private void restartWebservice(int buttonColor){
     public static class LoginUserDialogFragment extends DialogFragment {
         private Button okButton;
         private TextView etError;
-        private EditText etDomain;
+        private Spinner spinnerDomain;
         private EditText etUsername;
         private EditText etPassword;
+        private List<ShopConfigUtils.Shop> shops;
+        private ArrayAdapter<String> shopAdapter;
         
         @NonNull
         @Override
@@ -1050,10 +1057,33 @@ private void restartWebservice(int buttonColor){
 
             okButton = view.findViewById(R.id.button_ok);
             Button cancelButton = view.findViewById(R.id.button_cancel);
-            etDomain = view.findViewById(R.id.etDomain);
+            spinnerDomain = view.findViewById(R.id.spinnerDomain);
             etUsername = view.findViewById(R.id.etUsername);
             etPassword = view.findViewById(R.id.etPassword);
             etError = view.findViewById(R.id.popup_error);
+
+            // Load shops and populate spinner
+            shops = ShopConfigUtils.getShops(getActivity());
+            List<String> shopNames = new ArrayList<>();
+            for (ShopConfigUtils.Shop shop : shops) {
+                shopNames.add(shop.shop_name);
+            }
+            
+            shopAdapter = new ArrayAdapter<>(getActivity(), android.R.layout.simple_spinner_item, shopNames);
+            shopAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerDomain.setAdapter(shopAdapter);
+            
+            // Preselect last logged in shop
+            SharedPreferences sharedPreferences = getActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+            String lastDomain = sharedPreferences.getString("domain_shop", "");
+            if (!lastDomain.isEmpty()) {
+                for (int i = 0; i < shops.size(); i++) {
+                    if (shops.get(i).domain_shop.equals(lastDomain)) {
+                        spinnerDomain.setSelection(i);
+                        break;
+                    }
+                }
+            }
 
             okButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -1099,22 +1129,18 @@ private void restartWebservice(int buttonColor){
             okButton.setEnabled(false);
             okButton.setText("Authenticating...");
 
-            // Get domain from user input or use a default
-            String domain = etDomain.getText().toString().trim();
-            if (domain.isEmpty()) {
+            // Get selected shop from spinner
+            int selectedPosition = spinnerDomain.getSelectedItemPosition();
+            if (selectedPosition == -1 || selectedPosition >= shops.size()) {
                 etError.setVisibility(View.VISIBLE);
-                etError.setText("Please enter domain");
+                etError.setText("Please select a shop");
                 okButton.setEnabled(true);
                 okButton.setText("Login");
-                return "DOMAIN_REQUIRED";
+                return "SHOP_REQUIRED";
             }
 
-            if (!domain.startsWith("http://") && !domain.startsWith("https://")) {
-                domain = "https://" + domain;
-            }
-
-            // Make domain final for lambda usage
-            final String finalDomain = domain;
+            ShopConfigUtils.Shop selectedShop = shops.get(selectedPosition);
+            final String finalDomain = selectedShop.domain_shop;
 
             // Authenticate with TastyIgniter API
             NetworkHelper networkHelper = new NetworkHelper(getActivity());
