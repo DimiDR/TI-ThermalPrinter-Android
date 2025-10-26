@@ -69,7 +69,7 @@ import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.helpClasses.IdManager;
 import com.dantsu.thermalprinter.helpClasses.MyWakeLockManager;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
-import com.dantsu.thermalprinter.helpClasses.UserUtils;
+import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
 import com.dantsu.thermalprinter.helpClasses.WebViewDialogFragment;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
 import com.google.android.material.chip.Chip;
@@ -89,11 +89,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static Button button_ti_print;
     private static Button button_ti_clear_ids;
     private static Button button_ti_kitchen_view;
+    private static Button button_ti_native_kitchen;
     private static Button button_ti_dashboard;
     private static Button button_ti_updates;
     private static Button button_ti_landing_page;
     private static Button button_ti_testprint;
     private Button button_ti_login;
+    private Button button_ti_logout;
     private static TextView textview_ti_header;
     private boolean userSelected = false; // TODO: no buttons should work if user is not selected
     private static Integer shop_id;
@@ -110,7 +112,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static String tiMenusEndpointURL = "";
     private static String tiCategoriesEndpointURL = "";
     private final String tiUpdates  = "";
-    private static List<UserUtils.User> users;
+    private static List<ShopConfigUtils.Shop> shops;
     private ChipGroup chipGroupPrinters;
     private Chip chipReceipt, chipKitchen;
     MediaPlayer mediaPlayer;
@@ -137,25 +139,53 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         button_reprint = this.findViewById(R.id.button_reprint);
         progressBar = findViewById(R.id.progressBar);
 
-        button_bluetooth_browse.setOnClickListener(view -> browseBluetoothDevice(-1, true));
+        if (button_bluetooth_browse != null) {
+            button_bluetooth_browse.setOnClickListener(view -> browseBluetoothDevice(-1, true));
+        }
         button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
-        button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
+        if (button_ti_print != null) {
+            button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
+        }
         textview_ti_header = this.findViewById(R.id.textview_ti_header);
         button_ti_clear_ids = this.findViewById(R.id.button_ti_clear_ids);
-        button_ti_clear_ids.setOnClickListener(view -> tiClearIds());
+        if (button_ti_clear_ids != null) {
+            button_ti_clear_ids.setOnClickListener(view -> tiClearIds());
+        }
         button_ti_kitchen_view = this.findViewById(R.id.button_ti_kitchen_view);
-        button_ti_kitchen_view.setOnClickListener(view -> openWebpage("KitchenView"));
+        if (button_ti_kitchen_view != null) {
+            button_ti_kitchen_view.setOnClickListener(view -> openWebpage("KitchenView"));
+        }
+        button_ti_native_kitchen = this.findViewById(R.id.button_ti_native_kitchen);
+        if (button_ti_native_kitchen != null) {
+            button_ti_native_kitchen.setOnClickListener(view -> openNativeKitchenDisplay());
+        } else {
+            Log.e("MainActivity", "button_ti_native_kitchen is null - check layout file");
+        }
         button_ti_dashboard =  this.findViewById(R.id.button_ti_dashboard);
-        button_ti_dashboard.setOnClickListener(view -> openWebpage("Administration"));
+        if (button_ti_dashboard != null) {
+            button_ti_dashboard.setOnClickListener(view -> openWebpage("Administration"));
+        }
         button_ti_updates =  this.findViewById(R.id.button_ti_updates);
-        button_ti_updates.setOnClickListener(view -> showUpdatePopup());
+        if (button_ti_updates != null) {
+            button_ti_updates.setOnClickListener(view -> showUpdatePopup());
+        }
         button_ti_landing_page = this.findViewById(R.id.button_ti_landing_page);
-        button_ti_landing_page.setOnClickListener(view -> openWebpage("LandingPage"));
+        if (button_ti_landing_page != null) {
+            button_ti_landing_page.setOnClickListener(view -> openWebpage("LandingPage"));
+        }
         button_ti_testprint = this.findViewById(R.id.button_ti_testprint);
-        button_ti_testprint.setOnClickListener(view -> TITestPrinter(true));
-        button_ti_testprint.setOnLongClickListener(view -> TITestPrinter(false));
+        if (button_ti_testprint != null) {
+            button_ti_testprint.setOnClickListener(view -> TITestPrinter(true));
+            button_ti_testprint.setOnLongClickListener(view -> TITestPrinter(false));
+        }
         button_ti_login = this.findViewById(R.id.button_ti_login);
-        button_ti_login.setOnClickListener(view -> LoginUser());
+        if (button_ti_login != null) {
+            button_ti_login.setOnClickListener(view -> LoginUser());
+        }
+        button_ti_logout = this.findViewById(R.id.button_ti_logout);
+        if (button_ti_logout != null) {
+            button_ti_logout.setOnClickListener(view -> LogoutUser());
+        }
         // Initialize the ChipGroup and Chips
         chipGroupPrinters = findViewById(R.id.chipGroup_printers);
         chipReceipt = findViewById(R.id.chip_receipt);
@@ -167,8 +197,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
         // create string for docket
         docketStringModeler = new DocketStringModeler();
-        // get valid users
-        users = UserUtils.getUsers(this);
+        // get valid shops
+        shops = ShopConfigUtils.getShops(this);
         //initialize the URLs and activate the buttons
         initilizeURLs();
         //enable update button, if updates available
@@ -188,7 +218,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }
 
         //reprint orders
-        button_reprint.setOnClickListener(v -> {
+        if (button_reprint != null) {
+            button_reprint.setOnClickListener(v -> {
             progressBar.setVisibility(View.VISIBLE);
             button_reprint.setVisibility(View.GONE);
             String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
@@ -238,58 +269,106 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 }
             });
         });
+        }
 
     }
 
     public void initilizeURLs() {
-        // Retrieve saved login details from SharedPreferences
+        // Check for persistent login
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
         shop_id = sharedPreferences.getInt("shop_id", 0);
+        String savedDomain = sharedPreferences.getString("domain_shop", "");
+        String savedToken = sharedPreferences.getString("token", "");
 
         //apply automatic printer selection of last selected device
         SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
         storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
         browseBluetoothDevice(storedPrinterIndex, false);
 
-        if (shop_id == 0) {
-            Toast.makeText(context, "No User selected", Toast.LENGTH_SHORT).show();
-            return ;
+        if (shop_id == 0 || savedDomain.isEmpty() || savedToken.isEmpty()) {
+            // No persistent login found, show login dialog
+            LoginUser();
+            return;
         }
 
-        for (UserUtils.User user : users) {
-            if (Objects.equals(user.shop_id, shop_id)) {
-                username = user.username;
-                password = user.password;
-                shop_name = user.shop_name;
-                domain_shop = user.domain_shop;
-                domain_website = user.domain_website;
-                tiDashboardURL = user.domain_shop + "/admin";
-                tiKitchenViewURL =  user.kitchen_view;
-                tiLandingPage = user.domain_website + "/";
-                location_id = user.location_id;
-                textview_ti_header.setText(user.shop_name);
-//                tiOrdersEndpointURL = user.domain_shop + "/api/orders?sort=order_id desc&pageLimit=50";
-//                tiMenusEndpointURL = user.domain_shop + "/api/menus?include=categories&pageLimit=5000";
-//                tiCategoriesEndpointURL = user.domain_shop + "/api/categories";
-                // with location ID TODO make dynamic
-                tiOrdersEndpointURL = user.domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
-                tiMenusEndpointURL = user.domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
-                tiCategoriesEndpointURL = user.domain_shop + "/api/categories?location="+location_id;
+        // Validate token and auto-login if valid
+        NetworkHelper networkHelper = new NetworkHelper(this);
+        networkHelper.validateTokenAsync(savedDomain, new NetworkHelper.TokenCallback() {
+            @Override
+            public void onTokenGenerated(String token) {
+                // Token is valid, proceed with auto-login
+                runOnUiThread(() -> {
+                    loadShopConfiguration(savedDomain);
+                    enableAllButtons();
+                });
+            }
 
-                break; // Exit the loop once the user is found
+            @Override
+            public void onTokenError(Exception exception) {
+                // Token is invalid, clear stored data and show login
+                runOnUiThread(() -> {
+                    clearStoredLogin();
+                    LoginUser();
+                });
+            }
+        });
+    }
+
+    private void loadShopConfiguration(String domain) {
+        for (ShopConfigUtils.Shop shop : shops) {
+            if (shop.domain_shop.equals(domain)) {
+                shop_name = shop.shop_name;
+                domain_shop = shop.domain_shop;
+                domain_website = shop.domain_website;
+                tiDashboardURL = shop.domain_shop + "/admin";
+                tiKitchenViewURL = shop.kitchen_view;
+                tiLandingPage = shop.domain_website + "/";
+                location_id = shop.location_id;
+                textview_ti_header.setText(shop.shop_name);
+                
+                // Set API endpoints
+                tiOrdersEndpointURL = shop.domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
+                tiMenusEndpointURL = shop.domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
+                tiCategoriesEndpointURL = shop.domain_shop + "/api/categories?location=" + location_id;
+                break;
             }
         }
+    }
 
-            //activate the buttons
-            button_bluetooth_browse.setEnabled(true);
-            button_ti_print.setEnabled(true);
-            button_ti_clear_ids.setEnabled(true);
-            button_ti_kitchen_view.setEnabled(true);
-            button_ti_dashboard.setEnabled(true);
-            button_ti_landing_page.setEnabled(true);
-            button_ti_testprint.setEnabled(true);
-            button_reprint.setEnabled(true);
-//        }
+    private void enableAllButtons() {
+        if (button_bluetooth_browse != null) button_bluetooth_browse.setEnabled(true);
+        if (button_ti_print != null) button_ti_print.setEnabled(true);
+        if (button_ti_clear_ids != null) button_ti_clear_ids.setEnabled(true);
+        if (button_ti_kitchen_view != null) button_ti_kitchen_view.setEnabled(true);
+        if (button_ti_native_kitchen != null) button_ti_native_kitchen.setEnabled(true);
+        if (button_ti_dashboard != null) button_ti_dashboard.setEnabled(true);
+        if (button_ti_landing_page != null) button_ti_landing_page.setEnabled(true);
+        if (button_ti_testprint != null) button_ti_testprint.setEnabled(true);
+        if (button_reprint != null) button_reprint.setEnabled(true);
+        
+        // Show logout button and hide login button
+        if (button_ti_login != null) button_ti_login.setVisibility(View.GONE);
+        if (button_ti_logout != null) button_ti_logout.setVisibility(View.VISIBLE);
+    }
+
+    private void clearStoredLogin() {
+        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.clear();
+        editor.apply();
+        
+        // Also clear API token
+        NetworkHelper networkHelper = new NetworkHelper(this);
+        networkHelper.clearToken();
+    }
+
+    private void clearWebViewCookies() {
+        // Clear WebView cookies to logout from website
+        android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
+        if (cookieManager != null) {
+            cookieManager.removeAllCookies(null);
+            cookieManager.flush();
+        }
     }
 
     @SuppressLint("SimpleDateFormat")
@@ -623,8 +702,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
             // Update UI elements or perform other tasks related to starting the service
             int buttonColor = ContextCompat.getColor(this, R.color.light_green);
-            button_ti_print.setBackgroundColor(buttonColor);
-            button_ti_print.setText("Drucker ist Aktiv");
+            if (button_ti_print != null) {
+                button_ti_print.setBackgroundColor(buttonColor);
+                button_ti_print.setText("Drucker ist Aktiv");
+            }
             // Acquire wake lock to keep CPU running
             //MyWakeLockManager.acquireFullWakeLock(this); //TODO: remove as depricated
             MyWakeLockManager.acquirePartialWakeLock(this);
@@ -654,8 +735,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
             // Update UI elements or perform other tasks related to stopping the service
             int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
-            button_ti_print.setBackgroundColor(buttonColor);
-            button_ti_print.setText("Drucker ist inaktiv");
+            if (button_ti_print != null) {
+                button_ti_print.setBackgroundColor(buttonColor);
+                button_ti_print.setText("Drucker ist inaktiv");
+            }
 
             // Release wake lock to allow CPU to sleep
             //MyWakeLockManager.releaseFullWakeLock(); //TODO: remove as depricated
@@ -687,7 +770,9 @@ private void restartWebservice(int buttonColor){
     networkHelperViewModel.cancelTimer();
     startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
     int buttonColorID = ContextCompat.getColor(this, buttonColor);
-    button_ti_print.setBackgroundColor(buttonColorID); // set to yellow if connection to printer is broken
+    if (button_ti_print != null) {
+        button_ti_print.setBackgroundColor(buttonColorID); // set to yellow if connection to printer is broken
+    }
 }
 
     private void updateUIBasedOnServiceStatus() {
@@ -700,8 +785,10 @@ private void restartWebservice(int buttonColor){
                 startService();
                 // Update UI elements for active service
                 int buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
-                button_ti_print.setBackgroundColor(buttonColor);
-                button_ti_print.setText("Drucker ist Aktiv");
+                if (button_ti_print != null) {
+                    button_ti_print.setBackgroundColor(buttonColor);
+                    button_ti_print.setText("Drucker ist Aktiv");
+                }
                 MyWakeLockManager.acquireFullWakeLock(this);
                 Log.d("MainActivity", "Wake lock acquired");
                 getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -710,8 +797,10 @@ private void restartWebservice(int buttonColor){
                 stopService();
                 // Update UI elements for inactive service
                 int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
-                button_ti_print.setBackgroundColor(buttonColor);
-                button_ti_print.setText("Drucker ist inaktiv");
+                if (button_ti_print != null) {
+                    button_ti_print.setBackgroundColor(buttonColor);
+                    button_ti_print.setText("Drucker ist inaktiv");
+                }
                 MyWakeLockManager.releaseFullWakeLock();
                 Log.d("MainActivity", "Wake lock released");
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -815,7 +904,28 @@ private void restartWebservice(int buttonColor){
 
     private void showWebViewDialog(String url) {
         FragmentManager fm = getSupportFragmentManager();
-        WebViewDialogFragment webViewDialogFragment = WebViewDialogFragment.newInstance(url);
+        WebViewDialogFragment webViewDialogFragment;
+        
+        // Check if this is the Administration page and we have login credentials
+        if (url.contains("/admin")) {
+            // Get stored credentials for auto-login
+            SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+            String savedUsername = sharedPreferences.getString("username", "");
+            String savedPassword = sharedPreferences.getString("password", "");
+            String savedDomain = sharedPreferences.getString("domain_shop", "");
+            
+            Log.d("MainActivity", "Admin page detected. Username: " + savedUsername + ", Domain: " + savedDomain);
+            
+            if (!savedUsername.isEmpty() && !savedPassword.isEmpty() && !savedDomain.isEmpty()) {
+                Log.d("MainActivity", "Credentials found, creating WebView with auto-login");
+                webViewDialogFragment = WebViewDialogFragment.newInstance(url, savedUsername, savedPassword, savedDomain);
+            } else {
+                Log.d("MainActivity", "No credentials found, creating WebView without auto-login");
+                webViewDialogFragment = WebViewDialogFragment.newInstance(url);
+            }
+        } else {
+            webViewDialogFragment = WebViewDialogFragment.newInstance(url);
+        }
 
         // Set the initial circle colors based on the conditions
         int printerColor;
@@ -844,6 +954,11 @@ private void restartWebservice(int buttonColor){
         webViewDialogFragment.show(fm, "dialog_webview");
     }
 
+    private void openNativeKitchenDisplay() {
+        Intent intent = new Intent(this, KitchenDisplayActivity.class);
+        startActivity(intent);
+    }
+
 
     private void tiClearIds() {
         //clear the id, so that the printing of open orders can be restarted
@@ -854,6 +969,36 @@ private void restartWebservice(int buttonColor){
     private void LoginUser() {
         LoginUserDialogFragment dialog = new LoginUserDialogFragment();
         dialog.show(getSupportFragmentManager(), "CustomDialogFragment");
+    }
+
+    private void LogoutUser() {
+        // Clear stored login data
+        clearStoredLogin();
+        
+        // Stop any running services
+        stopService();
+        
+        // Clear web view cookies and logout from website
+        clearWebViewCookies();
+        
+        // Reset UI
+        if (textview_ti_header != null) textview_ti_header.setText("Please Login");
+        if (button_ti_login != null) button_ti_login.setVisibility(View.VISIBLE);
+        if (button_ti_logout != null) button_ti_logout.setVisibility(View.GONE);
+        
+        // Disable all buttons
+        if (button_bluetooth_browse != null) button_bluetooth_browse.setEnabled(false);
+        if (button_ti_print != null) button_ti_print.setEnabled(false);
+        if (button_ti_clear_ids != null) button_ti_clear_ids.setEnabled(false);
+        if (button_ti_kitchen_view != null) button_ti_kitchen_view.setEnabled(false);
+        if (button_ti_native_kitchen != null) button_ti_native_kitchen.setEnabled(false);
+        if (button_ti_dashboard != null) button_ti_dashboard.setEnabled(false);
+        if (button_ti_landing_page != null) button_ti_landing_page.setEnabled(false);
+        if (button_ti_testprint != null) button_ti_testprint.setEnabled(false);
+        if (button_reprint != null) button_reprint.setEnabled(false);
+        
+        // Show login dialog
+        LoginUser();
     }
 
     public static class ResetPrintFragment extends DialogFragment {
@@ -890,6 +1035,12 @@ private void restartWebservice(int buttonColor){
     }
 
     public static class LoginUserDialogFragment extends DialogFragment {
+        private Button okButton;
+        private TextView etError;
+        private EditText etDomain;
+        private EditText etUsername;
+        private EditText etPassword;
+        
         @NonNull
         @Override
         public Dialog onCreateDialog(Bundle savedInstanceState) {
@@ -897,11 +1048,12 @@ private void restartWebservice(int buttonColor){
             LayoutInflater inflater = requireActivity().getLayoutInflater();
             View view = inflater.inflate(R.layout.popup_login_user, null);
 
-            Button okButton = view.findViewById(R.id.button_ok);
+            okButton = view.findViewById(R.id.button_ok);
             Button cancelButton = view.findViewById(R.id.button_cancel);
-            EditText etUsername = view.findViewById(R.id.etUsername);
-            EditText etPassword = view.findViewById(R.id.etPassword);
-            TextView etError = view.findViewById(R.id.popup_error);
+            etDomain = view.findViewById(R.id.etDomain);
+            etUsername = view.findViewById(R.id.etUsername);
+            etPassword = view.findViewById(R.id.etPassword);
+            etError = view.findViewById(R.id.popup_error);
 
             okButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -942,42 +1094,97 @@ private void restartWebservice(int buttonColor){
         }
 
         private String checkValidCredentials(String username, String password) {
-            SharedPreferences sharedPreferences = getActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-            String userMessage = "EMPTY";
-            // Hardcoded credentials validation
-            //TODO check user and PW from users
-            //TODO: remove UserUtils.java, and add logic here. It does not make sence to have an extra class
-            for (int i = 0; i < users.size(); i++) {
-                if (users.get(i).username.equals(username) && users.get(i).password.equals(password)) {
-                    // username has to be unique in JSON
-                    shop_id = users.get(i).shop_id;
-                    domain_shop = users.get(i).domain_shop;
-                    domain_website = users.get(i).domain_website;
-                    shop_name = users.get(i).shop_name;
-                    tiKitchenViewURL = users.get(i).kitchen_view;
-                    username = users.get(i).username;
-                    tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
+            // Show loading state
+            etError.setVisibility(View.GONE);
+            okButton.setEnabled(false);
+            okButton.setText("Authenticating...");
 
-                    // TODO do I need this here? Its only checking the credentials here. Maybe I need this to update all variables
-                    tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
-
-                    tiDashboardURL = domain_shop + "/admin";
-                    //tiKitchenViewURL = domain_shop + "/admin/thoughtco/kitchendisplay/summary/view/1";
-                    tiLandingPage = domain_website + "/";
-                    //save login data
-                    SharedPreferences.Editor editor = sharedPreferences.edit();
-                    editor.putInt("shop_id", shop_id);
-                    editor.apply();
-                    //change header text
-                    textview_ti_header.setText(shop_name);
-                    return "OK";
-                } else if (!users.get(i).username.equals(username)) {
-                    userMessage = String.valueOf(R.string.no_user_error_text);
-                } else if (users.get(i).username.equals(username) && !users.get(i).password.equals(password)) {
-                    userMessage = String.valueOf(R.string.wrong_password_error_text);
-                }
+            // Get domain from user input or use a default
+            String domain = etDomain.getText().toString().trim();
+            if (domain.isEmpty()) {
+                etError.setVisibility(View.VISIBLE);
+                etError.setText("Please enter domain");
+                okButton.setEnabled(true);
+                okButton.setText("Login");
+                return "DOMAIN_REQUIRED";
             }
-            return userMessage;
+
+            if (!domain.startsWith("http://") && !domain.startsWith("https://")) {
+                domain = "https://" + domain;
+            }
+
+            // Make domain final for lambda usage
+            final String finalDomain = domain;
+
+            // Authenticate with TastyIgniter API
+            NetworkHelper networkHelper = new NetworkHelper(getActivity());
+            networkHelper.generateTokenAsync(username, password, finalDomain, new NetworkHelper.TokenCallback() {
+                @Override
+                public void onTokenGenerated(String token) {
+                    // Authentication successful
+                    getActivity().runOnUiThread(() -> {
+                        // Find matching shop configuration
+                        ShopConfigUtils.Shop matchingShop = ShopConfigUtils.getShopByDomain(getActivity(), finalDomain);
+                        if (matchingShop != null) {
+                            // Save login data
+                            SharedPreferences sharedPreferences = getActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+                            SharedPreferences.Editor editor = sharedPreferences.edit();
+                            editor.putInt("shop_id", matchingShop.shop_id);
+                            editor.putString("domain_shop", matchingShop.domain_shop);
+                            editor.putString("token", token);
+                            editor.putString("username", username);
+                            editor.putString("password", password);
+                            editor.apply();
+
+                            // Update global variables
+                            shop_id = matchingShop.shop_id;
+                            domain_shop = matchingShop.domain_shop;
+                            domain_website = matchingShop.domain_website;
+                            shop_name = matchingShop.shop_name;
+                            tiKitchenViewURL = matchingShop.kitchen_view;
+                            location_id = matchingShop.location_id;
+                            textview_ti_header.setText(shop_name);
+
+                            // Set API endpoints
+                            tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
+                            tiMenusEndpointURL = domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
+                            tiCategoriesEndpointURL = domain_shop + "/api/categories?location=" + location_id;
+                            tiDashboardURL = domain_shop + "/admin";
+                            tiLandingPage = domain_website + "/";
+
+                            // Reinitialize URLs and enable buttons
+                            ((MainActivity) getActivity()).initilizeURLs();
+                            button_bluetooth_browse.setEnabled(true);
+                            button_ti_print.setEnabled(true);
+                            button_ti_clear_ids.setEnabled(true);
+                            button_reprint.setEnabled(true);
+                            button_ti_testprint.setEnabled(true);
+                            button_ti_kitchen_view.setEnabled(true);
+                            button_ti_dashboard.setEnabled(true);
+                            button_ti_landing_page.setEnabled(true);
+                            dismiss();
+                        } else {
+                            etError.setVisibility(View.VISIBLE);
+                            etError.setText("Shop configuration not found for this domain");
+                            okButton.setEnabled(true);
+                            okButton.setText("Login");
+                        }
+                    });
+                }
+
+                @Override
+                public void onTokenError(Exception exception) {
+                    // Authentication failed
+                    getActivity().runOnUiThread(() -> {
+                        etError.setVisibility(View.VISIBLE);
+                        etError.setText("Authentication failed: " + exception.getMessage());
+                        okButton.setEnabled(true);
+                        okButton.setText("Login");
+                    });
+                }
+            });
+
+            return "PROCESSING";
         }
     }
 

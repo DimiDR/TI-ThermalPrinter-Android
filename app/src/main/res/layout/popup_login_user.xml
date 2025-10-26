@@ -16,19 +16,27 @@
         android:id="@+id/popup_description"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text='Falls Sie Ihren Benutzer nicht kennen, kontaktieren Sie den Jandiweb Support.'
+        android:text='Enter your TastyIgniter credentials and domain.'
         android:padding="16dp"/>
+    
+    <EditText
+        android:id="@+id/etDomain"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Domain (e.g., yourshop.com)"
+        android:inputType="textUri" />
+    
     <EditText
         android:id="@+id/etUsername"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Benutzer" />
+        android:hint="Username" />
 
     <EditText
         android:id="@+id/etPassword"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Passwort"
+        android:hint="Password"
         android:inputType="textPassword" />
 
     <LinearLayout

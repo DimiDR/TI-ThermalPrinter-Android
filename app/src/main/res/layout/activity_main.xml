@@ -8,18 +8,40 @@
     android:gravity="center"
     android:saveEnabled="true"
     android:orientation="vertical">
-    <Button
-        android:id="@+id/button_ti_login"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:width="100dp"
-        android:height="50dp"
-        android:layout_margin="10dp"
-        android:textSize="16sp"
-        android:background="@drawable/custom_button"
-        android:textColor="#FFFFFF"
-        android:textAllCaps="false"
-        android:text = "@string/login_button" />
+        android:orientation="horizontal"
+        android:gravity="center">
+        
+        <Button
+            android:id="@+id/button_ti_login"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:width="100dp"
+            android:height="50dp"
+            android:layout_margin="10dp"
+            android:textSize="16sp"
+            android:background="@drawable/custom_button"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:text = "@string/login_button" />
+            
+        <Button
+            android:id="@+id/button_ti_logout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:width="100dp"
+            android:height="50dp"
+            android:layout_margin="10dp"
+            android:textSize="16sp"
+            android:background="@drawable/custom_button"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:text="Logout"
+            android:visibility="gone" />
+            
+    </LinearLayout>
     <TextView
         android:id="@+id/textview_ti_header"
         android:layout_width="wrap_content"
@@ -105,6 +127,20 @@
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
             android:text="@string/kitchen_display_button"
+            android:enabled="false"/>
+
+        <Button
+            android:id="@+id/button_ti_native_kitchen"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:width="130dp"
+            android:height="50dp"
+            android:layout_margin="10dp"
+            android:textSize="16sp"
+            android:background="@drawable/custom_button"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:text="Native Kitchen"
             android:enabled="false"/>
 
         <Button

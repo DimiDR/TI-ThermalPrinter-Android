@@ -27,17 +27,40 @@
             android:gravity="center_horizontal"
             android:orientation="vertical">
 
-            <Button
-                android:id="@+id/button_ti_login"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_margin="10dp"
-                android:background="@drawable/custom_button"
-                android:text="@string/login_button"
-                android:textAllCaps="false"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp" />
+                android:orientation="horizontal"
+                android:gravity="center">
+                
+                <Button
+                    android:id="@+id/button_ti_login"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:width="100dp"
+                    android:height="50dp"
+                    android:layout_margin="10dp"
+                    android:textSize="16sp"
+                    android:background="@drawable/custom_button"
+                    android:textColor="#FFFFFF"
+                    android:textAllCaps="false"
+                    android:text="@string/login_button" />
+                    
+                <Button
+                    android:id="@+id/button_ti_logout"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:width="100dp"
+                    android:height="50dp"
+                    android:layout_margin="10dp"
+                    android:textSize="16sp"
+                    android:background="@drawable/custom_button"
+                    android:textColor="#FFFFFF"
+                    android:textAllCaps="false"
+                    android:text="Logout"
+                    android:visibility="gone" />
+                    
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/textview_ti_header"
@@ -124,10 +147,23 @@
                     android:textSize="16sp" />
 
                 <Button
+                    android:id="@+id/button_ti_native_kitchen"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="10dp"
+                    android:background="@drawable/custom_button"
+                    android:enabled="false"
+                    android:padding="6dp"
+                    android:text="Native Kitchen"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp" />
+
+                <Button
                     android:id="@+id/button_ti_dashboard"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-
+                    android:layout_margin="10dp"
                     android:background="@drawable/custom_button"
                     android:enabled="false"
                     android:padding="6dp"

@@ -182,4 +182,148 @@ public class NetworkHelper {
     public boolean isNetworkTaskRunning() {
         return networkTask != null && !networkTask.isCancelled();
     }
+
+    public interface TokenCallback {
+        void onTokenGenerated(String token);
+        void onTokenError(Exception exception);
+    }
+
+    public interface LocationCallback {
+        void onLocationsFetched(String locationsJson);
+        void onLocationError(Exception exception);
+    }
+
+    public void generateTokenAsync(String username, String password, String domain_shop, TokenCallback callback) {
+        new AsyncTask<Void, Void, String>() {
+            private Exception exception = null;
+
+            @Override
+            protected String doInBackground(Void... voids) {
+                try {
+                    generateToken(username, password, domain_shop);
+                    return token;
+                } catch (IOException e) {
+                    exception = e;
+                    return null;
+                }
+            }
+
+            @Override
+            protected void onPostExecute(String result) {
+                if (exception != null) {
+                    callback.onTokenError(exception);
+                } else {
+                    callback.onTokenGenerated(result);
+                }
+            }
+        }.execute();
+    }
+
+    public void validateTokenAsync(String domain_shop, TokenCallback callback) {
+        new AsyncTask<Void, Void, String>() {
+            private Exception exception = null;
+
+            @Override
+            protected String doInBackground(Void... voids) {
+                try {
+                    if (token == null) {
+                        exception = new IOException("No token available");
+                        return null;
+                    }
+
+                    // Test token with a simple API call
+                    String testUrl = domain_shop + "/api/locations";
+                    URL url = new URL(testUrl);
+                    HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+                    urlConnection.setRequestMethod("GET");
+                    urlConnection.setRequestProperty("Authorization", "Bearer " + token);
+                    urlConnection.connect();
+
+                    int responseCode = urlConnection.getResponseCode();
+                    if (responseCode == 401) {
+                        exception = new IOException("Token expired or invalid");
+                        return null;
+                    } else if (responseCode != 200) {
+                        exception = new IOException("Token validation failed. Response code: " + responseCode);
+                        return null;
+                    }
+
+                    return token;
+                } catch (Exception e) {
+                    exception = e;
+                    return null;
+                }
+            }
+
+            @Override
+            protected void onPostExecute(String result) {
+                if (exception != null) {
+                    callback.onTokenError(exception);
+                } else {
+                    callback.onTokenGenerated(result);
+                }
+            }
+        }.execute();
+    }
+
+    public void fetchLocationsAsync(String domain_shop, LocationCallback callback) {
+        new AsyncTask<Void, Void, String>() {
+            private Exception exception = null;
+
+            @Override
+            protected String doInBackground(Void... voids) {
+                try {
+                    if (token == null) {
+                        exception = new IOException("No token available");
+                        return null;
+                    }
+
+                    String locationsUrl = domain_shop + "/api/locations";
+                    URL url = new URL(locationsUrl);
+                    HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+                    urlConnection.setRequestMethod("GET");
+                    urlConnection.setRequestProperty("Authorization", "Bearer " + token);
+                    urlConnection.connect();
+
+                    int responseCode = urlConnection.getResponseCode();
+                    if (responseCode == 401) {
+                        exception = new IOException("Token expired or invalid");
+                        return null;
+                    } else if (responseCode != 200) {
+                        exception = new IOException("Failed to fetch locations. Response code: " + responseCode);
+                        return null;
+                    }
+
+                    BufferedReader in = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+                    String inputLine;
+                    StringBuilder response = new StringBuilder();
+                    while ((inputLine = in.readLine()) != null) {
+                        response.append(inputLine);
+                    }
+                    in.close();
+
+                    return response.toString();
+                } catch (Exception e) {
+                    exception = e;
+                    return null;
+                }
+            }
+
+            @Override
+            protected void onPostExecute(String result) {
+                if (exception != null) {
+                    callback.onLocationError(exception);
+                } else {
+                    callback.onLocationsFetched(result);
+                }
+            }
+        }.execute();
+    }
+
+    public void clearToken() {
+        this.token = null;
+        SharedPreferences.Editor editor = context.getSharedPreferences("api_token", Context.MODE_PRIVATE).edit();
+        editor.remove("token");
+        editor.apply();
+    }
 }
