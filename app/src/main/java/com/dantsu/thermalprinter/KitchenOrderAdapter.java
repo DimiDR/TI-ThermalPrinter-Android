@@ -155,6 +155,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         private TextView textPaymentMethod;
         private View viewStatusIndicator;
         private Button buttonPrint;
+        private Button buttonStatusConfirmed;
         private Button buttonStatusPreparation;
         private Button buttonStatusDelivery;
         private Button buttonStatusCompleted;
@@ -175,6 +176,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             textPaymentMethod = itemView.findViewById(R.id.textPaymentMethod);
             viewStatusIndicator = itemView.findViewById(R.id.viewStatusIndicator);
             buttonPrint = itemView.findViewById(R.id.buttonPrint);
+            buttonStatusConfirmed = itemView.findViewById(R.id.buttonStatusConfirmed);
             buttonStatusPreparation = itemView.findViewById(R.id.buttonStatusPreparation);
             buttonStatusDelivery = itemView.findViewById(R.id.buttonStatusDelivery);
             buttonStatusCompleted = itemView.findViewById(R.id.buttonStatusCompleted);
@@ -276,6 +278,14 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             }
             
             // Set up status change button click listeners
+            if (buttonStatusConfirmed != null) {
+                buttonStatusConfirmed.setOnClickListener(v -> {
+                    if (statusChangeListener != null) {
+                        statusChangeListener.onStatusChangeClick(order, "confirmed");
+                    }
+                });
+            }
+            
             if (buttonStatusPreparation != null) {
                 buttonStatusPreparation.setOnClickListener(v -> {
                     if (statusChangeListener != null) {

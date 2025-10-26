@@ -199,10 +199,10 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             
             // If status is completed, refresh the list to filter out completed orders
             if ("completed".equals(statusName)) {
-                Toast.makeText(this, "Order #" + orderId + " marked as completed. Refreshing list...", Toast.LENGTH_SHORT).show();
-                refreshOrders();
-            } else {
-                Toast.makeText(this, "Order #" + orderId + " status updated to " + statusName, Toast.LENGTH_SHORT).show();
+                // Delay the refresh to allow the API call to complete
+                new Handler().postDelayed(() -> {
+                    refreshOrders();
+                }, 1000);
             }
         } catch (JSONException e) {
             Log.e("KitchenDisplay", "Error getting order ID", e);
@@ -217,6 +217,9 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 int statusId = getStatusIdByName(statusName);
                 if (statusId == -1) {
                     Log.e("KitchenDisplay", "Status not found: " + statusName);
+                    mainHandler.post(() -> {
+                        Toast.makeText(this, "Invalid status: " + statusName, Toast.LENGTH_SHORT).show();
+                    });
                     return;
                 }
                 
@@ -230,12 +233,21 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 
                 if (result != null) {
                     Log.d("KitchenDisplay", "Order " + orderId + " status updated to " + statusName);
+                    mainHandler.post(() -> {
+                        Toast.makeText(this, "Order #" + orderId + " status updated to " + statusName, Toast.LENGTH_SHORT).show();
+                    });
                 } else {
                     Log.e("KitchenDisplay", "Failed to update order " + orderId);
+                    mainHandler.post(() -> {
+                        Toast.makeText(this, "Failed to update order #" + orderId + " status", Toast.LENGTH_SHORT).show();
+                    });
                 }
                 
             } catch (Exception e) {
                 Log.e("KitchenDisplay", "Error updating order status", e);
+                mainHandler.post(() -> {
+                    Toast.makeText(this, "Error updating order status: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
             }
         }).start();
     }
@@ -243,6 +255,8 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     private int getStatusIdByName(String statusName) {
         // Map status names to IDs based on the documentation
         switch (statusName.toLowerCase()) {
+            case "confirmed":
+                return 2; // Confirmed status ID
             case "preparation":
                 return 3; // Preparation status ID
             case "delivery":
@@ -256,11 +270,21 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     
     private String makePatchRequest(String url, String jsonPayload) {
         try {
+            // Get the authentication token from SharedPreferences
+            SharedPreferences tokenPrefs = getSharedPreferences("api_token", Context.MODE_PRIVATE);
+            String token = tokenPrefs.getString("token", null);
+            
+            if (token == null) {
+                Log.e("KitchenDisplay", "No authentication token found");
+                return null;
+            }
+            
             java.net.URL requestUrl = new java.net.URL(url);
             java.net.HttpURLConnection connection = (java.net.HttpURLConnection) requestUrl.openConnection();
             connection.setRequestMethod("PATCH");
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Accept", "application/json");
+            connection.setRequestProperty("Authorization", "Bearer " + token);
             connection.setDoOutput(true);
             
             // Write the JSON payload
@@ -281,6 +305,19 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 return response.toString();
             } else {
                 Log.e("KitchenDisplay", "API request failed with code: " + responseCode);
+                // Try to read error response
+                try {
+                    java.io.BufferedReader errorReader = new java.io.BufferedReader(new java.io.InputStreamReader(connection.getErrorStream()));
+                    StringBuilder errorResponse = new StringBuilder();
+                    String errorLine;
+                    while ((errorLine = errorReader.readLine()) != null) {
+                        errorResponse.append(errorLine);
+                    }
+                    errorReader.close();
+                    Log.e("KitchenDisplay", "Error response: " + errorResponse.toString());
+                } catch (Exception e) {
+                    Log.e("KitchenDisplay", "Could not read error response", e);
+                }
                 return null;
             }
         } catch (Exception e) {

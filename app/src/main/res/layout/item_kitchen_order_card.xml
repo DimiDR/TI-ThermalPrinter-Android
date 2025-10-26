@@ -190,13 +190,25 @@
             android:gravity="center">
 
             <Button
+                android:id="@+id/buttonStatusConfirmed"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_margin="2dp"
+                android:text="Confirmed"
+                android:textSize="9sp"
+                android:background="@drawable/status_button_confirmed"
+                android:textColor="@android:color/white"
+                android:textAllCaps="false" />
+
+            <Button
                 android:id="@+id/buttonStatusPreparation"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_margin="2dp"
                 android:text="Preparation"
-                android:textSize="10sp"
+                android:textSize="9sp"
                 android:background="@drawable/status_button_preparation"
                 android:textColor="@android:color/white"
                 android:textAllCaps="false" />
@@ -208,7 +220,7 @@
                 android:layout_weight="1"
                 android:layout_margin="2dp"
                 android:text="Delivery"
-                android:textSize="10sp"
+                android:textSize="9sp"
                 android:background="@drawable/status_button_delivery"
                 android:textColor="@android:color/white"
                 android:textAllCaps="false" />
@@ -220,7 +232,7 @@
                 android:layout_weight="1"
                 android:layout_margin="2dp"
                 android:text="Completed"
-                android:textSize="10sp"
+                android:textSize="9sp"
                 android:background="@drawable/status_button_completed"
                 android:textColor="@android:color/white"
                 android:textAllCaps="false" />
