@@ -16,7 +16,7 @@
     <string name="reprint_button">Neudruck</string>
     <string name="revert_print_ids_button">Druck Zurücksetzen</string>
     <string name="login_text">Bitter Einlogen</string>
-    <string name="open_websites_text">Zu den Webseiten</string>
+    <string name="open_websites_text">Hauptfunktionen</string>
     <string name="bluetooth_printer_text">Bluetooth Drucker</string>
     <string name="service_stoped_button">Drucker Aus</string>
     <string name="revert_print_ids_text">Nur neue Bestellungen mit Status \"Eingegangen\" werden gedruckt</string>

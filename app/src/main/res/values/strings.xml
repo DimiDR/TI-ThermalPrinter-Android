@@ -15,7 +15,7 @@
     <string name="reprint_button">Reprint</string>
     <string name="revert_print_ids_button">Revert Print IDs</string>
     <string name="login_text">Please Login</string>
-    <string name="open_websites_text">Open Websites</string>
+    <string name="open_websites_text">Main Functions</string>
     <string name="bluetooth_printer_text">Bluetooth Printer</string>
     <string name="service_stoped_button">Printer Off</string>
     <string name="revert_print_ids_text">Only new orders with the status ‘Received’ are printed</string>
