@@ -17,7 +17,7 @@
         android:id="@+id/popup_description"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text='Nach Zurücksetzen, können die "Eingegangene" Bestellungen nocheinmal ausgedruckt werden'
+        android:text='Nach Zurücksetzen, können die &quot;Eingegangene&quot; Bestellungen nocheinmal ausgedruckt werden'
         android:padding="16dp"/>
 
     <LinearLayout

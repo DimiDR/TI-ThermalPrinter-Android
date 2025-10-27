@@ -1,6 +1,7 @@
 package com.dantsu.thermalprinter;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
@@ -10,6 +11,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -47,6 +49,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     private SwipeRefreshLayout swipeRefreshLayout;
     private ProgressBar progressBar;
     private ImageButton buttonCloseKitchen;
+    private TextView textOrderCount;
     private NetworkHelperViewModel networkHelperViewModel;
     private Timer refreshTimer;
     private Handler mainHandler;
@@ -88,6 +91,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         progressBar = findViewById(R.id.progressBar);
         buttonCloseKitchen = findViewById(R.id.button_close_kitchen);
+        textOrderCount = findViewById(R.id.textOrderCount);
         
         
         // Get chip settings from main screen
@@ -133,6 +137,25 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         
         // Setup SwipeRefreshLayout
         swipeRefreshLayout.setOnRefreshListener(this::refreshOrders);
+        
+        // Setup toolbar
+        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowHomeEnabled(true);
+        }
+        
+        toolbar.setNavigationOnClickListener(v -> finish());
+        
+        // Setup dashboard button
+        Button buttonDashboard = findViewById(R.id.button_dashboard);
+        if (buttonDashboard != null) {
+            buttonDashboard.setOnClickListener(v -> {
+                Intent intent = new Intent(this, DashboardActivity.class);
+                startActivity(intent);
+            });
+        }
         
         // Setup close button
         if (buttonCloseKitchen != null) {
@@ -461,6 +484,9 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 // Update adapter with new data
                 orderAdapter.updateOrders(ordersList, jsonObjectMenus, jsonObjectCategories);
                 
+                // Update order count
+                updateOrderCount(ordersList.size());
+                
                 Log.d("KitchenDisplay", "Loaded " + ordersList.size() + " orders (page " + currentPage + ")");
                 
             } catch (JSONException e) {
@@ -582,6 +608,12 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     @Override
     public void onReceiptPreviewClick(JSONObject order) {
         showReceiptPreview(order);
+    }
+    
+    private void updateOrderCount(int count) {
+        if (textOrderCount != null) {
+            textOrderCount.setText(String.valueOf(count));
+        }
     }
     
     private void showReceiptPreview(JSONObject order) {

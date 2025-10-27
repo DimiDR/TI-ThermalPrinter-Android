@@ -30,6 +30,9 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.PopupWindow;
+
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.widget.Spinner;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -45,6 +48,7 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.DialogFragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.fragment.app.FragmentManager;
+import com.google.android.material.appbar.MaterialToolbar;
 
 import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
@@ -137,6 +141,25 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         networkHelperViewModel = new ViewModelProvider(this).get(NetworkHelperViewModel.class);
+        
+        // Setup toolbar
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            setSupportActionBar(toolbar);
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+                getSupportActionBar().setDisplayShowHomeEnabled(true);
+            }
+            
+            toolbar.setNavigationOnClickListener(v -> {
+                // Navigate back to Kitchen Display
+                Intent intent = new Intent(this, KitchenDisplayActivity.class);
+                startActivity(intent);
+                finish();
+            });
+        } else {
+            Log.e("MainActivity", "Toolbar not found! Check if R.id.toolbar exists in the layout");
+        }
 
         button_bluetooth_browse = this.findViewById(R.id.button_bluetooth_browse);
         button_reprint = this.findViewById(R.id.button_reprint);
@@ -156,7 +179,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }
         button_ti_native_kitchen = this.findViewById(R.id.button_ti_native_kitchen);
         if (button_ti_native_kitchen != null) {
-            button_ti_native_kitchen.setOnClickListener(view -> openNativeKitchenDisplay());
+            button_ti_native_kitchen.setOnClickListener(view -> {
+                Intent intent = new Intent(this, KitchenDisplayActivity.class);
+                startActivity(intent);
+            });
         } else {
             Log.e("MainActivity", "button_ti_native_kitchen is null - check layout file");
         }
@@ -212,55 +238,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         //reprint orders
         if (button_reprint != null) {
             button_reprint.setOnClickListener(v -> {
-            progressBar.setVisibility(View.VISIBLE);
-            button_reprint.setVisibility(View.GONE);
-            String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-            networkHelperViewModel.getNetworkHelper().fetchData(urls, username, password, domain_shop, new NetworkHelper.NetworkCallback() {
-                @Override
-                public void onSuccess(String[] results) {
-                    progressBar.setVisibility(View.GONE);
-                    button_reprint.setVisibility(View.VISIBLE);
-                    JSONObject dataObjectOrders;
-                    List<JSONObject> ordersList = new ArrayList<>();
-                    JSONObject jsonObjectOrders, jsonObjectMenus = null, jsonObjectCategories = null;
-                    if (results != null && results[0] != null && results[1] != null) {
-                        try {
-                            jsonObjectOrders = new JSONObject(results[0]);
-                            jsonObjectMenus = new JSONObject(results[1]);
-                            jsonObjectCategories = new JSONObject(results[2]);
-
-                            Log.e("MainActivity", "Full Orders JSON: " + jsonObjectOrders.toString());
-
-                            JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
-                            for (int i = 0; i < dataArrayOrders.length(); i++) {
-                                dataObjectOrders = dataArrayOrders.getJSONObject(i);
-                                ordersList.add(dataObjectOrders);
-                            }
-
-                            Log.e("MainActivity", "Orders List Size: " + ordersList.size());
-
-                        } catch (JSONException e) {
-                            Toast.makeText(context, "" + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-
-                        if (!ordersList.isEmpty()) {
-                            showOrdersPopup(ordersList, jsonObjectMenus, jsonObjectCategories);
-                        } else {
-                            showError("No re-printable orders found");
-                        }
-                    } else {
-                        showError("Failed to fetch data from web service");
-                    }
-                }
-
-                @Override
-                public void onError(Exception exception) {
-                    progressBar.setVisibility(View.GONE);
-                    button_reprint.setVisibility(View.VISIBLE);
-                    Toast.makeText(context, "" + exception.getMessage(), Toast.LENGTH_SHORT).show();
-                }
+                Intent intent = new Intent(this, KitchenDisplayActivity.class);
+                intent.putExtra("action", "reprint");
+                startActivity(intent);
             });
-        });
         }
 
     }
@@ -396,18 +377,23 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 popupWindow.dismiss();
             }
         });
+        
+        // Initialize chip references for the popup
+        ChipGroup popupChipGroupPrinters = popupView.findViewById(R.id.chipGroup_printers);
+        Chip popupChipReceipt = popupView.findViewById(R.id.chip_receipt);
+        Chip popupChipKitchen = popupView.findViewById(R.id.chip_kitchen);
+        
         // Set up the ListView
         ListView listViewOrders = popupView.findViewById(R.id.listViewOrders);
         OrdersAdapter adapter = new OrdersAdapter(this, ordersList, new OrdersAdapter.PrintButtonClickListener() {
             @Override
             public void onPrintButtonClick(int position, String orderId) {
-//                TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
                 //print receipt
-                if (chipReceipt.isChecked()) {
+                if (popupChipReceipt.isChecked()) {
                     TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
                 }
                 // print receipt for kitchen
-                if (chipKitchen.isChecked()) {
+                if (popupChipKitchen.isChecked()) {
                     TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
                 }
             }
@@ -1223,6 +1209,11 @@ private void restartWebservice(int buttonColor){
                             button_reprint.setEnabled(true);
                             button_ti_testprint.setEnabled(true);
                             dismiss();
+                            
+                            // Navigate to Kitchen Display after successful login
+                            Intent intent = new Intent(getActivity(), KitchenDisplayActivity.class);
+                            startActivity(intent);
+                            getActivity().finish();
                         } else {
                             etError.setVisibility(View.VISIBLE);
                             etError.setText("Shop configuration not found for this domain");

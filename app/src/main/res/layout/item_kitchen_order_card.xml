@@ -3,253 +3,298 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="4dp"
-    app:cardCornerRadius="8dp"
-    app:cardElevation="4dp">
+    android:layout_margin="6dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="6dp"
+    app:cardBackgroundColor="@color/colorSurface">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="12dp">
+        android:orientation="vertical">
 
-        <!-- Order Header -->
-        <LinearLayout
+        <!-- Status Indicator Bar -->
+        <View
+            android:id="@+id/viewStatusIndicator"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_height="4dp"
+            android:background="@color/statusPending" />
 
-            <TextView
-                android:id="@+id/textOrderId"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="#123"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="@color/colorPrimary" />
-
-            <ImageView
-                android:id="@+id/btnViewReceipt"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginEnd="8dp"
-                android:src="@drawable/ic_receipt"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:padding="4dp"
-                android:contentDescription="View Receipt" />
-
-            <TextView
-                android:id="@+id/textOrderTime"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="12:30"
-                android:textSize="14sp"
-                android:textColor="@android:color/darker_gray" />
-
-            <TextView
-                android:id="@+id/textOrderValue"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="€25.50"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/colorAccent" />
-
-        </LinearLayout>
-
-        <!-- Customer Info -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="4dp">
-
-            <TextView
-                android:id="@+id/textCustomerName"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="John Doe"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/textOrderType"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="DELIVERY"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:background="@color/colorPrimary"
-                android:textColor="@android:color/white"
-                android:padding="4dp" />
-
-        </LinearLayout>
-
-        <!-- Phone and Address -->
-        <TextView
-            android:id="@+id/textPhone"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="+1234567890"
-            android:textSize="14sp"
-            android:textColor="@android:color/darker_gray"
-            android:layout_marginTop="2dp" />
-
-        <TextView
-            android:id="@+id/textAddress"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="123 Main St, City"
-            android:textSize="14sp"
-            android:textColor="@android:color/darker_gray"
-            android:layout_marginTop="2dp" />
-
-        <!-- Order Items -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:layout_marginTop="8dp"
-            android:background="@android:color/white"
-            android:padding="8dp">
+            android:padding="16dp">
 
-            <TextView
+            <!-- Order Header -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/order_items_label"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="@color/colorPrimary" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
 
-            <TextView
-                android:id="@+id/textOrderItems"
+                <TextView
+                    android:id="@+id/textOrderId"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="#123"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorTextPrimary" />
+
+                <ImageView
+                    android:id="@+id/btnViewReceipt"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="12dp"
+                    android:src="@drawable/ic_receipt"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="6dp"
+                    android:contentDescription="View Receipt"
+                    app:tint="@color/colorPrimary" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="end">
+
+                    <TextView
+                        android:id="@+id/textOrderTime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="12:30"
+                        android:textSize="14sp"
+                        android:textColor="@color/colorTextSecondary" />
+
+                    <TextView
+                        android:id="@+id/textOrderValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="€25.50"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/colorAccent" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Customer Info -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="2x Pizza Margherita\n1x Coca Cola"
-                android:textSize="14sp"
-                android:layout_marginTop="4dp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
 
-        </LinearLayout>
+                <TextView
+                    android:id="@+id/textCustomerName"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="John Doe"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorTextPrimary" />
 
-        <!-- Order Comment -->
-        <TextView
-            android:id="@+id/textOrderComment"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Extra cheese please"
-            android:textSize="14sp"
-            android:textStyle="italic"
-            android:textColor="@android:color/darker_gray"
-            android:layout_marginTop="8dp"
-            android:visibility="gone" />
+                <TextView
+                    android:id="@+id/textOrderType"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="DELIVERY"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/order_type_background"
+                    android:textColor="@color/colorTextOnPrimary"
+                    android:padding="6dp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp" />
 
-        <!-- Status Bar -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical">
+            </LinearLayout>
 
-            <View
-                android:id="@+id/viewStatusIndicator"
-                android:layout_width="4dp"
-                android:layout_height="20dp"
-                android:background="@color/colorAccent" />
+            <!-- Phone and Address -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
 
+                <TextView
+                    android:id="@+id/textPhone"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="+1234567890"
+                    android:textSize="14sp"
+                    android:textColor="@color/colorTextSecondary"
+                    android:drawableStart="@android:drawable/ic_menu_call"
+                    android:drawablePadding="8dp"
+                    android:drawableTint="@color/colorPrimary" />
+
+                <TextView
+                    android:id="@+id/textAddress"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="123 Main St, City"
+                    android:textSize="14sp"
+                    android:textColor="@color/colorTextSecondary"
+                    android:drawableStart="@android:drawable/ic_menu_mylocation"
+                    android:drawablePadding="8dp"
+                    android:drawableTint="@color/colorPrimary"
+                    android:gravity="end" />
+
+            </LinearLayout>
+
+            <!-- Order Items -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/order_items_background"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Order Items"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorPrimary"
+                    android:layout_marginBottom="6dp" />
+
+                <TextView
+                    android:id="@+id/textOrderItems"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="2x Pizza Margherita\n1x Coca Cola"
+                    android:textSize="14sp"
+                    android:textColor="@color/colorTextPrimary" />
+
+            </LinearLayout>
+
+            <!-- Order Comment -->
             <TextView
-                android:id="@+id/textOrderStatus"
-                android:layout_width="0dp"
+                android:id="@+id/textOrderComment"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Pending"
+                android:text="Extra cheese please"
                 android:textSize="14sp"
-                android:textStyle="bold"
-                android:layout_marginStart="8dp" />
+                android:textStyle="italic"
+                android:textColor="@color/colorTextSecondary"
+                android:background="@drawable/comment_background"
+                android:padding="8dp"
+                android:visibility="gone"
+                android:layout_marginBottom="12dp" />
 
-            <TextView
-                android:id="@+id/textPaymentMethod"
-                android:layout_width="wrap_content"
+            <!-- Status and Payment Info -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="CASH"
-                android:textSize="12sp"
-                android:textColor="@android:color/darker_gray" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:id="@+id/textOrderStatus"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Pending"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorTextPrimary" />
+
+                <TextView
+                    android:id="@+id/textPaymentMethod"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="CASH"
+                    android:textSize="12sp"
+                    android:textColor="@color/colorTextSecondary"
+                    android:background="@drawable/payment_background"
+                    android:padding="6dp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp" />
+
+            </LinearLayout>
+
+            <!-- Status Change Buttons -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp"
+                android:weightSum="4">
+
+                <Button
+                    android:id="@+id/buttonStatusConfirmed"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_margin="2dp"
+                    android:text="Confirmed"
+                    android:textSize="10sp"
+                    android:background="@drawable/status_button_confirmed"
+                    android:textColor="@color/colorTextOnPrimary"
+                    android:textAllCaps="false" />
+
+                <Button
+                    android:id="@+id/buttonStatusPreparation"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_margin="2dp"
+                    android:text="Prep"
+                    android:textSize="10sp"
+                    android:background="@drawable/status_button_preparation"
+                    android:textColor="@color/colorTextOnPrimary"
+                    android:textAllCaps="false" />
+
+                <Button
+                    android:id="@+id/buttonStatusDelivery"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_margin="2dp"
+                    android:text="Delivery"
+                    android:textSize="10sp"
+                    android:background="@drawable/status_button_delivery"
+                    android:textColor="@color/colorTextOnPrimary"
+                    android:textAllCaps="false" />
+
+                <Button
+                    android:id="@+id/buttonStatusCompleted"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_margin="2dp"
+                    android:text="Done"
+                    android:textSize="10sp"
+                    android:background="@drawable/status_button_completed"
+                    android:textColor="@color/colorTextOnPrimary"
+                    android:textAllCaps="false" />
+
+            </LinearLayout>
+
+            <!-- Print Button -->
+            <Button
+                android:id="@+id/buttonPrint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Print Order"
+                android:textSize="16sp"
+                android:background="@drawable/button_primary"
+                android:textColor="@color/colorTextOnPrimary"
+                android:textAllCaps="false"
+                android:drawableStart="@drawable/ic_receipt"
+                android:drawablePadding="8dp" />
 
         </LinearLayout>
-
-        <!-- Status Change Buttons -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            android:gravity="center">
-
-            <Button
-                android:id="@+id/buttonStatusConfirmed"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_margin="2dp"
-                android:text="@string/status_confirmed"
-                android:textSize="9sp"
-                android:background="@drawable/status_button_confirmed"
-                android:textColor="@android:color/white"
-                android:textAllCaps="false" />
-
-            <Button
-                android:id="@+id/buttonStatusPreparation"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_margin="2dp"
-                android:text="@string/status_preparation"
-                android:textSize="9sp"
-                android:background="@drawable/status_button_preparation"
-                android:textColor="@android:color/white"
-                android:textAllCaps="false" />
-
-            <Button
-                android:id="@+id/buttonStatusDelivery"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_margin="2dp"
-                android:text="@string/status_delivery"
-                android:textSize="9sp"
-                android:background="@drawable/status_button_delivery"
-                android:textColor="@android:color/white"
-                android:textAllCaps="false" />
-
-            <Button
-                android:id="@+id/buttonStatusCompleted"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_margin="2dp"
-                android:text="@string/status_completed"
-                android:textSize="9sp"
-                android:background="@drawable/status_button_completed"
-                android:textColor="@android:color/white"
-                android:textAllCaps="false" />
-
-        </LinearLayout>
-
-        <!-- Print Button -->
-        <Button
-            android:id="@+id/buttonPrint"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/print_order_button"
-            android:textSize="14sp"
-            android:background="@drawable/custom_button"
-            android:textColor="#FFFFFF"
-            android:textAllCaps="false" />
 
     </LinearLayout>
 

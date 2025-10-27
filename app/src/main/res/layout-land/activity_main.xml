@@ -1,247 +1,431 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/mainLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#CCCCCC"
-    android:gravity="center"
-    android:orientation="horizontal"
-    android:id="@+id/mainLayout"
-    android:saveEnabled="true">
+    android:background="@color/colorBackground">
 
-    <androidx.cardview.widget.CardView
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorPrimary"
+        android:elevation="4dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/colorPrimary"
+            app:title="Settings &amp; Configuration"
+            app:titleTextColor="@color/colorTextOnPrimary"
+            app:navigationIcon="@drawable/ic_arrow_back"
+            app:navigationIconTint="@color/colorTextOnPrimary" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_weight="1"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        app:cardMaxElevation="6dp"
-        app:cardPreventCornerOverlap="true"
-        app:cardUseCompatPadding="true">
-
-        <LinearLayout
-            android:layout_width="900px"
-            android:layout_height="match_parent"
-            android:layout_gravity="center_horizontal"
-            android:gravity="center_horizontal"
-            android:orientation="vertical">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center">
-                
-                <Button
-                    android:id="@+id/button_ti_login"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:width="100dp"
-                    android:height="50dp"
-                    android:layout_margin="10dp"
-                    android:textSize="16sp"
-                    android:background="@drawable/custom_button"
-                    android:textColor="#FFFFFF"
-                    android:textAllCaps="false"
-                    android:text="@string/login_button" />
-                    
-                <Button
-                    android:id="@+id/button_ti_logout"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:width="100dp"
-                    android:height="50dp"
-                    android:layout_margin="10dp"
-                    android:textSize="16sp"
-                    android:background="@drawable/custom_button"
-                    android:textColor="#FFFFFF"
-                    android:textAllCaps="false"
-                    android:text="Logout"
-                    android:visibility="gone" />
-                    
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/textview_ti_header"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="20dp"
-                android:gravity="center"
-                android:text="Shop"
-                android:textColor="#000000"
-                android:textSize="20sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="10dp"
-                android:gravity="center"
-                android:text="@string/open_websites_text"
-                android:textColor="#000000"
-                android:textSize="25sp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/button_ti_updates"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="10dp"
-                    android:background="@drawable/custom_button"
-                    android:enabled="false"
-                    android:padding="6dp"
-                    android:text="Updates"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <Button
-                    android:id="@+id/button_ti_testprint"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/custom_button"
-                    android:enabled="false"
-                    android:padding="6dp"
-                    android:text="@string/test_print_button"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <FrameLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="10dp">
-
-                    <Button
-                        android:id="@+id/button_ti_native_kitchen"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/custom_button"
-                        android:enabled="false"
-                        android:padding="6dp"
-                        android:text="@string/new_orders_button"
-                        android:textAllCaps="false"
-                        android:textColor="#FFFFFF"
-                        android:textSize="16sp" />
-
-                    <TextView
-                        android:id="@+id/order_count_badge"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:layout_gravity="top|end"
-                        android:layout_marginTop="-12dp"
-                        android:layout_marginEnd="-12dp"
-                        android:background="@drawable/badge_background"
-                        android:gravity="center"
-                        android:textColor="#FFFFFF"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:visibility="gone"
-                        android:elevation="10dp"
-                        android:stateListAnimator="@null"
-                        android:clickable="false"
-                        android:focusable="false" />
-
-                </FrameLayout>
-
-                <Button
-                    android:id="@+id/button_reprint"
-                    android:layout_width="139dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_margin="10dp"
-                    android:width="160dp"
-                    android:height="50dp"
-                    android:background="@drawable/custom_button"
-                    android:enabled="false"
-                    android:text="@string/old_orders_button"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-            </LinearLayout>
-
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        app:cardMaxElevation="6dp"
-        app:cardPreventCornerOverlap="true"
-        app:cardUseCompatPadding="true">
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:padding="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="start">
 
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="20dp"
-                android:gravity="center"
-                android:text="@string/bluetooth_printer_text"
-                android:textColor="#000000"
-                android:textSize="20sp" />
-
+            <!-- Left Column -->
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:gravity="center"
-                android:orientation="horizontal">
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="8dp">
 
-                <Button
-                    android:id="@+id/button_bluetooth_browse"
-                    android:layout_width="wrap_content"
+                <!-- Shop Information Card -->
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_margin="10dp"
-                    app:backgroundTint="@drawable/action_button"
-                    android:enabled="false"
-                    android:padding="6dp"
-                    android:height="60dp"
-                    android:text="Drucker wählen"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/colorSurface">
 
-                <Button
-                    android:id="@+id/button_ti_print_monitoring"
-                    android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🏪"
+                            android:textSize="32sp"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Shop Information"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/colorTextPrimary"
+                            android:layout_marginBottom="12dp" />
+
+                        <TextView
+                            android:id="@+id/textview_ti_header"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Please Login"
+                            android:textSize="16sp"
+                            android:textColor="@color/colorTextSecondary"
+                            android:layout_marginBottom="16dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="end">
+
+                            <Button
+                                android:id="@+id/button_ti_login"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Login"
+                                android:layout_marginEnd="8dp"
+                                android:background="@drawable/button_primary"
+                                android:textColor="@color/colorTextOnPrimary"
+                                android:textAllCaps="false"
+                                android:minWidth="100dp" />
+
+                            <Button
+                                android:id="@+id/button_ti_logout"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Logout"
+                                android:background="@drawable/button_danger"
+                                android:textColor="@color/colorTextOnPrimary"
+                                android:textAllCaps="false"
+                                android:visibility="gone"
+                                android:minWidth="100dp" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </androidx.cardview.widget.CardView>
+
+                <!-- Printer Configuration Card -->
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_margin="10dp"
-                    app:backgroundTint="@drawable/action_button"
-                    android:enabled="false"
-                    android:padding="6dp"
-                    android:height="60dp"
-                    android:text="@string/service_stoped_button"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/colorSurface">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🖨️"
+                            android:textSize="32sp"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Printer Configuration"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/colorTextPrimary"
+                            android:layout_marginBottom="16dp" />
+
+                        <Button
+                            android:id="@+id/button_bluetooth_browse"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="🔗 Select Bluetooth Printer"
+                            android:textSize="16sp"
+                            android:background="@drawable/button_secondary"
+                            android:textColor="@color/colorTextOnPrimary"
+                            android:textAllCaps="false"
+                            android:drawablePadding="8dp"
+                            android:layout_marginBottom="12dp"
+                            android:enabled="false" />
+
+                        <Button
+                            android:id="@+id/button_ti_testprint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Test Print"
+                            android:textSize="16sp"
+                            android:background="@drawable/button_secondary"
+                            android:textColor="@color/colorTextOnPrimary"
+                            android:textAllCaps="false"
+                            android:drawableStart="@drawable/ic_receipt"
+                            android:drawablePadding="8dp"
+                            android:enabled="false" />
+
+                    </LinearLayout>
+
+                </androidx.cardview.widget.CardView>
+
+                <!-- Service Control Card -->
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/colorSurface">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="⚙️"
+                            android:textSize="32sp"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Service Control"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/colorTextPrimary"
+                            android:layout_marginBottom="16dp" />
+
+                        <Button
+                            android:id="@+id/button_ti_print_monitoring"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Start Printing Service"
+                            android:textSize="16sp"
+                            android:background="@drawable/button_primary"
+                            android:textColor="@color/colorTextOnPrimary"
+                            android:textAllCaps="false"
+                            android:drawableStart="@android:drawable/ic_media_play"
+                            android:drawablePadding="8dp"
+                            android:layout_marginBottom="12dp"
+                            android:enabled="false" />
+
+                        <FrameLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="12dp">
+
+                            <Button
+                                android:id="@+id/button_ti_native_kitchen"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="View Orders"
+                                android:textSize="16sp"
+                                android:background="@drawable/button_success"
+                                android:textColor="@color/colorTextOnPrimary"
+                                android:textAllCaps="false"
+                                android:drawableStart="@drawable/ic_receipt"
+                                android:drawablePadding="8dp"
+                                android:enabled="false" />
+
+                            <TextView
+                                android:id="@+id/order_count_badge"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:layout_gravity="top|end"
+                                android:layout_marginTop="-12dp"
+                                android:layout_marginEnd="-12dp"
+                                android:background="@drawable/badge_background"
+                                android:gravity="center"
+                                android:textColor="#FFFFFF"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:visibility="gone"
+                                android:elevation="10dp"
+                                android:stateListAnimator="@null"
+                                android:clickable="false"
+                                android:focusable="false" />
+
+                        </FrameLayout>
+
+                        <Button
+                            android:id="@+id/button_reprint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Reprint Orders"
+                            android:textSize="16sp"
+                            android:background="@drawable/button_secondary"
+                            android:textColor="@color/colorTextOnPrimary"
+                            android:textAllCaps="false"
+                            android:drawableStart="@drawable/ic_receipt"
+                            android:drawablePadding="8dp"
+                            android:enabled="false" />
+
+                    </LinearLayout>
+
+                </androidx.cardview.widget.CardView>
+
             </LinearLayout>
 
+            <!-- Right Column -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="8dp">
+
+                <!-- Print Type Selection Card -->
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/colorSurface">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📄"
+                            android:textSize="32sp"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Print Type Selection"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/colorTextPrimary"
+                            android:layout_marginBottom="12dp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Choose what to print automatically"
+                            android:textSize="14sp"
+                            android:textColor="@color/colorTextSecondary"
+                            android:layout_marginBottom="16dp" />
+
+                        <com.google.android.material.chip.ChipGroup
+                            android:id="@+id/chipGroup_printers"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:checkableBehavior="single">
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chip_receipt"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Receipt"
+                                android:checked="true"
+                                android:checkable="true"
+                                android:textColor="@color/colorTextOnPrimary"
+                                app:chipBackgroundColor="@color/colorPrimary"
+                                app:chipStrokeColor="@color/colorPrimary" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chip_kitchen"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Kitchen"
+                                android:checked="false"
+                                android:checkable="true"
+                                android:textColor="@color/colorTextOnPrimary"
+                                app:chipBackgroundColor="@color/colorPrimary"
+                                app:chipStrokeColor="@color/colorPrimary" />
+
+                        </com.google.android.material.chip.ChipGroup>
+
+                    </LinearLayout>
+
+                </androidx.cardview.widget.CardView>
+
+                <!-- Advanced Options Card -->
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/colorSurface">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🔧"
+                            android:textSize="32sp"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Advanced Options"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/colorTextPrimary"
+                            android:layout_marginBottom="16dp" />
+
+                        <Button
+                            android:id="@+id/button_ti_clear_ids"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Reset Print History"
+                            android:textSize="16sp"
+                            android:background="@drawable/button_danger"
+                            android:textColor="@color/colorTextOnPrimary"
+                            android:textAllCaps="false"
+                            android:drawableStart="@android:drawable/ic_menu_revert"
+                            android:drawablePadding="8dp"
+                            android:layout_marginBottom="12dp"
+                            android:enabled="false" />
+
+                        <Button
+                            android:id="@+id/button_ti_updates"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Check for Updates"
+                            android:textSize="16sp"
+                            android:background="@drawable/button_secondary"
+                            android:textColor="@color/colorPrimary"
+                            android:textAllCaps="false"
+                            android:drawableStart="@android:drawable/ic_menu_upload"
+                            android:drawablePadding="8dp"
+                            android:enabled="false" />
+
+                    </LinearLayout>
+
+                </androidx.cardview.widget.CardView>
+
+            </LinearLayout>
 
             <ProgressBar
                 android:id="@+id/progressBar"
@@ -250,129 +434,8 @@
                 android:layout_height="wrap_content"
                 android:visibility="gone" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="40dp"
-                android:layout_marginRight="40dp"
-                android:gravity="center"
-                android:text='@string/revert_print_ids_text'
-                android:textColor="#000000"
-                android:textSize="12sp" />
-
-            <Button
-                android:id="@+id/button_ti_clear_ids"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_margin="10dp"
-                android:background="@drawable/custom_button"
-                android:enabled="false"
-                android:padding="6dp"
-                android:text="@string/revert_print_ids_button"
-                android:textAllCaps="false"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="40dp"
-                android:layout_marginRight="40dp"
-                android:gravity="center"
-                android:text='Auswahl zwischen Beleg- und Küchendruck'
-                android:textColor="#000000"
-                android:textSize="12sp" />
-
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/chipGroup_printers"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:checkableBehavior="single">
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_receipt"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Beleg"
-                    android:checked="true"
-                    android:checkable="true" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_kitchen"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Küche"
-                    android:checked="false"
-                    android:checkable="true" />
-            </com.google.android.material.chip.ChipGroup>
-
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:visibility="gone">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginRight="5dp"
-                    android:text="IP :" />
-
-                <EditText
-                    android:id="@+id/edittext_tcp_ip"
-                    android:layout_width="170dp"
-                    android:layout_height="wrap_content"
-                    android:digits="0123456789."
-                    android:enabled="false"
-                    android:inputType="number" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginLeft="20dp"
-                    android:layout_marginRight="5dp"
-                    android:text="Port :" />
-
-                <EditText
-                    android:id="@+id/edittext_tcp_port"
-                    android:layout_width="80dp"
-                    android:layout_height="wrap_content"
-                    android:inputType="number" />
-            </LinearLayout>
-
-            <Button
-                android:id="@+id/button_tcp"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
-                android:text="Print by TCP !"
-                android:visibility="gone" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="horizontal"
-                android:visibility="gone">
-
-                <Button
-                    android:id="@+id/button_bluetooth"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Print by bluetooth !" />
-
-                <Button
-                    android:id="@+id/button_usb"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="20dp"
-                    android:text="Print by USB !" />
-
-            </LinearLayout>
         </LinearLayout>
-    </androidx.cardview.widget.CardView>
 
-</LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

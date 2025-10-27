@@ -1,36 +1,116 @@
 <resources>
     <string name="app_name">Jandiweb Printer</string>
-    <string name="title_activity_kitchen_display">KitchenDisplay</string>
-    <string name="dummy_button">Dummy Button</string>
-    <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="title_activity_kitchen_display">Kitchen Display</string>
+    <string name="title_activity_dashboard">Dashboard</string>
+    <string name="title_activity_main">Settings &amp; Configuration</string>
+    
+    <!-- Login & Authentication -->
     <string name="login_button">Login</string>
-    <string name="homepage_button">Homepage</string>
+    <string name="logout_button">Logout</string>
+    <string name="login_text">Please Login</string>
+    <string name="login_required">Login Required</string>
+    <string name="login_description">Enter your TastyIgniter credentials to access the restaurant management system.</string>
+    <string name="select_shop">Select Shop</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="cancel">Cancel</string>
+    
+    <!-- Dashboard -->
+    <string name="dashboard_title">Dashboard</string>
+    <string name="order_statistics">Order Statistics</string>
+    <string name="total_today">Total Today</string>
+    <string name="pending_orders">Pending</string>
+    <string name="in_progress_orders">In Progress</string>
+    <string name="completed_orders">Completed</string>
+    <string name="system_status">System Status</string>
+    <string name="printer_connection">Printer Connection</string>
+    <string name="printing_service">Printing Service</string>
+    <string name="shop_connection">Shop Connection</string>
+    <string name="connected">Connected</string>
+    <string name="not_connected">Not Connected</string>
+    <string name="active">Active</string>
+    <string name="inactive">Inactive</string>
+    <string name="quick_actions">Quick Actions</string>
+    <string name="view_orders">View Orders</string>
+    <string name="reprint_orders">Reprint Orders</string>
+    <string name="settings">Settings</string>
+    <string name="test_print">Test Print</string>
+    <string name="refresh_data">Refresh Data</string>
+    
+    <!-- Kitchen Display -->
+    <string name="kitchen_display_title">Kitchen Display</string>
+    <string name="active_orders">Active Orders</string>
+    <string name="dashboard">Dashboard</string>
+    
+    <!-- Settings & Configuration -->
+    <string name="settings_title">Settings &amp; Configuration</string>
+    <string name="shop_information">Shop Information</string>
+    <string name="printer_configuration">Printer Configuration</string>
+    <string name="select_bluetooth_printer">Select Bluetooth Printer</string>
+    <string name="service_control">Service Control</string>
+    <string name="start_printing_service">Start Printing Service</string>
+    <string name="stop_printing_service">Stop Printing Service</string>
+    <string name="print_type_selection">Print Type Selection</string>
+    <string name="print_type_description">Choose what to print automatically</string>
+    <string name="receipt">Receipt</string>
+    <string name="kitchen">Kitchen</string>
+    <string name="advanced_options">Advanced Options</string>
+    <string name="reset_print_history">Reset Print History</string>
+    <string name="check_for_updates">Check for Updates</string>
+    
+    <!-- Printer & Service -->
     <string name="test_print_button">Test Print</string>
-    <string name="kitchen_display_button">Kitchen Display</string>
-    <string name="admin_button">Administration</string>
-    <string name="select_printer_button">Select Printer</string>
+    <string name="select_printer_text">Please select a printer</string>
+    <string name="printer_connection_lost_text">Printer connection lost</string>
+    <string name="printer_connection_disrupted_text">Printer connection disrupted</string>
+    <string name="printer_connection_reactivated_text">Printer connection reactivated</string>
     <string name="service_started_button">Printer On</string>
+    <string name="service_stoped_button">Printer Off</string>
+    
+    <!-- Orders -->
     <string name="new_orders_button">New Orders</string>
     <string name="old_orders_button">Old Orders</string>
     <string name="reprint_button">Reprint</string>
-    <string name="revert_print_ids_button">Revert Print IDs</string>
-    <string name="login_text">Please Login</string>
-    <string name="open_websites_text">Main Functions</string>
-    <string name="bluetooth_printer_text">Bluetooth Printer</string>
-    <string name="service_stoped_button">Printer Off</string>
-    <string name="revert_print_ids_text">Only new orders with the status ‘Received’ are printed</string>
-    <string name="select_printer_text">please select a printer</string>
-    <string name="printer_connection_lost_text">printer connection lost</string>
-    <string name="printer_connection_disrupted_text">printer connection \\n disrupted</string>
-    <string name="printer_connection_reactivated_text">printer connection reactivated</string>
-    <string name="no_user_error_text">Error: User not found</string>
-    <string name="wrong_password_error_text">Error: Wrong Password</string>
+    <string name="order_items_label">Order Items</string>
+    <string name="print_order_button">Print Order</string>
+    <string name="revert_print_ids_button">Reset Print History</string>
+    <string name="revert_print_ids_text">Only new orders with the status \'Received\' are printed</string>
     
-    <!-- Kitchen Order Card Strings -->
-    <string name="order_items_label">Order Items:</string>
+    <!-- Order Status -->
     <string name="status_confirmed">Confirmed</string>
     <string name="status_preparation">Preparation</string>
     <string name="status_delivery">Delivery</string>
     <string name="status_completed">Completed</string>
-    <string name="print_order_button">Print Order</string>
+    <string name="status_pending">Pending</string>
+    
+    <!-- Error Messages -->
+    <string name="no_user_error_text">Error: User not found</string>
+    <string name="wrong_password_error_text">Error: Wrong Password</string>
+    <string name="authentication_failed">Authentication failed</string>
+    <string name="shop_required">Please select a shop</string>
+    <string name="no_shop_configuration">No shop configuration found. Please login first.</string>
+    <string name="no_reprintable_orders">No re-printable orders found</string>
+    <string name="failed_to_fetch_data">Failed to fetch data from web service</string>
+    <string name="error_loading_orders">Error loading orders</string>
+    <string name="menu_data_not_available">Menu data not available. Please refresh and try again.</string>
+    <string name="no_printer_selected">No printer selected. Please configure printer in main app.</string>
+    <string name="print_failed">Print failed</string>
+    <string name="print_successful">Print successful</string>
+    
+    <!-- Accessibility -->
+    <string name="close_kitchen_display">Close Kitchen Display</string>
+    <string name="view_receipt">View Receipt</string>
+    <string name="back">Back</string>
+    <string name="refresh">Refresh</string>
+    <string name="loading">Loading...</string>
+    
+    <!-- Missing string resources that are only defined in German -->
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="homepage_button">Homepage</string>
+    <string name="kitchen_display_button">Kitchen Display</string>
+    <string name="admin_button">Administration</string>
+    <string name="select_printer_button">Select Printer</string>
+    <string name="open_websites_text">Main Functions</string>
+    <string name="bluetooth_printer_text">Bluetooth Printer</string>
 </resources>
