@@ -11,16 +11,33 @@
         android:orientation="vertical"
         android:padding="8dp">
 
-        <TextView
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Kitchen Display"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:padding="16dp"
             android:background="@color/colorPrimary"
-            android:textColor="@android:color/white" />
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:text="Kitchen Display"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white" />
+
+            <ImageButton
+                android:id="@+id/button_close_kitchen"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close Kitchen Display"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:scaleType="centerInside" />
+
+        </RelativeLayout>
 
         <ProgressBar
             android:id="@+id/progressBar"

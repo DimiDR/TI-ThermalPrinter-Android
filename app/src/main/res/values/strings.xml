@@ -23,4 +23,12 @@
     <string name="printer_connection_reactivated_text">printer connection reactivated</string>
     <string name="no_user_error_text">Error: User not found</string>
     <string name="wrong_password_error_text">Error: Wrong Password</string>
+    
+    <!-- Kitchen Order Card Strings -->
+    <string name="order_items_label">Order Items:</string>
+    <string name="status_confirmed">Confirmed</string>
+    <string name="status_preparation">Preparation</string>
+    <string name="status_delivery">Delivery</string>
+    <string name="status_completed">Completed</string>
+    <string name="print_order_button">Print Order</string>
 </resources>

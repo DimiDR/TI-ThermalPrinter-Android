@@ -24,5 +24,13 @@
     <string name="printer_connection_reactivated_text">Verbindung zum Drucker hergestellt</string>
     <string name="no_user_error_text">FEHLER: Der Benutzer wurde nicht gefunden</string>
     <string name="wrong_password_error_text">FEHLER: falsches Passwort</string>
+    
+    <!-- Kitchen Order Card Strings -->
+    <string name="order_items_label">Bestellte Artikel:</string>
+    <string name="status_confirmed">Bestätigt</string>
+    <string name="status_preparation">Zubereitung</string>
+    <string name="status_delivery">Lieferung</string>
+    <string name="status_completed">Abgeschlossen</string>
+    <string name="print_order_button">Bestellung drucken</string>
 
 </resources>

@@ -4,9 +4,11 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
+import android.view.WindowManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
@@ -44,6 +46,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     private KitchenOrderAdapter orderAdapter;
     private SwipeRefreshLayout swipeRefreshLayout;
     private ProgressBar progressBar;
+    private ImageButton buttonCloseKitchen;
     private NetworkHelperViewModel networkHelperViewModel;
     private Timer refreshTimer;
     private Handler mainHandler;
@@ -57,7 +60,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     private Integer location_id;
     
     // Refresh settings
-    private long refreshInterval = 30000; // 30 seconds default
+    private long refreshInterval = Constants.REFRESH_INTERVAL_KITCHEN_OPEN; // 1 minute when KitchenDisplayActivity is open
     private boolean isRefreshing = false;
     
     // Pagination settings
@@ -84,6 +87,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         recyclerViewOrders = findViewById(R.id.recyclerViewOrders);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         progressBar = findViewById(R.id.progressBar);
+        buttonCloseKitchen = findViewById(R.id.button_close_kitchen);
         
         
         // Get chip settings from main screen
@@ -130,6 +134,11 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         // Setup SwipeRefreshLayout
         swipeRefreshLayout.setOnRefreshListener(this::refreshOrders);
         
+        // Setup close button
+        if (buttonCloseKitchen != null) {
+            buttonCloseKitchen.setOnClickListener(v -> finish());
+        }
+        
         // Initialize ViewModel
         networkHelperViewModel = new ViewModelProvider(this).get(NetworkHelperViewModel.class);
         mainHandler = new Handler();
@@ -147,8 +156,17 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         // Start initial data load
         refreshOrders();
         
+        // Set flag that KitchenDisplayActivity is open
+        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean("kitchen_display_open", true);
+        editor.apply();
+        
         // Start auto-refresh timer
         startAutoRefresh();
+        
+        // Keep screen awake while Kitchen Display is open
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     
     
@@ -468,6 +486,15 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     protected void onDestroy() {
         super.onDestroy();
         stopAutoRefresh();
+        
+        // Clear flag that KitchenDisplayActivity is open
+        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean("kitchen_display_open", false);
+        editor.apply();
+        
+        // Remove screen awake flag when activity is destroyed
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     
     @Override

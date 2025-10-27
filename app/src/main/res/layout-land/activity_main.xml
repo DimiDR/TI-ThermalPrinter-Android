@@ -90,18 +90,6 @@
                 android:orientation="horizontal">
 
                 <Button
-                    android:id="@+id/button_ti_landing_page"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/custom_button"
-                    android:enabled="false"
-                    android:padding="6dp"
-                    android:text="@string/homepage_button"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <Button
                     android:id="@+id/button_ti_updates"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -133,44 +121,54 @@
                 android:gravity="center"
                 android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/button_ti_kitchen_view"
+                <FrameLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_margin="10dp">
+
+                    <Button
+                        android:id="@+id/button_ti_native_kitchen"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/custom_button"
+                        android:enabled="false"
+                        android:padding="6dp"
+                        android:text="New Orders"
+                        android:textAllCaps="false"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/order_count_badge"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="-8dp"
+                        android:layout_marginEnd="-8dp"
+                        android:background="@drawable/badge_background"
+                        android:gravity="center"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+                </FrameLayout>
+
+                <Button
+                    android:id="@+id/button_reprint"
+                    android:layout_width="139dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
                     android:layout_margin="10dp"
+                    android:width="160dp"
+                    android:height="50dp"
                     android:background="@drawable/custom_button"
                     android:enabled="false"
-                    android:padding="6dp"
-                    android:text="@string/kitchen_display_button"
+                    android:text="@string/reprint_button"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp" />
 
-                <Button
-                    android:id="@+id/button_ti_native_kitchen"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="10dp"
-                    android:background="@drawable/custom_button"
-                    android:enabled="false"
-                    android:padding="6dp"
-                    android:text="Native Kitchen"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-
-                <Button
-                    android:id="@+id/button_ti_dashboard"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="10dp"
-                    android:background="@drawable/custom_button"
-                    android:enabled="false"
-                    android:padding="6dp"
-                    android:text="@string/admin_button"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
             </LinearLayout>
 
         </LinearLayout>
@@ -240,20 +238,6 @@
                     android:textSize="16sp" />
             </LinearLayout>
 
-            <Button
-                android:id="@+id/button_reprint"
-                android:layout_width="139dp"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_margin="10dp"
-                android:width="160dp"
-                android:height="50dp"
-                android:background="@drawable/custom_button"
-                android:enabled="false"
-                android:text="@string/reprint_button"
-                android:textAllCaps="false"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp" />
 
             <ProgressBar
                 android:id="@+id/progressBar"

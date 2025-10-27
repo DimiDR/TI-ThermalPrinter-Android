@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center">
-        
+
         <Button
             android:id="@+id/button_ti_login"
             android:layout_width="wrap_content"
@@ -26,7 +26,7 @@
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
             android:text = "@string/login_button" />
-            
+
         <Button
             android:id="@+id/button_ti_logout"
             android:layout_width="wrap_content"
@@ -40,7 +40,7 @@
             android:textAllCaps="false"
             android:text="Logout"
             android:visibility="gone" />
-            
+
     </LinearLayout>
     <TextView
         android:id="@+id/textview_ti_header"
@@ -65,20 +65,6 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center">
-
-        <Button
-            android:id="@+id/button_ti_landing_page"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:width="100dp"
-            android:height="50dp"
-            android:layout_margin="10dp"
-            android:textSize="16sp"
-            android:background="@drawable/custom_button"
-            android:textColor="#FFFFFF"
-            android:textAllCaps="false"
-            android:text="@string/homepage_button"
-            android:enabled="false"/>
 
         <Button
             android:id="@+id/button_ti_updates"
@@ -115,47 +101,52 @@
         android:orientation="horizontal"
         android:gravity="center">
 
-        <Button
-            android:id="@+id/button_ti_kitchen_view"
+        <FrameLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:width="130dp"
-            android:height="50dp"
-            android:layout_margin="10dp"
-            android:textSize="16sp"
-            android:background="@drawable/custom_button"
-            android:textColor="#FFFFFF"
-            android:textAllCaps="false"
-            android:text="@string/kitchen_display_button"
-            android:enabled="false"/>
+            android:layout_margin="10dp">
+
+            <Button
+                android:id="@+id/button_ti_native_kitchen"
+                android:layout_width="130dp"
+                android:layout_height="50dp"
+                android:textSize="16sp"
+                android:background="@drawable/custom_button"
+                android:textColor="#FFFFFF"
+                android:textAllCaps="false"
+                android:text="New Orders"
+                android:enabled="false"/>
+
+            <TextView
+                android:id="@+id/order_count_badge"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="-8dp"
+                android:layout_marginEnd="-8dp"
+                android:background="@drawable/badge_background"
+                android:gravity="center"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+        </FrameLayout>
 
         <Button
-            android:id="@+id/button_ti_native_kitchen"
-            android:layout_width="wrap_content"
+            android:id="@+id/button_reprint"
+            android:layout_width="131dp"
             android:layout_height="wrap_content"
-            android:width="130dp"
-            android:height="50dp"
             android:layout_margin="10dp"
-            android:textSize="16sp"
+            android:width="160dp"
+            android:height="50dp"
             android:background="@drawable/custom_button"
-            android:textColor="#FFFFFF"
+            android:enabled="false"
+            android:text="@string/reprint_button"
             android:textAllCaps="false"
-            android:text="Native Kitchen"
-            android:enabled="false"/>
+            android:textColor="#FFFFFF"
+            android:textSize="16sp" />
 
-        <Button
-            android:id="@+id/button_ti_dashboard"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:width="130dp"
-            android:height="50dp"
-            android:layout_margin="10dp"
-            android:textSize="16sp"
-            android:background="@drawable/custom_button"
-            android:textColor="#FFFFFF"
-            android:textAllCaps="false"
-            android:text="@string/admin_button"
-            android:enabled="false"/>
     </LinearLayout>
 
     <TextView
@@ -207,20 +198,6 @@
                 android:textSize="16sp" />
         </LinearLayout>
 
-        <Button
-            android:id="@+id/button_reprint"
-            android:layout_width="131dp"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_margin="10dp"
-            android:width="160dp"
-            android:height="50dp"
-            android:background="@drawable/custom_button"
-            android:enabled="false"
-            android:text="@string/reprint_button"
-            android:textAllCaps="false"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp" />
 
         <ProgressBar
             android:id="@+id/progressBar"

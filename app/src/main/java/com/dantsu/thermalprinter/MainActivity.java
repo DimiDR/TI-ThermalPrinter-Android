@@ -17,6 +17,7 @@ import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -93,15 +94,15 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
     private static Button button_ti_print;
     private static Button button_ti_clear_ids;
-    private static Button button_ti_kitchen_view;
     private static Button button_ti_native_kitchen;
-    private static Button button_ti_dashboard;
     private static Button button_ti_updates;
-    private static Button button_ti_landing_page;
     private static Button button_ti_testprint;
     private Button button_ti_login;
     private Button button_ti_logout;
     private static TextView textview_ti_header;
+    private TextView orderCountBadge;
+    private int openOrdersCount = 0;
+    private boolean isKitchenDisplayOpen = false;
     private boolean userSelected = false; // TODO: no buttons should work if user is not selected
     private static Integer shop_id;
     private static String domain_shop;
@@ -111,9 +112,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static String shop_name = "";
     private static Integer location_id;
     private static String tiOrdersEndpointURL = "";
-    private static String tiDashboardURL  = "";
-    private static String tiKitchenViewURL  = "";
-    private static String tiLandingPage  = "";
     private static String tiMenusEndpointURL = "";
     private static String tiCategoriesEndpointURL = "";
     private final String tiUpdates  = "";
@@ -156,27 +154,15 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (button_ti_clear_ids != null) {
             button_ti_clear_ids.setOnClickListener(view -> tiClearIds());
         }
-        button_ti_kitchen_view = this.findViewById(R.id.button_ti_kitchen_view);
-        if (button_ti_kitchen_view != null) {
-            button_ti_kitchen_view.setOnClickListener(view -> openWebpage("KitchenView"));
-        }
         button_ti_native_kitchen = this.findViewById(R.id.button_ti_native_kitchen);
         if (button_ti_native_kitchen != null) {
             button_ti_native_kitchen.setOnClickListener(view -> openNativeKitchenDisplay());
         } else {
             Log.e("MainActivity", "button_ti_native_kitchen is null - check layout file");
         }
-        button_ti_dashboard =  this.findViewById(R.id.button_ti_dashboard);
-        if (button_ti_dashboard != null) {
-            button_ti_dashboard.setOnClickListener(view -> openWebpage("Administration"));
-        }
         button_ti_updates =  this.findViewById(R.id.button_ti_updates);
         if (button_ti_updates != null) {
             button_ti_updates.setOnClickListener(view -> showUpdatePopup());
-        }
-        button_ti_landing_page = this.findViewById(R.id.button_ti_landing_page);
-        if (button_ti_landing_page != null) {
-            button_ti_landing_page.setOnClickListener(view -> openWebpage("LandingPage"));
         }
         button_ti_testprint = this.findViewById(R.id.button_ti_testprint);
         if (button_ti_testprint != null) {
@@ -191,6 +177,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (button_ti_logout != null) {
             button_ti_logout.setOnClickListener(view -> LogoutUser());
         }
+        orderCountBadge = this.findViewById(R.id.order_count_badge);
         // Initialize the ChipGroup and Chips
         chipGroupPrinters = findViewById(R.id.chipGroup_printers);
         chipReceipt = findViewById(R.id.chip_receipt);
@@ -305,6 +292,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 runOnUiThread(() -> {
                     loadShopConfiguration(savedDomain);
                     enableAllButtons();
+                    
+                    // Start initial refresh after 1 second delay
+                    new Handler().postDelayed(() -> {
+                        if (Constants.isServiceActive) {
+                            startWebServiceTask(MainActivity.this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
+                        }
+                    }, 1000);
                 });
             }
 
@@ -325,9 +319,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 shop_name = shop.shop_name;
                 domain_shop = shop.domain_shop;
                 domain_website = shop.domain_website;
-                tiDashboardURL = shop.domain_shop + "/admin";
-                tiKitchenViewURL = shop.kitchen_view;
-                tiLandingPage = shop.domain_website + "/";
                 location_id = shop.location_id;
                 textview_ti_header.setText(shop.shop_name);
                 
@@ -344,10 +335,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (button_bluetooth_browse != null) button_bluetooth_browse.setEnabled(true);
         if (button_ti_print != null) button_ti_print.setEnabled(true);
         if (button_ti_clear_ids != null) button_ti_clear_ids.setEnabled(true);
-        if (button_ti_kitchen_view != null) button_ti_kitchen_view.setEnabled(true);
         if (button_ti_native_kitchen != null) button_ti_native_kitchen.setEnabled(true);
-        if (button_ti_dashboard != null) button_ti_dashboard.setEnabled(true);
-        if (button_ti_landing_page != null) button_ti_landing_page.setEnabled(true);
         if (button_ti_testprint != null) button_ti_testprint.setEnabled(true);
         if (button_reprint != null) button_reprint.setEnabled(true);
         
@@ -442,6 +430,15 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     protected void onResume() {
         super.onResume();
         updateUIBasedOnServiceStatus(); //TODO check if needed
+        
+        // Check if KitchenDisplayActivity was closed and restart timer if needed
+        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+        boolean kitchenOpen = sharedPreferences.getBoolean("kitchen_display_open", false);
+        if (!kitchenOpen && Constants.isServiceActive && !isKitchenDisplayOpen) {
+            // KitchenDisplayActivity was closed, restart MainActivity timer
+            startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
+        }
+        isKitchenDisplayOpen = kitchenOpen;
     }
     private void showUpdatePopup() {
         new androidx.appcompat.app.AlertDialog.Builder(this)
@@ -504,10 +501,29 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
                 JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
                 JSONArray filteredOrders = DocketStringModeler.filterPrintableOrders(dataArrayOrders, printedOrders);
+                
+                // Count open orders (not completed - status_id != 5)
+                int openOrderCount = 0;
                 for (int i = 0; i < dataArrayOrders.length(); i++) {
                     dataObjectOrders = dataArrayOrders.getJSONObject(i);
                     ordersList.add(dataObjectOrders); // Add to orders list
+                    
+                    // Check if order is not completed
+                    try {
+                        JSONObject attributes = dataObjectOrders.optJSONObject("attributes");
+                        JSONObject orderData = attributes != null ? attributes : dataObjectOrders;
+                        int statusId = orderData.optInt("status_id", -1);
+                        if (statusId != 5) { // Not completed
+                            openOrderCount++;
+                        }
+                    } catch (Exception e) {
+                        // If there's an error checking status, include the order
+                        openOrderCount++;
+                    }
                 }
+                
+                // Update the order count badge
+                updateOrderCountBadge(openOrderCount);
 
                 for (int i = 0; i < filteredOrders.length(); i++) {
                     dataObjectOrders = filteredOrders.getJSONObject(i);
@@ -815,10 +831,29 @@ private void restartWebservice(int buttonColor){
     }
 
     public void startWebServiceTask(Activity activity, String ordersUrl, String menusUrl, String categoriesUrl) {
+        startWebServiceTask(activity, ordersUrl, menusUrl, categoriesUrl, getRefreshInterval());
+    }
+    
+    public void startWebServiceTask(Activity activity, String ordersUrl, String menusUrl, String categoriesUrl, long refreshInterval) {
         Timer timer = networkHelperViewModel.getTimer();
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
+                // Check if user is still logged in before running refresh
+                SharedPreferences sharedPreferences = activity.getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+                String savedToken = sharedPreferences.getString("token", "");
+                if (savedToken.isEmpty()) {
+                    Log.d("MainActivity", "User not logged in, skipping refresh");
+                    return;
+                }
+                
+                // Check if KitchenDisplayActivity is open
+                boolean kitchenOpen = sharedPreferences.getBoolean("kitchen_display_open", false);
+                if (kitchenOpen) {
+                    Log.d("MainActivity", "KitchenDisplayActivity is open, skipping MainActivity refresh");
+                    return;
+                }
+
                 String[] urls = {ordersUrl, menusUrl, categoriesUrl};
 
                 Log.e("timer", "running: ");
@@ -826,12 +861,30 @@ private void restartWebservice(int buttonColor){
                 networkHelperViewModel.getNetworkHelper().fetchData(urls, username, password, domain_shop, (NetworkHelper.NetworkCallback) activity);
 
             }
-        }, delayPeriod, period);
+        }, delayPeriod, refreshInterval);
+    }
+    
+    private long getRefreshInterval() {
+        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+        boolean kitchenOpen = sharedPreferences.getBoolean("kitchen_display_open", false);
+        return kitchenOpen ? Constants.REFRESH_INTERVAL_KITCHEN_OPEN : Constants.REFRESH_INTERVAL_KITCHEN_CLOSED;
     }
 
     private void showError(String errorMessage) {
         // Show the error message in an AlertDialog
         Toast.makeText(context, ""+errorMessage, Toast.LENGTH_SHORT).show();
+    }
+    
+    private void updateOrderCountBadge(int count) {
+        if (orderCountBadge != null) {
+            if (count > 0) {
+                orderCountBadge.setText(String.valueOf(count));
+                orderCountBadge.setVisibility(View.VISIBLE);
+            } else {
+                orderCountBadge.setVisibility(View.GONE);
+            }
+        }
+        openOrdersCount = count;
     }
     public void TIJobPrintBluetooth(String print_info, String orderId) {
         this.checkBluetoothPermissions(() -> {
@@ -882,17 +935,8 @@ private void restartWebservice(int buttonColor){
     private void openWebpage(String action) {
         String url = "";
             switch (action) {
-                case "LandingPage":
-                    url = tiLandingPage;
-                    break;
                 case "APIEndpoint": //TODO why do I need to open API on the webpage?
                     url = tiOrdersEndpointURL;
-                    break;
-                case "KitchenView":
-                    url = tiKitchenViewURL;
-                    break;
-                case "Administration":
-                    url = tiDashboardURL;
                     break;
                 case "Updates":
                     url = tiUpdates;
@@ -997,10 +1041,7 @@ private void restartWebservice(int buttonColor){
         if (button_bluetooth_browse != null) button_bluetooth_browse.setEnabled(false);
         if (button_ti_print != null) button_ti_print.setEnabled(false);
         if (button_ti_clear_ids != null) button_ti_clear_ids.setEnabled(false);
-        if (button_ti_kitchen_view != null) button_ti_kitchen_view.setEnabled(false);
         if (button_ti_native_kitchen != null) button_ti_native_kitchen.setEnabled(false);
-        if (button_ti_dashboard != null) button_ti_dashboard.setEnabled(false);
-        if (button_ti_landing_page != null) button_ti_landing_page.setEnabled(false);
         if (button_ti_testprint != null) button_ti_testprint.setEnabled(false);
         if (button_reprint != null) button_reprint.setEnabled(false);
         
@@ -1102,10 +1143,6 @@ private void restartWebservice(int buttonColor){
                         button_ti_clear_ids.setEnabled(true);
                         button_reprint.setEnabled(true);
                         button_ti_testprint.setEnabled(true);
-                        //web browser buttons
-                        button_ti_kitchen_view.setEnabled(true);
-                        button_ti_dashboard.setEnabled(true);
-                        button_ti_landing_page.setEnabled(true);
                         dismiss();
                     } else {
                         // activate the error text in the popup
@@ -1169,7 +1206,6 @@ private void restartWebservice(int buttonColor){
                             domain_shop = matchingShop.domain_shop;
                             domain_website = matchingShop.domain_website;
                             shop_name = matchingShop.shop_name;
-                            tiKitchenViewURL = matchingShop.kitchen_view;
                             location_id = matchingShop.location_id;
                             textview_ti_header.setText(shop_name);
 
@@ -1177,8 +1213,6 @@ private void restartWebservice(int buttonColor){
                             tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
                             tiMenusEndpointURL = domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
                             tiCategoriesEndpointURL = domain_shop + "/api/categories?location=" + location_id;
-                            tiDashboardURL = domain_shop + "/admin";
-                            tiLandingPage = domain_website + "/";
 
                             // Reinitialize URLs and enable buttons
                             ((MainActivity) getActivity()).initilizeURLs();
@@ -1187,9 +1221,6 @@ private void restartWebservice(int buttonColor){
                             button_ti_clear_ids.setEnabled(true);
                             button_reprint.setEnabled(true);
                             button_ti_testprint.setEnabled(true);
-                            button_ti_kitchen_view.setEnabled(true);
-                            button_ti_dashboard.setEnabled(true);
-                            button_ti_landing_page.setEnabled(true);
                             dismiss();
                         } else {
                             etError.setVisibility(View.VISIBLE);
