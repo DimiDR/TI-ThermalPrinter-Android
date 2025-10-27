@@ -342,6 +342,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         // Show logout button and hide login button
         if (button_ti_login != null) button_ti_login.setVisibility(View.GONE);
         if (button_ti_logout != null) button_ti_logout.setVisibility(View.VISIBLE);
+        
     }
 
     private void clearStoredLogin() {

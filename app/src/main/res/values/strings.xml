@@ -10,6 +10,8 @@
     <string name="admin_button">Administration</string>
     <string name="select_printer_button">Select Printer</string>
     <string name="service_started_button">Printer On</string>
+    <string name="new_orders_button">New Orders</string>
+    <string name="old_orders_button">Old Orders</string>
     <string name="reprint_button">Reprint</string>
     <string name="revert_print_ids_button">Revert Print IDs</string>
     <string name="login_text">Please Login</string>

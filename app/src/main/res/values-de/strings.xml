@@ -11,6 +11,8 @@
     <string name="admin_button">Administration</string>
     <string name="select_printer_button">Drucker Wählen</string>
     <string name="service_started_button">Drucker An</string>
+    <string name="new_orders_button">Neue Bestellungen</string>
+    <string name="old_orders_button">Alte Bestellungen</string>
     <string name="reprint_button">Neudruck</string>
     <string name="revert_print_ids_button">Druck Zurücksetzen</string>
     <string name="login_text">Bitter Einlogen</string>
