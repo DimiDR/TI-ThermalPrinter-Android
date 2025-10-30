@@ -64,6 +64,17 @@
 
         </LinearLayout>
 
+        <ImageView
+            android:id="@+id/btnViewReceipt"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/ic_receipt"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="6dp"
+            android:contentDescription="View Receipt"
+            app:tint="@color/colorPrimary" />
+
         <Button
             android:id="@+id/buttonPrint"
             android:layout_width="wrap_content"

@@ -442,6 +442,11 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         
         // Set up the ListView
         ListView listViewOrders = popupView.findViewById(R.id.listViewOrders);
+        
+        // Store references to menu and category data for receipt preview
+        final JSONObject finalJsonObjectMenus = jsonObjectMenus;
+        final JSONObject finalJsonObjectCategories = jsonObjectCategories;
+        
         OrdersAdapter adapter = new OrdersAdapter(this, displayOrdersList, new OrdersAdapter.PrintButtonClickListener() {
             @Override
             public void onPrintButtonClick(int position, String orderId) {
@@ -451,18 +456,41 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 }
                 //print receipt
                 if (chipReceipt.isChecked()) {
-                    TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(displayOrdersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
+                    TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(displayOrdersList.get(position), finalJsonObjectMenus, finalJsonObjectCategories, mediaPlayer, shop_name), orderId);
                 }
                 // print receipt for kitchen
                 if (chipKitchen.isChecked()) {
-                    TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(displayOrdersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
+                    TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(displayOrdersList.get(position), finalJsonObjectMenus, finalJsonObjectCategories, mediaPlayer, shop_name), orderId);
                 }
+            }
+        }, new OrdersAdapter.ReceiptPreviewClickListener() {
+            @Override
+            public void onReceiptPreviewClick(JSONObject order) {
+                showReceiptPreview(order, finalJsonObjectMenus, finalJsonObjectCategories);
             }
         }, printerAvailable);
         listViewOrders.setAdapter(adapter);
 
         // Show the popup window
         popupWindow.showAtLocation(findViewById(R.id.mainLayout), Gravity.CENTER, 0, 0);
+    }
+    
+    private void showReceiptPreview(JSONObject order, JSONObject menusData, JSONObject categoriesData) {
+        try {
+            if (menusData == null || categoriesData == null) {
+                Toast.makeText(this, R.string.menu_data_not_available, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Create and show the receipt preview dialog
+            ReceiptPreviewDialogFragment dialog = ReceiptPreviewDialogFragment.newInstance(
+                order, menusData, categoriesData, shop_name);
+            dialog.show(getSupportFragmentManager(), "ReceiptPreviewDialog");
+            
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error showing receipt preview", e);
+            Toast.makeText(this, getString(R.string.error_showing_receipt_preview, e.getMessage()), Toast.LENGTH_SHORT).show();
+        }
     }
 
 
