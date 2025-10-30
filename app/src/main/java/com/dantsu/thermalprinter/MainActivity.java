@@ -1366,11 +1366,6 @@ private void restartWebservice(int buttonColor){
                         button_reprint.setEnabled(true);
                         ((MainActivity) getActivity()).updateTestPrintButtonState();
                         dismiss();
-                        
-                        // Navigate to Kitchen Display after successful login
-                        Intent intent = new Intent(getActivity(), KitchenDisplayActivity.class);
-                        startActivity(intent);
-                        getActivity().finish();
                     });
                 }
 

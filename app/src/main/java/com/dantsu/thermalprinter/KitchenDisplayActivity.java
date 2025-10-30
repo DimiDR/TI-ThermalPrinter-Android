@@ -254,7 +254,11 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 // Delay the refresh to allow the API call to complete
                 new Handler().postDelayed(() -> {
                     refreshOrders();
+                    // Order count will be updated in onSuccess callback after refresh
                 }, 1000);
+            } else {
+                // Update order count immediately for non-completed status changes
+                updateOrderCount(orderAdapter.getItemCount());
             }
         } catch (JSONException e) {
             Log.e("KitchenDisplay", "Error getting order ID", e);
@@ -424,6 +428,11 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                         // Append new orders to existing list
                         orderAdapter.appendOrders(newOrders);
                         
+                        // Update order count after appending new orders
+                        runOnUiThread(() -> {
+                            updateOrderCount(orderAdapter.getItemCount());
+                        });
+                        
                         Log.d("KitchenDisplay", "Loaded " + newOrders.size() + " more orders (page " + currentPage + ")");
                         
                     } catch (JSONException e) {
@@ -495,8 +504,8 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 // Update adapter with new data
                 orderAdapter.updateOrders(ordersList, jsonObjectMenus, jsonObjectCategories);
                 
-                // Update order count
-                updateOrderCount(ordersList.size());
+                // Update order count based on adapter's actual item count
+                updateOrderCount(orderAdapter.getItemCount());
                 
                 Log.d("KitchenDisplay", "Loaded " + ordersList.size() + " orders (page " + currentPage + ")");
                 
