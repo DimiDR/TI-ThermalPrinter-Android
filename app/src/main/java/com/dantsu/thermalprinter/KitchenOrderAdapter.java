@@ -217,7 +217,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                     textOrderTime.setText(orderTime);
                 }
             } else {
-                textOrderTime.setText("ASAP");
+                textOrderTime.setText(itemView.getContext().getString(R.string.asap));
             }
             
             // Order value
@@ -244,7 +244,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                                    ", " + address.optString("city", "");
                 textAddress.setText(addressText);
             } else {
-                textAddress.setText("Collection");
+                textAddress.setText(itemView.getContext().getString(R.string.collection));
             }
             
             // Order items

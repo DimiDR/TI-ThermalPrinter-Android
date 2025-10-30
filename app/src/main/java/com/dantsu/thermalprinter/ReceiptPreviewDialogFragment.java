@@ -171,7 +171,7 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
             // Add comment if exists
             if (!"null".equals(item.comment) && !item.comment.isEmpty()) {
                 TextView commentText = new TextView(getContext());
-                commentText.setText("  Kommentar: " + item.comment);
+                commentText.setText("  " + getString(R.string.comment) + " " + item.comment);
                 commentText.setTextSize(12);
                 commentText.setPadding(0, 2, 0, 2);
                 container.addView(commentText);
@@ -180,7 +180,7 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
             // Add options
             for (ReceiptTextParser.OrderOption option : item.options) {
                 TextView optionText = new TextView(getContext());
-                optionText.setText("  Option: " + option.name + "  " + option.price + "€");
+                optionText.setText("  " + getString(R.string.option) + " " + option.name + "  " + option.price + "€");
                 optionText.setTextSize(12);
                 optionText.setPadding(0, 2, 0, 2);
                 container.addView(optionText);
@@ -205,25 +205,25 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
         container.removeAllViews();
         
         TextView nameText = new TextView(getContext());
-        nameText.setText("Name: " + customerInfo.name);
+        nameText.setText(getString(R.string.name) + " " + customerInfo.name);
         nameText.setTextSize(14);
         nameText.setPadding(0, 2, 0, 2);
         container.addView(nameText);
         
         TextView phoneText = new TextView(getContext());
-        phoneText.setText("Telefon: " + customerInfo.telephone);
+        phoneText.setText(getString(R.string.phone) + " " + customerInfo.telephone);
         phoneText.setTextSize(14);
         phoneText.setPadding(0, 2, 0, 2);
         container.addView(phoneText);
         
         TextView addressText = new TextView(getContext());
-        addressText.setText("Adresse: " + customerInfo.address);
+        addressText.setText(getString(R.string.address) + " " + customerInfo.address);
         addressText.setTextSize(14);
         addressText.setPadding(0, 2, 0, 2);
         container.addView(addressText);
         
         TextView commentText = new TextView(getContext());
-        commentText.setText("Kommentar: " + customerInfo.comment);
+        commentText.setText(getString(R.string.comment) + " " + customerInfo.comment);
         commentText.setTextSize(14);
         commentText.setPadding(0, 2, 0, 2);
         container.addView(commentText);

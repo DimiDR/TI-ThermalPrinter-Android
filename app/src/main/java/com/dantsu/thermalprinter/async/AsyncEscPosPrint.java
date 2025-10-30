@@ -5,6 +5,7 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.os.AsyncTask;
 
+import com.dantsu.thermalprinter.R;
 import com.dantsu.escposprinter.EscPosCharsetEncoding;
 import com.dantsu.escposprinter.EscPosPrinter;
 import com.dantsu.escposprinter.connection.DeviceConnection;
@@ -106,7 +107,7 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
             }
 
             this.dialog = new ProgressDialog(context);
-            this.dialog.setTitle("Printing in progress...");
+            this.dialog.setTitle(R.string.printing_in_progress);
             this.dialog.setMessage("...");
             this.dialog.setProgressNumberFormat("%1d / %2d");
             this.dialog.setCancelable(false);
@@ -117,18 +118,23 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
     }
 
     protected void onProgressUpdate(Integer... progress) {
+        Context context = weakContext.get();
+        if (context == null || this.dialog == null) {
+            return;
+        }
+        
         switch (progress[0]) {
             case AsyncEscPosPrint.PROGRESS_CONNECTING:
-                this.dialog.setMessage("Connecting printer...");
+                this.dialog.setMessage(context.getString(R.string.connecting_printer));
                 break;
             case AsyncEscPosPrint.PROGRESS_CONNECTED:
-                this.dialog.setMessage("Printer is connected...");
+                this.dialog.setMessage(context.getString(R.string.printer_connected));
                 break;
             case AsyncEscPosPrint.PROGRESS_PRINTING:
-                this.dialog.setMessage("Printer is printing...");
+                this.dialog.setMessage(context.getString(R.string.printer_printing));
                 break;
             case AsyncEscPosPrint.PROGRESS_PRINTED:
-                this.dialog.setMessage("Printer has finished...");
+                this.dialog.setMessage(context.getString(R.string.printer_finished));
                 break;
         }
         this.dialog.setProgress(progress[0]);
@@ -155,32 +161,32 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
                 break;
             case AsyncEscPosPrint.FINISH_NO_PRINTER:
                 new AlertDialog.Builder(context)
-                        .setTitle("No printer")
-                        .setMessage("The application can't find any printer connected.")
+                        .setTitle(R.string.no_printer_title)
+                        .setMessage(R.string.no_printer_message)
                         .show();
                 break;
             case AsyncEscPosPrint.FINISH_PRINTER_DISCONNECTED:
                 new AlertDialog.Builder(context)
-                    .setTitle("Broken connection")
-                    .setMessage("Unable to connect the printer.")
+                    .setTitle(R.string.broken_connection_title)
+                    .setMessage(R.string.broken_connection_message)
                     .show();
                 break;
             case AsyncEscPosPrint.FINISH_PARSER_ERROR:
                 new AlertDialog.Builder(context)
-                    .setTitle("Invalid formatted text")
-                    .setMessage("It seems to be an invalid syntax problem.")
+                    .setTitle(R.string.invalid_format_title)
+                    .setMessage(R.string.invalid_format_message)
                     .show();
                 break;
             case AsyncEscPosPrint.FINISH_ENCODING_ERROR:
                 new AlertDialog.Builder(context)
-                    .setTitle("Bad selected encoding")
-                    .setMessage("The selected encoding character returning an error.")
+                    .setTitle(R.string.encoding_error_title)
+                    .setMessage(R.string.encoding_error_message)
                     .show();
                 break;
             case AsyncEscPosPrint.FINISH_BARCODE_ERROR:
                 new AlertDialog.Builder(context)
-                    .setTitle("Invalid barcode")
-                    .setMessage("Data send to be converted to barcode or QR code seems to be invalid.")
+                    .setTitle(R.string.barcode_error_title)
+                    .setMessage(R.string.barcode_error_message)
                     .show();
                 break;
         }

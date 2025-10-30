@@ -130,4 +130,68 @@
     <string name="select_printer_button">Select Printer</string>
     <string name="open_websites_text">Main Functions</string>
     <string name="bluetooth_printer_text">Bluetooth Printer</string>
+    
+    <!-- Dialog Messages -->
+    <string name="update_available">Update Available</string>
+    <string name="update_available_message">A new version of the app is available. Click update button to get latest version.</string>
+    <string name="update">Update</string>
+    <string name="yes">Yes</string>
+    <string name="exit_confirmation">Are you sure you want to exit the app? It will stop any running process.</string>
+    <string name="bluetooth_error">Bluetooth Error</string>
+    <string name="bluetooth_error_message">Bluetooth is not enabled or not available. Please enable Bluetooth and try again.</string>
+    <string name="ok">OK</string>
+    <string name="no_bluetooth_printers_found">No Bluetooth Printers Found</string>
+    <string name="no_bluetooth_printers_message">No paired Bluetooth printers found. Please pair a printer in Bluetooth settings first.</string>
+    <string name="bluetooth_printer_selection">Bluetooth printer selection</string>
+    <string name="update_available_button">Update Available</string>
+    <string name="version">Version</string>
+    <string name="printer_active">Printer is Active</string>
+    <string name="printer_inactive">Printer is inactive</string>
+    
+    <!-- Printing Messages -->
+    <string name="printing_in_progress">Printing in progress...</string>
+    <string name="connecting_printer">Connecting printer...</string>
+    <string name="printer_connected">Printer is connected...</string>
+    <string name="printer_printing">Printer is printing...</string>
+    <string name="printer_finished">Printer has finished...</string>
+    <string name="no_printer_title">No printer</string>
+    <string name="no_printer_message">The application can\'t find any printer connected.</string>
+    <string name="broken_connection_title">Broken connection</string>
+    <string name="broken_connection_message">Unable to connect the printer.</string>
+    <string name="invalid_format_title">Invalid formatted text</string>
+    <string name="invalid_format_message">It seems to be an invalid syntax problem.</string>
+    <string name="encoding_error_title">Bad selected encoding</string>
+    <string name="encoding_error_message">The selected encoding character returning an error.</string>
+    <string name="barcode_error_title">Invalid barcode</string>
+    <string name="barcode_error_message">Data send to be converted to barcode or QR code seems to be invalid.</string>
+    
+    <!-- Receipt Preview -->
+    <string name="comment">Comment:</string>
+    <string name="option">Option:</string>
+    <string name="name">Name:</string>
+    <string name="phone">Phone:</string>
+    <string name="address">Address:</string>
+    
+    <!-- Order Status Messages -->
+    <string name="error_updating_order_status">Error updating order status</string>
+    <string name="invalid_status">Invalid status: %1$s</string>
+    <string name="order_status_updated">Order #%1$s status updated to %2$s</string>
+    <string name="failed_update_order_status">Failed to update order #%1$s status</string>
+    <string name="error_updating_order_status_with_message">Error updating order status: %1$s</string>
+    <string name="error_loading_orders_with_message">Error loading orders: %1$s</string>
+    <string name="failed_fetch_order_data">Failed to fetch order data</string>
+    <string name="error_message">Error: %1$s</string>
+    <string name="error_printing_order">Error printing order: %1$s</string>
+    <string name="error_showing_receipt_preview">Error showing receipt preview: %1$s</string>
+    <string name="no_printer_selected_main_app">No printer selected. Please configure printer in main app.</string>
+    <string name="no_printer_selected_settings">No printer selected. Please configure printer in settings.</string>
+    <string name="select_print_option">Please select at least one print option (Receipt or Kitchen)</string>
+    <string name="print_type_failed">%1$s print failed</string>
+    <string name="print_type_successful">%1$s printed successfully</string>
+    <string name="error_loading_order_data">Error loading order data</string>
+    
+    <!-- Order Display -->
+    <string name="order_id">Order ID:</string>
+    <string name="asap">ASAP</string>
+    <string name="collection">Collection</string>
 </resources>

@@ -132,7 +132,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         location_id = sharedPreferences.getInt("location_id", 1);
         
         if (domain_shop.isEmpty()) {
-            Toast.makeText(this, "No shop configuration found. Please login first.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.no_shop_configuration, Toast.LENGTH_LONG).show();
             finish();
             return;
         }
@@ -176,7 +176,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
             SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
             int storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
             if (storedPrinterIndex < 0) {
-                Toast.makeText(this, "No printer selected. Please configure printer in settings.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, R.string.no_printer_selected_settings, Toast.LENGTH_LONG).show();
                 return;
             }
             // Navigate to MainActivity for test print
@@ -281,11 +281,11 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         
         if (printerConnected) {
             viewPrinterStatus.setBackground(ContextCompat.getDrawable(this, R.drawable.circle_green));
-            textPrinterStatus.setText("Connected");
+            textPrinterStatus.setText(R.string.connected);
             textPrinterStatus.setTextColor(ContextCompat.getColor(this, R.color.colorSuccess));
         } else {
             viewPrinterStatus.setBackground(ContextCompat.getDrawable(this, R.drawable.circle_red));
-            textPrinterStatus.setText("Not Connected");
+            textPrinterStatus.setText(R.string.not_connected);
             textPrinterStatus.setTextColor(ContextCompat.getColor(this, R.color.colorError));
         }
         
@@ -293,11 +293,11 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         boolean serviceActive = Constants.isServiceActive;
         if (serviceActive) {
             viewServiceStatus.setBackground(ContextCompat.getDrawable(this, R.drawable.circle_green));
-            textServiceStatus.setText("Active");
+            textServiceStatus.setText(R.string.active);
             textServiceStatus.setTextColor(ContextCompat.getColor(this, R.color.colorSuccess));
         } else {
             viewServiceStatus.setBackground(ContextCompat.getDrawable(this, R.drawable.circle_red));
-            textServiceStatus.setText("Inactive");
+            textServiceStatus.setText(R.string.inactive);
             textServiceStatus.setTextColor(ContextCompat.getColor(this, R.color.colorError));
         }
     }
@@ -320,7 +320,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 
             } catch (JSONException e) {
                 Log.e("Dashboard", "Error parsing orders JSON", e);
-                Toast.makeText(this, "Error loading order data", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.error_loading_order_data, Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -328,7 +328,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     @Override
     public void onError(Exception exception) {
         Log.e("Dashboard", "Error fetching data", exception);
-        Toast.makeText(this, "Error: " + exception.getMessage(), Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.error_message, exception.getMessage()), Toast.LENGTH_SHORT).show();
     }
     
     @Override

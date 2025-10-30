@@ -205,7 +205,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         location_id = sharedPreferences.getInt("location_id", 1);
         
         if (domain_shop.isEmpty()) {
-            Toast.makeText(this, "No shop configuration found. Please login first.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.no_shop_configuration, Toast.LENGTH_LONG).show();
             finish();
             return;
         }
@@ -258,7 +258,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             }
         } catch (JSONException e) {
             Log.e("KitchenDisplay", "Error getting order ID", e);
-            Toast.makeText(this, "Error updating order status", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.error_updating_order_status, Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -270,7 +270,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 if (statusId == -1) {
                     Log.e("KitchenDisplay", "Status not found: " + statusName);
                     mainHandler.post(() -> {
-                        Toast.makeText(this, "Invalid status: " + statusName, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, getString(R.string.invalid_status, statusName), Toast.LENGTH_SHORT).show();
                     });
                     return;
                 }
@@ -286,19 +286,19 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 if (result != null) {
                     Log.d("KitchenDisplay", "Order " + orderId + " status updated to " + statusName);
                     mainHandler.post(() -> {
-                        Toast.makeText(this, "Order #" + orderId + " status updated to " + statusName, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, getString(R.string.order_status_updated, orderId, statusName), Toast.LENGTH_SHORT).show();
                     });
                 } else {
                     Log.e("KitchenDisplay", "Failed to update order " + orderId);
                     mainHandler.post(() -> {
-                        Toast.makeText(this, "Failed to update order #" + orderId + " status", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, getString(R.string.failed_update_order_status, orderId), Toast.LENGTH_SHORT).show();
                     });
                 }
                 
             } catch (Exception e) {
                 Log.e("KitchenDisplay", "Error updating order status", e);
                 mainHandler.post(() -> {
-                    Toast.makeText(this, "Error updating order status: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_updating_order_status_with_message, e.getMessage()), Toast.LENGTH_SHORT).show();
                 });
             }
         }).start();
@@ -502,10 +502,10 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 
             } catch (JSONException e) {
                 Log.e("KitchenDisplay", "Error parsing JSON", e);
-                Toast.makeText(this, "Error loading orders: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.error_loading_orders_with_message, e.getMessage()), Toast.LENGTH_SHORT).show();
             }
         } else {
-            Toast.makeText(this, "Failed to fetch order data", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.failed_fetch_order_data, Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -516,7 +516,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         swipeRefreshLayout.setRefreshing(false);
         
         Log.e("KitchenDisplay", "Error fetching orders", exception);
-        Toast.makeText(this, "Error: " + exception.getMessage(), Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.error_message, exception.getMessage()), Toast.LENGTH_SHORT).show();
     }
     
     @Override
@@ -548,7 +548,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     
     private void printOrder(JSONObject order) {
         if (selectedDevice == null) {
-            Toast.makeText(this, "No printer selected. Please configure printer in main app.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.no_printer_selected_main_app, Toast.LENGTH_LONG).show();
             return;
         }
         
@@ -558,7 +558,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             JSONObject categoriesData = orderAdapter.categoriesData;
             
             if (menusData == null || categoriesData == null) {
-                Toast.makeText(this, "Menu data not available. Please refresh and try again.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.menu_data_not_available, Toast.LENGTH_SHORT).show();
                 return;
             }
             
@@ -580,12 +580,12 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             }
             
             if (!hasPrinted) {
-                Toast.makeText(this, "Please select at least one print option (Receipt or Kitchen)", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.select_print_option, Toast.LENGTH_SHORT).show();
             }
             
         } catch (Exception e) {
             Log.e("KitchenDisplay", "Error printing order", e);
-            Toast.makeText(this, "Error printing order: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.error_printing_order, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -597,13 +597,13 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 @Override
                 public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
                     Log.e("KitchenDisplay", "Print error for " + printType + ": " + codeException);
-                    Toast.makeText(KitchenDisplayActivity.this, printType + " print failed", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(KitchenDisplayActivity.this, getString(R.string.print_type_failed, printType), Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
                 public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
                     Log.i("KitchenDisplay", printType + " print successful");
-                    Toast.makeText(KitchenDisplayActivity.this, printType + " printed successfully", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(KitchenDisplayActivity.this, getString(R.string.print_type_successful, printType), Toast.LENGTH_SHORT).show();
                 }
             }
         ).execute(getAsyncEscPosPrinter(selectedDevice, printInfo));
@@ -634,7 +634,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             JSONObject categoriesData = orderAdapter.categoriesData;
             
             if (menusData == null || categoriesData == null) {
-                Toast.makeText(this, "Menu data not available. Please refresh and try again.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.menu_data_not_available, Toast.LENGTH_SHORT).show();
                 return;
             }
             
@@ -645,7 +645,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             
         } catch (Exception e) {
             Log.e("KitchenDisplay", "Error showing receipt preview", e);
-            Toast.makeText(this, "Error showing receipt preview: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.error_showing_receipt_preview, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 }

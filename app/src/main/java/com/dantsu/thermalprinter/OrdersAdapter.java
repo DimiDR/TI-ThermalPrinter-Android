@@ -59,7 +59,7 @@ public class OrdersAdapter extends ArrayAdapter<JSONObject> {
             // Extract data from the "attributes" object
             JSONObject attributes = order.getJSONObject("attributes");
 
-            textViewOrderNr.setText("Order ID: "+order.getString("id"));
+            textViewOrderNr.setText(context.getString(R.string.order_id) + " " + order.getString("id"));
             textViewTime.setText(attributes.getString("order_time"));
             textViewName.setText(attributes.getString("first_name") + " " + attributes.getString("last_name"));
             textViewStatus.setText(attributes.getJSONObject("status").getString("status_name"));

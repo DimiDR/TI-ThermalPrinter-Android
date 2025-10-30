@@ -137,6 +137,11 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private Boolean isServiceStarted = false;
     private FragmentManager fragmentManager = getSupportFragmentManager();
     private int storedPrinterIndex = -1; // Initialize the printer selection from dropdown
+    // Store orders data for reprint functionality
+    private List<JSONObject> cachedOrdersList = new ArrayList<>();
+    private JSONObject cachedJsonObjectMenus;
+    private JSONObject cachedJsonObjectCategories;
+    private boolean shouldShowReprintPopup = false; // Flag to show popup after fetching orders
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -218,7 +223,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (getIntent().getBooleanExtra("isUpdate", false)){
             apkFile = getIntent().getStringExtra("apkFile");
             button_ti_updates.setEnabled(true);
-            button_ti_updates.setText("Update Verfügbar");
+            button_ti_updates.setText(R.string.update_available_button);
             button_ti_updates.setBackgroundColor(ContextCompat.getColor(this, R.color.colorError));
             if (!networkHelperViewModel.isUpdatePopupShown()) {
                 showUpdatePopup();
@@ -227,16 +232,26 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }else{
             button_ti_updates.setEnabled(false);
             // show current version on the screen
-            button_ti_updates.setText("Version " + getIntent().getStringExtra("currentAppVersion"));
+            button_ti_updates.setText(getString(R.string.version) + " " + getIntent().getStringExtra("currentAppVersion"));
         }
 
-        //reprint orders
+        //reprint orders - Set up button click listener to handle reprint functionality
         if (button_reprint != null) {
-            button_reprint.setOnClickListener(v -> {
-                Intent intent = new Intent(this, KitchenDisplayActivity.class);
-                intent.putExtra("action", "reprint");
-                startActivity(intent);
-            });
+            button_reprint.setOnClickListener(v -> handleReprintOrders());
+        }
+        
+        // Handle reprint intent from DashboardActivity - show popup after fetching orders
+        String action = getIntent().getStringExtra("action");
+        if ("reprint".equals(action)) {
+            shouldShowReprintPopup = true;
+            // Trigger fetching orders if URLs are already initialized
+            if (tiOrdersEndpointURL != null && !tiOrdersEndpointURL.isEmpty() && 
+                tiMenusEndpointURL != null && !tiMenusEndpointURL.isEmpty() &&
+                tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
+                // Fetch orders data to show popup - NetworkHelper will use token from SharedPreferences
+                String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
+                networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, this);
+            }
         }
 
     }
@@ -277,6 +292,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     tiMenusEndpointURL = domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
                     tiCategoriesEndpointURL = domain_shop + "/api/categories?location=" + location_id;
                     enableAllButtons();
+                    
+                    // If reprint was requested, fetch orders now that URLs are initialized
+                    if (shouldShowReprintPopup) {
+                        String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
+                        // NetworkHelper will use token from SharedPreferences
+                        networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, MainActivity.this);
+                    }
                     
                     // Start initial refresh after 1 second delay
                     new Handler().postDelayed(() -> {
@@ -365,14 +387,43 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         return printer;
     }
 
+    private void handleReprintOrders() {
+        // Always fetch fresh orders for reprint to ensure we get the last 50 orders
+        if (tiOrdersEndpointURL != null && !tiOrdersEndpointURL.isEmpty() && 
+            tiMenusEndpointURL != null && !tiMenusEndpointURL.isEmpty() &&
+            tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
+            shouldShowReprintPopup = true;
+            // Ensure we request last 50 orders for reprint
+            String reprintOrdersURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
+            String[] urls = {reprintOrdersURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
+            networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, this);
+        } else {
+            // Fallback to cached data if URLs not ready
+            if (!cachedOrdersList.isEmpty() && cachedJsonObjectMenus != null && cachedJsonObjectCategories != null) {
+                showOrdersPopup(cachedOrdersList, cachedJsonObjectMenus, cachedJsonObjectCategories);
+            } else {
+                Toast.makeText(this, "Please wait for orders to load", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
     private void showOrdersPopup(List<JSONObject> ordersList, JSONObject jsonObjectMenus, JSONObject jsonObjectCategories) {
         // reprint functionality
+        // Log the total number of orders received
+        Log.d("ReprintOrders", "Total orders received: " + ordersList.size());
+        
+        // Limit to last 50 orders without filtering
+        int startIndex = Math.max(0, ordersList.size() - 50);
+        List<JSONObject> displayOrdersList = new ArrayList<>(ordersList.subList(startIndex, ordersList.size()));
+        
+        Log.d("ReprintOrders", "Displaying orders: " + displayOrdersList.size() + " (from index " + startIndex + " to " + ordersList.size() + ")");
+        
         // Inflate the popup layout
         View popupView = getLayoutInflater().inflate(R.layout.popup_orders, null);
 
         // Create the popup window
         int width = LinearLayout.LayoutParams.MATCH_PARENT; // Set width to match_parent
-        int height = LinearLayout.LayoutParams.WRAP_CONTENT;
+        int height = LinearLayout.LayoutParams.MATCH_PARENT; // Use match_parent so ListView can scroll properly
         boolean focusable = true; // lets taps outside the popup also dismiss it
         final PopupWindow popupWindow = new PopupWindow(popupView, width, height, focusable);
 
@@ -380,25 +431,18 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         popupWindow.setBackgroundDrawable(new ColorDrawable(Color.WHITE));
         popupWindow.setElevation(10.0f); // Adds shadow effect
 
-        ImageView btnClose = popupView.findViewById(R.id.btnClose);
-        btnClose.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                popupWindow.dismiss();
-            }
-        });
-        
-        // Initialize chip references for the popup
-        ChipGroup popupChipGroupPrinters = popupView.findViewById(R.id.chipGroup_printers);
-        Chip popupChipReceipt = popupView.findViewById(R.id.chip_receipt);
-        Chip popupChipKitchen = popupView.findViewById(R.id.chip_kitchen);
+        // Setup toolbar navigation click listener
+        MaterialToolbar toolbar = popupView.findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            toolbar.setNavigationOnClickListener(v -> popupWindow.dismiss());
+        }
         
         // Check if printer is selected
         boolean printerAvailable = isPrinterSelected && selectedDevice != null;
         
         // Set up the ListView
         ListView listViewOrders = popupView.findViewById(R.id.listViewOrders);
-        OrdersAdapter adapter = new OrdersAdapter(this, ordersList, new OrdersAdapter.PrintButtonClickListener() {
+        OrdersAdapter adapter = new OrdersAdapter(this, displayOrdersList, new OrdersAdapter.PrintButtonClickListener() {
             @Override
             public void onPrintButtonClick(int position, String orderId) {
                 if (!printerAvailable) {
@@ -406,12 +450,12 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     return;
                 }
                 //print receipt
-                if (popupChipReceipt.isChecked()) {
-                    TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
+                if (chipReceipt.isChecked()) {
+                    TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(displayOrdersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
                 }
                 // print receipt for kitchen
-                if (popupChipKitchen.isChecked()) {
-                    TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
+                if (chipKitchen.isChecked()) {
+                    TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(displayOrdersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
                 }
             }
         }, printerAvailable);
@@ -449,9 +493,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     }
     private void showUpdatePopup() {
         new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Update Available")
-                .setMessage("A new version of the app is available. Click update button to get latest version.")
-                .setPositiveButton("Update", (dialog, which) -> {
+                .setTitle(R.string.update_available)
+                .setMessage(R.string.update_available_message)
+                .setPositiveButton(R.string.update, (dialog, which) -> {
                     // URL to open
                     // Create an intent with ACTION_VIEW
                     Intent intent = new Intent(Intent.ACTION_VIEW);
@@ -460,7 +504,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     // Start the activity
                     startActivity(intent);
                 })
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -473,8 +517,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
     private void showExitConfirmationDialog() {
         new AlertDialog.Builder(this)
-                .setMessage("Are you sure you want to exit the app? It will stop any running process.")
-                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                .setMessage(R.string.exit_confirmation)
+                .setPositiveButton(R.string.yes, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         // Exit the app
                         stopService();
@@ -482,7 +526,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
                     }
                 })
-                .setNegativeButton("No", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -507,6 +551,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 Log.e("MainActivity", "Full Orders JSON: " + jsonObjectOrders.toString());
 
                 JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
+                Log.d("ReprintOrders", "API returned " + dataArrayOrders.length() + " orders");
                 JSONArray filteredOrders = DocketStringModeler.filterPrintableOrders(dataArrayOrders, printedOrders);
                 
                 // Count open orders (not completed - status_id != 5)
@@ -554,17 +599,21 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
                 Log.e("MainActivity", "Orders List Size: " + ordersList.size());
 
+                // Cache orders data for reprint functionality
+                cachedOrdersList = ordersList;
+                cachedJsonObjectMenus = jsonObjectMenus;
+                cachedJsonObjectCategories = jsonObjectCategories;
+                
+                Log.d("ReprintOrders", "Cached orders for reprint: " + cachedOrdersList.size());
+
+                // Show popup automatically if requested (e.g., from DashboardActivity)
+                if (shouldShowReprintPopup && !ordersList.isEmpty()) {
+                    shouldShowReprintPopup = false;
+                    showOrdersPopup(ordersList, jsonObjectMenus, jsonObjectCategories);
+                }
+
             } catch (JSONException e) {
                 showError("JSON Error: " + e.getMessage());
-            }
-
-            // Show the popup when the button is clicked, only if ordersList is not empty
-            if (!ordersList.isEmpty()) {
-                JSONObject finalJsonObjectMenus = jsonObjectMenus;
-                JSONObject finalJsonObjectCategories = jsonObjectCategories;
-                button_reprint.setOnClickListener(v -> showOrdersPopup(ordersList, finalJsonObjectMenus, finalJsonObjectCategories));
-            } else {
-                showError("No printable orders found");
             }
         } else {
             showError("Failed to fetch data from web service");
@@ -642,9 +691,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 if (manualOpen) {
                     runOnUiThread(() -> {
                         AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                        alertDialog.setTitle("Bluetooth Error");
-                        alertDialog.setMessage("Bluetooth is not enabled or not available. Please enable Bluetooth and try again.");
-                        alertDialog.setPositiveButton("OK", null);
+                        alertDialog.setTitle(R.string.bluetooth_error);
+                        alertDialog.setMessage(R.string.bluetooth_error_message);
+                        alertDialog.setPositiveButton(R.string.ok, null);
                         alertDialog.show();
                     });
                 }
@@ -656,9 +705,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 if (manualOpen) {
                     runOnUiThread(() -> {
                         AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                        alertDialog.setTitle("No Bluetooth Printers Found");
-                        alertDialog.setMessage("No paired Bluetooth printers found. Please pair a printer in Bluetooth settings first.");
-                        alertDialog.setPositiveButton("OK", null);
+                        alertDialog.setTitle(R.string.no_bluetooth_printers_found);
+                        alertDialog.setMessage(R.string.no_bluetooth_printers_message);
+                        alertDialog.setPositiveButton(R.string.ok, null);
                         alertDialog.show();
                     });
                 }
@@ -705,7 +754,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             // Show dialog if selectedIndex is invalid (manual selection)
             runOnUiThread(() -> {
                 AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                alertDialog.setTitle("Bluetooth printer selection");
+                alertDialog.setTitle(R.string.bluetooth_printer_selection);
                 alertDialog.setItems(
                         items,
                         (dialogInterface, i1) -> {
@@ -766,7 +815,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             int buttonColor = ContextCompat.getColor(this, R.color.light_green);
             if (button_ti_print != null) {
                 button_ti_print.setBackgroundColor(buttonColor);
-                button_ti_print.setText("Drucker ist Aktiv");
+                button_ti_print.setText(R.string.printer_active);
             }
             // Acquire wake lock to keep CPU running
             //MyWakeLockManager.acquireFullWakeLock(this); //TODO: remove as depricated
@@ -799,7 +848,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
             if (button_ti_print != null) {
                 button_ti_print.setBackgroundColor(buttonColor);
-                button_ti_print.setText("Drucker ist inaktiv");
+                button_ti_print.setText(R.string.printer_inactive);
             }
 
             // Release wake lock to allow CPU to sleep
@@ -849,7 +898,7 @@ private void restartWebservice(int buttonColor){
                 int buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
                 if (button_ti_print != null) {
                     button_ti_print.setBackgroundColor(buttonColor);
-                    button_ti_print.setText("Drucker ist Aktiv");
+                    button_ti_print.setText(R.string.printer_active);
                 }
                 MyWakeLockManager.acquireFullWakeLock(this);
                 Log.d("MainActivity", "Wake lock acquired");
@@ -861,7 +910,7 @@ private void restartWebservice(int buttonColor){
                 int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
                 if (button_ti_print != null) {
                     button_ti_print.setBackgroundColor(buttonColor);
-                    button_ti_print.setText("Drucker ist inaktiv");
+                    button_ti_print.setText(R.string.printer_inactive);
                 }
                 MyWakeLockManager.releaseFullWakeLock();
                 Log.d("MainActivity", "Wake lock released");
@@ -953,7 +1002,7 @@ private void restartWebservice(int buttonColor){
                                 changeColorOfButton(R.color.light_green, button_ti_print);
                                 Toast.makeText(context, R.string.printer_connection_reactivated_text, Toast.LENGTH_SHORT).show();
                                 isLongerConnectionTime = false; // stop restarting the service
-                                button_ti_print.setText("Drucker ist Aktiv");
+                                button_ti_print.setText(R.string.printer_active);
                                 //change button color
                                 WebViewDialogFragment webViewDialogFragment =
                                         (WebViewDialogFragment) fragmentManager.findFragmentByTag("dialog_webview");
@@ -1074,7 +1123,7 @@ private void restartWebservice(int buttonColor){
         clearWebViewCookies();
         
         // Reset UI
-        if (textview_ti_header != null) textview_ti_header.setText("Please Login");
+        if (textview_ti_header != null) textview_ti_header.setText(R.string.login_text);
         if (button_ti_login != null) button_ti_login.setVisibility(View.VISIBLE);
         if (button_ti_logout != null) button_ti_logout.setVisibility(View.GONE);
         
