@@ -101,6 +101,13 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         // Setup RecyclerView
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         recyclerViewOrders.setLayoutManager(layoutManager);
+        
+        // Load printer configuration first to determine printer availability
+        loadPrinterConfiguration();
+        
+        // Check if printer is selected
+        boolean printerAvailable = selectedDevice != null;
+        
         orderAdapter = new KitchenOrderAdapter(new ArrayList<>(), new KitchenOrderAdapter.PrintButtonClickListener() {
             @Override
             public void onPrintButtonClick(JSONObject order) {
@@ -111,7 +118,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             public void onStatusChangeClick(JSONObject order, String statusName) {
                 updateSingleOrderStatus(order, statusName);
             }
-        }, this);
+        }, this, printerAvailable);
         recyclerViewOrders.setAdapter(orderAdapter);
         
         // Add scroll listener for pagination
@@ -173,8 +180,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         // Load shop configuration
         loadShopConfiguration();
         
-        // Load printer configuration
-        loadPrinterConfiguration();
+        // Printer configuration is already loaded above, before adapter initialization
         
         // Start initial data load
         refreshOrders();
@@ -229,6 +235,11 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             if (bluetoothDevicesList != null && storedPrinterIndex < bluetoothDevicesList.length) {
                 selectedDevice = bluetoothDevicesList[storedPrinterIndex];
             }
+        }
+        
+        // Update adapter with printer availability (if adapter has been initialized)
+        if (orderAdapter != null) {
+            orderAdapter.setPrinterAvailable(selectedDevice != null);
         }
     }
     

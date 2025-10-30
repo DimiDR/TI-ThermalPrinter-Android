@@ -30,6 +30,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     private PrintButtonClickListener printListener;
     private StatusChangeClickListener statusChangeListener;
     private ReceiptPreviewClickListener receiptPreviewListener;
+    private boolean printerAvailable = true;
     
     public interface PrintButtonClickListener {
         void onPrintButtonClick(JSONObject order);
@@ -63,6 +64,19 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         this.printListener = printListener;
         this.statusChangeListener = statusChangeListener;
         this.receiptPreviewListener = receiptPreviewListener;
+    }
+    
+    public KitchenOrderAdapter(List<JSONObject> orders, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener, boolean printerAvailable) {
+        this.orders = orders != null ? orders : new ArrayList<>();
+        this.printListener = printListener;
+        this.statusChangeListener = statusChangeListener;
+        this.receiptPreviewListener = receiptPreviewListener;
+        this.printerAvailable = printerAvailable;
+    }
+    
+    public void setPrinterAvailable(boolean available) {
+        this.printerAvailable = available;
+        notifyDataSetChanged();
     }
     
     public void updateOrders(List<JSONObject> newOrders, JSONObject menusData, JSONObject categoriesData) {
@@ -130,7 +144,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
         JSONObject order = orders.get(position);
         try {
-            holder.bind(order, menusData, categoriesData, printListener, statusChangeListener, receiptPreviewListener);
+            holder.bind(order, menusData, categoriesData, printListener, statusChangeListener, receiptPreviewListener, printerAvailable);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -183,7 +197,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             btnViewReceipt = itemView.findViewById(R.id.btnViewReceipt);
         }
         
-        public void bind(JSONObject order, JSONObject menusData, JSONObject categoriesData, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener) throws JSONException {
+        public void bind(JSONObject order, JSONObject menusData, JSONObject categoriesData, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener, boolean printerAvailable) throws JSONException {
             // Check if order has attributes object (JSON:API format)
             JSONObject attributes = order.optJSONObject("attributes");
             JSONObject orderData = attributes != null ? attributes : order;
@@ -275,6 +289,13 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                         printListener.onPrintButtonClick(order);
                     }
                 });
+                // Enable/disable print button based on printer availability
+                buttonPrint.setEnabled(printerAvailable);
+                if (!printerAvailable) {
+                    buttonPrint.setAlpha(0.5f); // Make button appear disabled
+                } else {
+                    buttonPrint.setAlpha(1.0f); // Make button appear enabled
+                }
             }
             
             // Set up status change button click listeners

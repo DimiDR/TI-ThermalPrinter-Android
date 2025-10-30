@@ -5,6 +5,7 @@
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
     <string name="login_button">Einloggen</string>
+    <string name="authenticating">Authentifizierung läuft...</string>
     <string name="homepage_button">Homepage</string>
     <string name="test_print_button">Test Druck</string>
     <string name="kitchen_display_button">Küchenanzeige</string>
@@ -26,6 +27,23 @@
     <string name="printer_connection_reactivated_text">Verbindung zum Drucker hergestellt</string>
     <string name="no_user_error_text">FEHLER: Der Benutzer wurde nicht gefunden</string>
     <string name="wrong_password_error_text">FEHLER: falsches Passwort</string>
+    <string name="authentication_failed">Authentifizierung fehlgeschlagen</string>
+    
+    <!-- Network & Login Validation Errors -->
+    <string name="no_internet_warning">⚠️ Keine Internetverbindung erkannt!\n\nBitte aktivieren Sie WiFi oder mobile Daten vor dem Anmelden.</string>
+    <string name="no_internet_error">Keine Internetverbindung!\n\nBitte überprüfen Sie:\n• WiFi ist eingeschaltet\n• Mobile Daten sind aktiviert\n• Sie sind mit einem Netzwerk verbunden</string>
+    <string name="domain_required">Bitte geben Sie eine Domain-URL ein</string>
+    <string name="invalid_domain">Ungültige Domain-URL. Bitte überprüfen Sie auf zusätzliche Leerzeichen.</string>
+    <string name="network_error_occurred">Netzwerkfehler aufgetreten. Bitte überprüfen Sie Ihre Internetverbindung.</string>
+    <string name="dns_resolution_failed">DNS-Auflösung fehlgeschlagen\n\nHostname kann nicht aufgelöst werden: %1$s\n\nBitte überprüfen Sie:\n• Ihre Internetverbindung ist aktiv\n• Die Domain ist korrekt: %2$s\n• Versuchen Sie, die Domain in einem Webbrowser zu öffnen\n• Überprüfen Sie, ob Sie hinter einer Firewall oder einem VPN sind\n• Versuchen Sie, zwischen WiFi und mobilen Daten zu wechseln</string>
+    <string name="dns_resolution_failed_no_network">DNS-Auflösung fehlgeschlagen\n\nHostname kann nicht aufgelöst werden: %1$s\n\n⚠️ Keine Netzwerkverbindung erkannt!\n\nBitte überprüfen Sie:\n• Ihre Internetverbindung ist aktiv\n• Die Domain ist korrekt: %2$s\n• Versuchen Sie, die Domain in einem Webbrowser zu öffnen\n• Überprüfen Sie, ob Sie hinter einer Firewall oder einem VPN sind\n• Versuchen Sie, zwischen WiFi und mobilen Daten zu wechseln</string>
+    <string name="connection_timeout">Verbindungszeitüberschreitung. Der Server hat zu lange benötigt, um zu antworten. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.</string>
+    <string name="connection_refused">Verbindung abgelehnt. Der Server ist möglicherweise nicht erreichbar oder akzeptiert keine Verbindungen.</string>
+    <string name="ssl_tls_error">SSL/TLS-Fehler. Bitte überprüfen Sie, ob das Sicherheitszertifikat des Servers gültig ist.</string>
+    <string name="network_unreachable">Netzwerk nicht erreichbar. Bitte überprüfen Sie Ihre Internetverbindung.</string>
+    <string name="invalid_url_format">Ungültiges URL-Format: %1$s. Bitte überprüfen Sie die Domain auf Tippfehler oder zusätzliche Leerzeichen.</string>
+    <string name="invalid_domain_spaces">Ungültige Domain-URL. Bitte überprüfen Sie auf zusätzliche Leerzeichen oder ungültige Zeichen.</string>
+    <string name="unknown_error">Unbekannter Fehler</string>
     
     <!-- Kitchen Order Card Strings -->
     <string name="order_items_label">Bestellte Artikel:</string>

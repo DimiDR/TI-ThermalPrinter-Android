@@ -88,6 +88,9 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         // Setup button listeners
         setupButtonListeners();
         
+        // Update button states based on printer availability
+        updateButtonStates();
+        
         // Load initial data
         refreshData();
         
@@ -169,6 +172,13 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         });
         
         buttonTestPrint.setOnClickListener(v -> {
+            // Check if printer is available before navigating
+            SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+            int storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
+            if (storedPrinterIndex < 0) {
+                Toast.makeText(this, "No printer selected. Please configure printer in settings.", Toast.LENGTH_LONG).show();
+                return;
+            }
             // Navigate to MainActivity for test print
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("action", "test_print");
@@ -176,6 +186,22 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         });
         
         buttonRefresh.setOnClickListener(v -> refreshData());
+    }
+    
+    private void updateButtonStates() {
+        // Update Test Print button state based on printer availability
+        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+        int storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
+        boolean printerAvailable = storedPrinterIndex >= 0;
+        
+        if (buttonTestPrint != null) {
+            buttonTestPrint.setEnabled(printerAvailable);
+            if (!printerAvailable) {
+                buttonTestPrint.setAlpha(0.5f); // Make button appear disabled
+            } else {
+                buttonTestPrint.setAlpha(1.0f); // Make button appear enabled
+            }
+        }
     }
     
     private void refreshData() {
@@ -322,5 +348,6 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         super.onResume();
         startAutoRefresh();
         updateSystemStatus();
+        updateButtonStates();
     }
 }

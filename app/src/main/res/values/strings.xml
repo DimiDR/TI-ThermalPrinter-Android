@@ -10,6 +10,7 @@
     <string name="login_text">Please Login</string>
     <string name="login_required">Login Required</string>
     <string name="login_description">Enter your TastyIgniter credentials to access the restaurant management system.</string>
+    <string name="authenticating">Authenticating...</string>
     <string name="select_shop">Select Shop</string>
     <string name="username">Username</string>
     <string name="password">Password</string>
@@ -96,6 +97,22 @@
     <string name="no_printer_selected">No printer selected. Please configure printer in main app.</string>
     <string name="print_failed">Print failed</string>
     <string name="print_successful">Print successful</string>
+    
+    <!-- Network & Login Validation Errors -->
+    <string name="no_internet_warning">⚠️ No internet connection detected!\n\nPlease enable WiFi or mobile data before logging in.</string>
+    <string name="no_internet_error">No internet connection!\n\nPlease check:\n• WiFi is turned on\n• Mobile data is enabled\n• You are connected to a network</string>
+    <string name="domain_required">Please enter a domain URL</string>
+    <string name="invalid_domain">Invalid domain URL. Please check for extra spaces.</string>
+    <string name="network_error_occurred">Network error occurred. Please check your internet connection.</string>
+    <string name="dns_resolution_failed">DNS Resolution Failed\n\nCannot resolve hostname: %1$s\n\nPlease check:\n• Your internet connection is active\n• The domain is correct: %2$s\n• Try accessing the domain in a web browser\n• Check if you\'re behind a firewall or VPN\n• Try switching between WiFi and mobile data</string>
+    <string name="dns_resolution_failed_no_network">DNS Resolution Failed\n\nCannot resolve hostname: %1$s\n\n⚠️ No network connection detected!\n\nPlease check:\n• Your internet connection is active\n• The domain is correct: %2$s\n• Try accessing the domain in a web browser\n• Check if you\'re behind a firewall or VPN\n• Try switching between WiFi and mobile data</string>
+    <string name="connection_timeout">Connection timeout. The server took too long to respond. Please check your internet connection and try again.</string>
+    <string name="connection_refused">Connection refused. The server may be down or not accepting connections.</string>
+    <string name="ssl_tls_error">SSL/TLS error. Please verify the server\'s security certificate is valid.</string>
+    <string name="network_unreachable">Network unreachable. Please check your internet connection.</string>
+    <string name="invalid_url_format">Invalid URL format: %1$s. Please check the domain for typos or extra spaces.</string>
+    <string name="invalid_domain_spaces">Invalid domain URL. Please check for extra spaces or invalid characters.</string>
+    <string name="unknown_error">Unknown error</string>
     
     <!-- Accessibility -->
     <string name="close_kitchen_display">Close Kitchen Display</string>

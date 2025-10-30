@@ -18,6 +18,7 @@ public class OrdersAdapter extends ArrayAdapter<JSONObject> {
     private final Context context;
     private final List<JSONObject> orders;
     private final PrintButtonClickListener listener;
+    private final boolean printerAvailable;
 
 
     public interface PrintButtonClickListener {
@@ -29,7 +30,15 @@ public class OrdersAdapter extends ArrayAdapter<JSONObject> {
         this.context = context;
         this.orders = orders;
         this.listener = listener;
+        this.printerAvailable = true; // Default to enabled for backward compatibility
+    }
 
+    public OrdersAdapter(Context context, List<JSONObject> orders, PrintButtonClickListener listener, boolean printerAvailable) {
+        super(context, 0, orders);
+        this.context = context;
+        this.orders = orders;
+        this.listener = listener;
+        this.printerAvailable = printerAvailable;
     }
 
     @Override
@@ -65,6 +74,14 @@ public class OrdersAdapter extends ArrayAdapter<JSONObject> {
             String orderID = order.optString("id");
             listener.onPrintButtonClick(position, orderID);
         });
+        
+        // Enable/disable print button based on printer availability
+        buttonPrint.setEnabled(printerAvailable);
+        if (!printerAvailable) {
+            buttonPrint.setAlpha(0.5f); // Make button appear disabled
+        } else {
+            buttonPrint.setAlpha(1.0f); // Make button appear enabled
+        }
 
 
         return convertView;

@@ -14,6 +14,8 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.media.MediaPlayer;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -147,16 +149,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (toolbar != null) {
             setSupportActionBar(toolbar);
             if (getSupportActionBar() != null) {
-                getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-                getSupportActionBar().setDisplayShowHomeEnabled(true);
+                getSupportActionBar().setDisplayHomeAsUpEnabled(false);
+                getSupportActionBar().setDisplayShowHomeEnabled(false);
             }
-            
-            toolbar.setNavigationOnClickListener(v -> {
-                // Navigate back to Kitchen Display
-                Intent intent = new Intent(this, KitchenDisplayActivity.class);
-                startActivity(intent);
-                finish();
-            });
         } else {
             Log.e("MainActivity", "Toolbar not found! Check if R.id.toolbar exists in the layout");
         }
@@ -249,7 +244,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     public void initilizeURLs() {
         // Check for persistent login
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-        shop_id = sharedPreferences.getInt("shop_id", 0);
         String savedDomain = sharedPreferences.getString("domain_shop", "");
         String savedToken = sharedPreferences.getString("token", "");
 
@@ -257,8 +251,11 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
         storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
         browseBluetoothDevice(storedPrinterIndex, false);
+        
+        // Update test print button state after printer selection attempt
+        updateTestPrintButtonState();
 
-        if (shop_id == 0 || savedDomain.isEmpty() || savedToken.isEmpty()) {
+        if (savedDomain.isEmpty() || savedToken.isEmpty()) {
             // No persistent login found, show login dialog
             LoginUser();
             return;
@@ -271,7 +268,14 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             public void onTokenGenerated(String token) {
                 // Token is valid, proceed with auto-login
                 runOnUiThread(() -> {
-                    loadShopConfiguration(savedDomain);
+                    // Configure from stored domain and location
+                    domain_shop = savedDomain;
+                    location_id = sharedPreferences.getInt("location_id", 1);
+                    shop_name = savedDomain;
+                    if (textview_ti_header != null) textview_ti_header.setText(shop_name);
+                    tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
+                    tiMenusEndpointURL = domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
+                    tiCategoriesEndpointURL = domain_shop + "/api/categories?location=" + location_id;
                     enableAllButtons();
                     
                     // Start initial refresh after 1 second delay
@@ -317,13 +321,19 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (button_ti_print != null) button_ti_print.setEnabled(true);
         if (button_ti_clear_ids != null) button_ti_clear_ids.setEnabled(true);
         if (button_ti_native_kitchen != null) button_ti_native_kitchen.setEnabled(true);
-        if (button_ti_testprint != null) button_ti_testprint.setEnabled(true);
+        updateTestPrintButtonState();
         if (button_reprint != null) button_reprint.setEnabled(true);
         
         // Show logout button and hide login button
         if (button_ti_login != null) button_ti_login.setVisibility(View.GONE);
         if (button_ti_logout != null) button_ti_logout.setVisibility(View.VISIBLE);
         
+    }
+    
+    void updateTestPrintButtonState() {
+        if (button_ti_testprint != null) {
+            button_ti_testprint.setEnabled(isPrinterSelected && selectedDevice != null);
+        }
     }
 
     private void clearStoredLogin() {
@@ -383,11 +393,18 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         Chip popupChipReceipt = popupView.findViewById(R.id.chip_receipt);
         Chip popupChipKitchen = popupView.findViewById(R.id.chip_kitchen);
         
+        // Check if printer is selected
+        boolean printerAvailable = isPrinterSelected && selectedDevice != null;
+        
         // Set up the ListView
         ListView listViewOrders = popupView.findViewById(R.id.listViewOrders);
         OrdersAdapter adapter = new OrdersAdapter(this, ordersList, new OrdersAdapter.PrintButtonClickListener() {
             @Override
             public void onPrintButtonClick(int position, String orderId) {
+                if (!printerAvailable) {
+                    Toast.makeText(context, R.string.select_printer_text, Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 //print receipt
                 if (popupChipReceipt.isChecked()) {
                     TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
@@ -397,7 +414,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(ordersList.get(position), jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderId);
                 }
             }
-        });
+        }, printerAvailable);
         listViewOrders.setAdapter(adapter);
 
         // Show the popup window
@@ -417,6 +434,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     protected void onResume() {
         super.onResume();
         updateUIBasedOnServiceStatus(); //TODO check if needed
+        
+        // Update test print button state when activity resumes
+        updateTestPrintButtonState();
         
         // Check if KitchenDisplayActivity was closed and restart timer if needed
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
@@ -617,42 +637,73 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         this.checkBluetoothPermissions(() -> {
             final BluetoothConnection[] bluetoothDevicesList = (new BluetoothPrintersConnections()).getList();
 
-            if (bluetoothDevicesList != null) {
-                final String[] items = new String[bluetoothDevicesList.length];
-                int i = 0;
-                for (BluetoothConnection device : bluetoothDevicesList) {
-                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                        return;
-                    }
-                    items[i] = device.getDevice().getName();
-                    i++;
+            // Handle null case (Bluetooth disabled or not available)
+            if (bluetoothDevicesList == null) {
+                if (manualOpen) {
+                    runOnUiThread(() -> {
+                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
+                        alertDialog.setTitle("Bluetooth Error");
+                        alertDialog.setMessage("Bluetooth is not enabled or not available. Please enable Bluetooth and try again.");
+                        alertDialog.setPositiveButton("OK", null);
+                        alertDialog.show();
+                    });
                 }
+                return;
+            }
 
-                // Auto-select the device based on selectedIndex if it's within range
-                if (selectedIndex >= 0 && selectedIndex < bluetoothDevicesList.length) {
-                    selectedDevice = bluetoothDevicesList[selectedIndex];
-                    isPrinterSelected = true;
-
-                    // Update button appearance and store the selected index
-                    int buttonColor = ContextCompat.getColor(this, R.color.light_green);
-                    button_bluetooth_browse.setBackgroundColor(buttonColor);
-
-                    // Save the selected index in SharedPreferences
-                    SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
-                    SharedPreferences.Editor editor = prefs.edit();
-                    editor.putInt("stored_index_printer", selectedIndex);
-                    editor.apply();  // Save the index asynchronously
-
-                    // Set button text to the selected device's name
-                    Button button = findViewById(R.id.button_bluetooth_browse);
-                    button.setText(items[selectedIndex]);
-
-                    return; // Return after auto-selection to skip showing the dialog
+            // Handle empty array case (no printers found)
+            if (bluetoothDevicesList.length == 0) {
+                if (manualOpen) {
+                    runOnUiThread(() -> {
+                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
+                        alertDialog.setTitle("No Bluetooth Printers Found");
+                        alertDialog.setMessage("No paired Bluetooth printers found. Please pair a printer in Bluetooth settings first.");
+                        alertDialog.setPositiveButton("OK", null);
+                        alertDialog.show();
+                    });
                 }
-                if (!manualOpen){ // prevents opening of dialog onInit
+                return;
+            }
+
+            final String[] items = new String[bluetoothDevicesList.length];
+            int i = 0;
+            for (BluetoothConnection device : bluetoothDevicesList) {
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                     return;
                 }
-                // Show dialog if selectedIndex is invalid (manual selection)
+                items[i] = device.getDevice().getName();
+                i++;
+            }
+
+            // Auto-select the device based on selectedIndex if it's within range
+            if (selectedIndex >= 0 && selectedIndex < bluetoothDevicesList.length) {
+                selectedDevice = bluetoothDevicesList[selectedIndex];
+                isPrinterSelected = true;
+
+                // Update button appearance and store the selected index
+                int buttonColor = ContextCompat.getColor(this, R.color.light_green);
+                button_bluetooth_browse.setBackgroundColor(buttonColor);
+
+                // Save the selected index in SharedPreferences
+                SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putInt("stored_index_printer", selectedIndex);
+                editor.apply();  // Save the index asynchronously
+
+                // Set button text to the selected device's name
+                Button button = findViewById(R.id.button_bluetooth_browse);
+                button.setText(items[selectedIndex]);
+
+                // Update test print button state
+                updateTestPrintButtonState();
+
+                return; // Return after auto-selection to skip showing the dialog
+            }
+            if (!manualOpen){ // prevents opening of dialog onInit
+                return;
+            }
+            // Show dialog if selectedIndex is invalid (manual selection)
+            runOnUiThread(() -> {
                 AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
                 alertDialog.setTitle("Bluetooth printer selection");
                 alertDialog.setItems(
@@ -673,12 +724,15 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                             // Update button text to the selected device name
                             Button button = findViewById(R.id.button_bluetooth_browse);
                             button.setText(items[i1]);
+
+                            // Update test print button state
+                            updateTestPrintButtonState();
                         }
                 );
 
                 AlertDialog alert = alertDialog.create();
                 alert.show();
-            }
+            });
         });
     }
 
@@ -1072,11 +1126,25 @@ private void restartWebservice(int buttonColor){
     public static class LoginUserDialogFragment extends DialogFragment {
         private Button okButton;
         private TextView etError;
-        private Spinner spinnerDomain;
+        private EditText etDomain;
         private EditText etUsername;
         private EditText etPassword;
-        private List<ShopConfigUtils.Shop> shops;
-        private ArrayAdapter<String> shopAdapter;
+        
+        /**
+         * Check if internet connectivity is available
+         */
+        private boolean isInternetAvailable() {
+            try {
+                ConnectivityManager connectivityManager = (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
+                if (connectivityManager != null) {
+                    NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+                    return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+                }
+            } catch (Exception e) {
+                Log.e("LoginUserDialogFragment", "Error checking internet connectivity", e);
+            }
+            return false;
+        }
         
         @NonNull
         @Override
@@ -1087,40 +1155,31 @@ private void restartWebservice(int buttonColor){
 
             okButton = view.findViewById(R.id.button_ok);
             Button cancelButton = view.findViewById(R.id.button_cancel);
-            spinnerDomain = view.findViewById(R.id.spinnerDomain);
+            etDomain = view.findViewById(R.id.etDomain);
             etUsername = view.findViewById(R.id.etUsername);
             etPassword = view.findViewById(R.id.etPassword);
             etError = view.findViewById(R.id.popup_error);
-
-            // Load shops and populate spinner
-            shops = ShopConfigUtils.getShops(getActivity());
-            List<String> shopNames = new ArrayList<>();
-            for (ShopConfigUtils.Shop shop : shops) {
-                shopNames.add(shop.shop_name);
-            }
             
-            shopAdapter = new ArrayAdapter<>(getActivity(), android.R.layout.simple_spinner_item, shopNames);
-            shopAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerDomain.setAdapter(shopAdapter);
-            
-            // Preselect last logged in shop
+            // Prefill last domain if available
             SharedPreferences sharedPreferences = getActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
             String lastDomain = sharedPreferences.getString("domain_shop", "");
             if (!lastDomain.isEmpty()) {
-                for (int i = 0; i < shops.size(); i++) {
-                    if (shops.get(i).domain_shop.equals(lastDomain)) {
-                        spinnerDomain.setSelection(i);
-                        break;
-                    }
-                }
+                etDomain.setText(lastDomain);
+            }
+            
+            // Check internet connectivity when dialog opens
+            if (!isInternetAvailable()) {
+                etError.setVisibility(View.VISIBLE);
+                etError.setText(getString(R.string.no_internet_warning));
             }
 
             okButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    String domainInput = etDomain.getText().toString();
                     String username = etUsername.getText().toString(); //TODO wenn man Enter Druckt dann entsteht eine neue Zeile
                     String password = etPassword.getText().toString();
-                    String validCredentials = checkValidCredentials(username, password);
+                    String validCredentials = checkValidCredentials(domainInput, username, password);
                     if (validCredentials.equals("OK")) {
                         //reinitialize the variables
                         ((MainActivity)getActivity()).initilizeURLs();
@@ -1129,7 +1188,7 @@ private void restartWebservice(int buttonColor){
                         button_ti_print.setEnabled(true);
                         button_ti_clear_ids.setEnabled(true);
                         button_reprint.setEnabled(true);
-                        button_ti_testprint.setEnabled(true);
+                        ((MainActivity)getActivity()).updateTestPrintButtonState();
                         dismiss();
                     } else {
                         // activate the error text in the popup
@@ -1149,24 +1208,46 @@ private void restartWebservice(int buttonColor){
             return builder.create();
         }
 
-        private String checkValidCredentials(String username, String password) {
+        private String checkValidCredentials(String domainInput, String username, String password) {
             // Show loading state
             etError.setVisibility(View.GONE);
             okButton.setEnabled(false);
-            okButton.setText("Authenticating...");
-
-            // Get selected shop from spinner
-            int selectedPosition = spinnerDomain.getSelectedItemPosition();
-            if (selectedPosition == -1 || selectedPosition >= shops.size()) {
+            okButton.setText(getString(R.string.authenticating));
+            
+            // Check internet connectivity first
+            if (!isInternetAvailable()) {
                 etError.setVisibility(View.VISIBLE);
-                etError.setText("Please select a shop");
+                etError.setText(getString(R.string.no_internet_error));
                 okButton.setEnabled(true);
-                okButton.setText("Login");
-                return "SHOP_REQUIRED";
+                okButton.setText(getString(R.string.login_button));
+                return "NO_INTERNET";
             }
-
-            ShopConfigUtils.Shop selectedShop = shops.get(selectedPosition);
-            final String finalDomain = selectedShop.domain_shop;
+            
+            // Validate domain input
+            if (domainInput == null || domainInput.trim().isEmpty()) {
+                etError.setVisibility(View.VISIBLE);
+                etError.setText(getString(R.string.domain_required));
+                okButton.setEnabled(true);
+                okButton.setText(getString(R.string.login_button));
+                return "DOMAIN_REQUIRED";
+            }
+            // Normalize domain: remove all whitespace, trailing slashes, and ensure proper format
+            String domainNormalized = domainInput.trim().replaceAll("\\s+", ""); // remove all whitespace
+            domainNormalized = domainNormalized.replaceAll("/+$", ""); // remove trailing slashes
+            
+            // Validate URL format
+            if (domainNormalized.isEmpty()) {
+                etError.setVisibility(View.VISIBLE);
+                etError.setText(getString(R.string.invalid_domain));
+                okButton.setEnabled(true);
+                okButton.setText(getString(R.string.login_button));
+                return "INVALID_DOMAIN";
+            }
+            
+            if (!domainNormalized.startsWith("http://") && !domainNormalized.startsWith("https://")) {
+                domainNormalized = "https://" + domainNormalized;
+            }
+            final String finalDomain = domainNormalized;
 
             // Authenticate with TastyIgniter API
             NetworkHelper networkHelper = new NetworkHelper(getActivity());
@@ -1175,51 +1256,44 @@ private void restartWebservice(int buttonColor){
                 public void onTokenGenerated(String token) {
                     // Authentication successful
                     getActivity().runOnUiThread(() -> {
-                        // Find matching shop configuration
-                        ShopConfigUtils.Shop matchingShop = ShopConfigUtils.getShopByDomain(getActivity(), finalDomain);
-                        if (matchingShop != null) {
-                            // Save login data
-                            SharedPreferences sharedPreferences = getActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-                            SharedPreferences.Editor editor = sharedPreferences.edit();
-                            editor.putInt("shop_id", matchingShop.shop_id);
-                            editor.putString("domain_shop", matchingShop.domain_shop);
-                            editor.putString("token", token);
-                            editor.putString("username", username);
-                            editor.putString("password", password);
-                            editor.apply();
-
-                            // Update global variables
-                            shop_id = matchingShop.shop_id;
-                            domain_shop = matchingShop.domain_shop;
-                            domain_website = matchingShop.domain_website;
-                            shop_name = matchingShop.shop_name;
-                            location_id = matchingShop.location_id;
-                            textview_ti_header.setText(shop_name);
-
-                            // Set API endpoints
-                            tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
-                            tiMenusEndpointURL = domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
-                            tiCategoriesEndpointURL = domain_shop + "/api/categories?location=" + location_id;
-
-                            // Reinitialize URLs and enable buttons
-                            ((MainActivity) getActivity()).initilizeURLs();
-                            button_bluetooth_browse.setEnabled(true);
-                            button_ti_print.setEnabled(true);
-                            button_ti_clear_ids.setEnabled(true);
-                            button_reprint.setEnabled(true);
-                            button_ti_testprint.setEnabled(true);
-                            dismiss();
-                            
-                            // Navigate to Kitchen Display after successful login
-                            Intent intent = new Intent(getActivity(), KitchenDisplayActivity.class);
-                            startActivity(intent);
-                            getActivity().finish();
-                        } else {
-                            etError.setVisibility(View.VISIBLE);
-                            etError.setText("Shop configuration not found for this domain");
-                            okButton.setEnabled(true);
-                            okButton.setText("Login");
+                        // Save login data with manual domain
+                        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.putInt("shop_id", 1); // legacy field, no longer used for selection
+                        editor.putString("domain_shop", finalDomain);
+                        editor.putString("token", token);
+                        editor.putString("username", username);
+                        editor.putString("password", password);
+                        // set a default location_id if absent
+                        if (!sharedPreferences.contains("location_id")) {
+                            editor.putInt("location_id", 1);
                         }
+                        editor.apply();
+
+                        // Update globals minimally
+                        domain_shop = finalDomain;
+                        shop_name = finalDomain; // show domain as header
+                        location_id = sharedPreferences.getInt("location_id", 1);
+                        if (textview_ti_header != null) textview_ti_header.setText(shop_name);
+
+                        // Set API endpoints
+                        tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
+                        tiMenusEndpointURL = domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
+                        tiCategoriesEndpointURL = domain_shop + "/api/categories?location=" + location_id;
+
+                        // Reinitialize URLs and enable buttons
+                        ((MainActivity) getActivity()).initilizeURLs();
+                        button_bluetooth_browse.setEnabled(true);
+                        button_ti_print.setEnabled(true);
+                        button_ti_clear_ids.setEnabled(true);
+                        button_reprint.setEnabled(true);
+                        ((MainActivity) getActivity()).updateTestPrintButtonState();
+                        dismiss();
+                        
+                        // Navigate to Kitchen Display after successful login
+                        Intent intent = new Intent(getActivity(), KitchenDisplayActivity.class);
+                        startActivity(intent);
+                        getActivity().finish();
                     });
                 }
 
@@ -1228,9 +1302,31 @@ private void restartWebservice(int buttonColor){
                     // Authentication failed
                     getActivity().runOnUiThread(() -> {
                         etError.setVisibility(View.VISIBLE);
-                        etError.setText("Authentication failed: " + exception.getMessage());
-                        okButton.setEnabled(true);
-                        okButton.setText("Login");
+                        String errorMsg = exception.getMessage();
+                        
+                        // Check if it's a no internet error (check both English and German)
+                        if (errorMsg != null && (errorMsg.contains("No internet connection") || 
+                            errorMsg.contains("Keine Internetverbindung"))) {
+                            etError.setText(getString(R.string.no_internet_error));
+                        }
+                        // Use the error message directly if it's already user-friendly (from NetworkHelper)
+                        // Check for both English and German error messages
+                        else if (errorMsg != null && (errorMsg.contains("Cannot connect") || 
+                            errorMsg.contains("Connection timeout") || 
+                            errorMsg.contains("Connection refused") ||
+                            errorMsg.contains("SSL/TLS") ||
+                            errorMsg.contains("DNS Resolution Failed") ||
+                            errorMsg.contains("DNS-Auflösung") ||
+                            errorMsg.contains("Verbindungszeitüberschreitung") ||
+                            errorMsg.contains("Verbindung abgelehnt") ||
+                            errorMsg.contains("SSL/TLS-Fehler") ||
+                            errorMsg.contains("Hostname kann nicht aufgelöst werden"))) {
+                            etError.setText(errorMsg);
+                        } else {
+                            etError.setText(getString(R.string.authentication_failed) + ": " + (errorMsg != null ? errorMsg : getString(R.string.unknown_error)));
+                        }
+            okButton.setEnabled(true);
+            okButton.setText(getString(R.string.login_button));
                     });
                 }
             });
@@ -1250,6 +1346,11 @@ private void restartWebservice(int buttonColor){
 
     @SuppressLint("SimpleDateFormat")
     public boolean TITestPrinter(boolean normal_click) {
+        if (selectedDevice == null || !isPrinterSelected) {
+            Toast.makeText(context, R.string.select_printer_text, Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        
         String print_info;
         print_info = DocketStringModeler.TITestPrinter(normal_click, selectedDevice, context);
 

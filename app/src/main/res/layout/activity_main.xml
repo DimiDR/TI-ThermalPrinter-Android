@@ -19,9 +19,7 @@
             android:layout_height="?attr/actionBarSize"
             android:background="@color/colorPrimary"
             app:title="Settings &amp; Configuration"
-            app:titleTextColor="@color/colorTextOnPrimary"
-            app:navigationIcon="@drawable/ic_arrow_back"
-            app:navigationIconTint="@color/colorTextOnPrimary" />
+            app:titleTextColor="@color/colorTextOnPrimary" />
 
     </com.google.android.material.appbar.AppBarLayout>
 

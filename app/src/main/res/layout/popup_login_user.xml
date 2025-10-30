@@ -51,22 +51,24 @@
 
         </LinearLayout>
 
-        <!-- Shop Selection -->
+        <!-- Domain URL Input -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:hint="Select Shop"
+            android:hint="Domain URL (e.g. https://example.com)"
             app:boxStrokeColor="@color/colorPrimary"
             app:hintTextColor="@color/colorPrimary"
-            app:startIconDrawable="@android:drawable/ic_menu_myplaces"
+            app:startIconDrawable="@android:drawable/ic_menu_set_as"
             app:startIconTint="@color/colorPrimary">
 
-            <Spinner
-                android:id="@+id/spinnerDomain"
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etDomain"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@android:color/transparent" />
+                android:inputType="textUri"
+                android:autofillHints="username"
+                android:textColor="@color/colorTextPrimary" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
