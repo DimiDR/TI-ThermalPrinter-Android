@@ -192,5 +192,32 @@
     <string name="order_id">Bestell-ID:</string>
     <string name="asap">SOFORT</string>
     <string name="collection">Abholung</string>
+    
+    <!-- Additional Strings -->
+    <string name="today_order_statistics">Heutige Bestellstatistik</string>
+    <string name="restaurant_name">Restaurant Name</string>
+    <string name="error_message_placeholder">Fehlermeldung</string>
+    <string name="domain_url_hint">Domain-URL (z.B. https://example.com)</string>
+    <string name="please_wait_orders">Bitte warten Sie, bis die Bestellungen geladen sind</string>
+    <string name="prep">Zubereitung</string>
+    <string name="done">Fertig</string>
+    <string name="print">Drucken</string>
+    <string name="delivery">LIEFERUNG</string>
+    <string name="cash">BAR</string>
+    <string name="scan_google_address">Google Adresse Scannen</string>
+    <string name="not_an_invoice">Dies ist keine Rechnung</string>
+    <string name="reset_print_title">Druck Zurücksetzen</string>
+    <string name="reset_print_description">Nach Zurücksetzen, können die &quot;Eingegangene&quot; Bestellungen nocheinmal ausgedruckt werden</string>
+    <string name="printer">Drucker</string>
+    <string name="monitoring">Überwachung</string>
+    <string name="zoom">Zoom</string>
+    <string name="close">Schließen</string>
+    <string name="view_receipt_content">Beleg anzeigen</string>
+    <string name="close_content">Schließen</string>
+    <string name="shop_name">Shop Name</string>
+    <string name="order_number">Bestellung #%1$s</string>
+    <string name="delivery_payment_total">Lieferung - Barzahlung - %1$s€</string>
+    <string name="asap_order_time">Sofort: am %1$s</string>
+    <string name="customer_information">Kundeninformation</string>
 
 </resources>

@@ -127,12 +127,25 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     
     private void setupToolbar() {
         setSupportActionBar(toolbar);
+        // Dashboard is the first screen, so back button should exit app
+        // Keep back button visible but remove navigation icon since it's the root
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setDisplayShowHomeEnabled(true);
+            getSupportActionBar().setDisplayHomeAsUpEnabled(false);
+            getSupportActionBar().setDisplayShowHomeEnabled(false);
         }
         
-        toolbar.setNavigationOnClickListener(v -> finish());
+        // Handle back button press to exit app
+        toolbar.setNavigationOnClickListener(v -> {
+            finish();
+        });
+        
+        // Override onBackPressed to exit app cleanly
+    }
+    
+    @Override
+    public void onBackPressed() {
+        // Exit app when back is pressed from Dashboard (first screen)
+        super.onBackPressed();
     }
     
     private void loadShopConfiguration() {

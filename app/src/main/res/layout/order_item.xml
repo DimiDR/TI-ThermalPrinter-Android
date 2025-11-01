@@ -72,14 +72,14 @@
             android:src="@drawable/ic_receipt"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="6dp"
-            android:contentDescription="View Receipt"
+            android:contentDescription="@string/view_receipt_content"
             app:tint="@color/colorPrimary" />
 
         <Button
             android:id="@+id/buttonPrint"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Print"
+            android:text="@string/print"
             android:textSize="14sp"
             android:background="@drawable/button_primary"
             android:textColor="@color/colorTextOnPrimary"

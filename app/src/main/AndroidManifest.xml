@@ -33,13 +33,13 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.dantsu.thermalprinter.MainActivity"/>
+            android:name="com.dantsu.thermalprinter.MainActivity"
+            android:parentActivityName="com.dantsu.thermalprinter.DashboardActivity" />
         <activity
             android:name="com.dantsu.thermalprinter.KitchenDisplayActivity"
-            android:parentActivityName="com.dantsu.thermalprinter.MainActivity" />
+            android:parentActivityName="com.dantsu.thermalprinter.DashboardActivity" />
         <activity
-            android:name="com.dantsu.thermalprinter.DashboardActivity"
-            android:parentActivityName="com.dantsu.thermalprinter.MainActivity" />
+            android:name="com.dantsu.thermalprinter.DashboardActivity" />
 
         <service android:name="com.dantsu.thermalprinter.helpClasses.MyBackgroundService" />
     </application>

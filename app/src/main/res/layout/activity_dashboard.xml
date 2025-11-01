@@ -17,10 +17,8 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/colorPrimary"
-            app:title="Dashboard"
-            app:titleTextColor="@color/colorTextOnPrimary"
-            app:navigationIcon="@drawable/ic_arrow_back"
-            app:navigationIconTint="@color/colorTextOnPrimary" />
+            app:title="@string/dashboard_title"
+            app:titleTextColor="@color/colorTextOnPrimary" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -58,7 +56,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Order Statistics"
+                        android:text="@string/today_order_statistics"
                         android:textSize="20sp"
                         android:textStyle="bold"
                         android:textColor="@color/colorTextPrimary"
@@ -93,7 +91,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Total Today"
+                                android:text="@string/total_today"
                                 android:textSize="12sp"
                                 android:textColor="@color/colorTextSecondary"
                                 android:gravity="center" />
@@ -123,7 +121,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Pending"
+                                android:text="@string/pending_orders"
                                 android:textSize="12sp"
                                 android:textColor="@color/colorTextSecondary"
                                 android:gravity="center" />
@@ -153,7 +151,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="In Progress"
+                                android:text="@string/in_progress_orders"
                                 android:textSize="12sp"
                                 android:textColor="@color/colorTextSecondary"
                                 android:gravity="center" />
@@ -183,7 +181,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Completed"
+                                android:text="@string/completed_orders"
                                 android:textSize="12sp"
                                 android:textColor="@color/colorTextSecondary"
                                 android:gravity="center" />
@@ -214,7 +212,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="System Status"
+                        android:text="@string/system_status"
                         android:textSize="20sp"
                         android:textStyle="bold"
                         android:textColor="@color/colorTextPrimary"
@@ -239,7 +237,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Printer Connection"
+                            android:text="@string/printer_connection"
                             android:textSize="16sp"
                             android:textColor="@color/colorTextPrimary" />
 
@@ -247,7 +245,7 @@
                             android:id="@+id/textPrinterStatus"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Connected"
+                            android:text="@string/connected"
                             android:textSize="14sp"
                             android:textColor="@color/colorTextSecondary" />
 
@@ -272,7 +270,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Printing Service"
+                            android:text="@string/printing_service"
                             android:textSize="16sp"
                             android:textColor="@color/colorTextPrimary" />
 
@@ -280,7 +278,7 @@
                             android:id="@+id/textServiceStatus"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Active"
+                            android:text="@string/active"
                             android:textSize="14sp"
                             android:textColor="@color/colorTextSecondary" />
 
@@ -303,7 +301,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Shop Connection"
+                            android:text="@string/shop_connection"
                             android:textSize="16sp"
                             android:textColor="@color/colorTextPrimary" />
 
@@ -311,7 +309,7 @@
                             android:id="@+id/textShopName"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Restaurant Name"
+                            android:text="@string/restaurant_name"
                             android:textSize="14sp"
                             android:textColor="@color/colorTextSecondary" />
 
@@ -339,7 +337,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Quick Actions"
+                        android:text="@string/quick_actions"
                         android:textSize="20sp"
                         android:textStyle="bold"
                         android:textColor="@color/colorTextPrimary"
@@ -358,7 +356,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_margin="4dp"
-                            android:text="View Orders"
+                            android:text="@string/view_orders"
                             android:textSize="14sp"
                             android:background="@drawable/button_primary"
                             android:textColor="@color/colorTextOnPrimary"
@@ -373,7 +371,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_margin="4dp"
-                            android:text="Reprint Orders"
+                            android:text="@string/reprint_orders"
                             android:textSize="14sp"
                             android:background="@drawable/button_secondary"
                             android:textColor="@color/colorTextOnPrimary"
@@ -397,7 +395,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_margin="4dp"
-                            android:text="Settings"
+                            android:text="@string/settings"
                             android:textSize="14sp"
                             android:background="@drawable/button_secondary"
                             android:textColor="@color/colorTextOnPrimary"

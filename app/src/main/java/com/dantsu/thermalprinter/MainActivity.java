@@ -48,6 +48,7 @@ import java.util.List;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.DialogFragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.fragment.app.FragmentManager;
@@ -97,11 +98,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static Set<String> printedOrders = new HashSet<>();
     private static Context context;
     private static Button button_bluetooth_browse;
-    private static Button button_reprint;
 
     private static Button button_ti_print;
     private static Button button_ti_clear_ids;
-    private static Button button_ti_native_kitchen;
     private static Button button_ti_updates;
     private static Button button_ti_testprint;
     private static Button button_dashboard;
@@ -151,20 +150,41 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         setContentView(R.layout.activity_main);
         networkHelperViewModel = new ViewModelProvider(this).get(NetworkHelperViewModel.class);
         
+        // Check for reprint action early and hide Settings view if needed
+        String action = getIntent().getStringExtra("action");
+        boolean isReprintAction = "reprint".equals(action);
+        
         // Setup toolbar
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         if (toolbar != null) {
             setSupportActionBar(toolbar);
             if (getSupportActionBar() != null) {
-                getSupportActionBar().setDisplayHomeAsUpEnabled(false);
-                getSupportActionBar().setDisplayShowHomeEnabled(false);
+                getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+                getSupportActionBar().setDisplayShowHomeEnabled(true);
             }
+            
+            // Update toolbar title for reprint action
+            if (isReprintAction) {
+                toolbar.setTitle(R.string.reprint_orders);
+            }
+            
+            toolbar.setNavigationOnClickListener(v -> {
+                // Navigate back to Dashboard - just finish to return to existing DashboardActivity in back stack
+                finish();
+            });
         } else {
             Log.e("MainActivity", "Toolbar not found! Check if R.id.toolbar exists in the layout");
         }
+        
+        // Hide Settings view if this is a reprint action
+        if (isReprintAction) {
+            NestedScrollView nestedScrollView = findViewById(R.id.nestedScrollView);
+            if (nestedScrollView != null) {
+                nestedScrollView.setVisibility(View.GONE);
+            }
+        }
 
         button_bluetooth_browse = this.findViewById(R.id.button_bluetooth_browse);
-        button_reprint = this.findViewById(R.id.button_reprint);
         progressBar = findViewById(R.id.progressBar);
 
         if (button_bluetooth_browse != null) {
@@ -178,15 +198,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         button_ti_clear_ids = this.findViewById(R.id.button_ti_clear_ids);
         if (button_ti_clear_ids != null) {
             button_ti_clear_ids.setOnClickListener(view -> tiClearIds());
-        }
-        button_ti_native_kitchen = this.findViewById(R.id.button_ti_native_kitchen);
-        if (button_ti_native_kitchen != null) {
-            button_ti_native_kitchen.setOnClickListener(view -> {
-                Intent intent = new Intent(this, KitchenDisplayActivity.class);
-                startActivity(intent);
-            });
-        } else {
-            Log.e("MainActivity", "button_ti_native_kitchen is null - check layout file");
         }
         button_ti_updates =  this.findViewById(R.id.button_ti_updates);
         if (button_ti_updates != null) {
@@ -241,17 +252,15 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }else{
             button_ti_updates.setEnabled(false);
             // show current version on the screen
-            button_ti_updates.setText(getString(R.string.version) + " " + getIntent().getStringExtra("currentAppVersion"));
+            String versionName = getIntent().getStringExtra("currentAppVersion");
+            if (versionName == null || versionName.isEmpty()) {
+                versionName = Constants.currentAppVersion;
+            }
+            button_ti_updates.setText(getString(R.string.version) + " " + versionName);
         }
 
-        //reprint orders - Set up button click listener to handle reprint functionality
-        if (button_reprint != null) {
-            button_reprint.setOnClickListener(v -> handleReprintOrders());
-        }
-        
         // Handle reprint intent from DashboardActivity - show popup after fetching orders
-        String action = getIntent().getStringExtra("action");
-        if ("reprint".equals(action)) {
+        if ("reprint".equals(getIntent().getStringExtra("action"))) {
             shouldShowReprintPopup = true;
             // Trigger fetching orders if URLs are already initialized
             if (tiOrdersEndpointURL != null && !tiOrdersEndpointURL.isEmpty() && 
@@ -368,9 +377,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (button_bluetooth_browse != null) button_bluetooth_browse.setEnabled(true);
         if (button_ti_print != null) button_ti_print.setEnabled(true);
         if (button_ti_clear_ids != null) button_ti_clear_ids.setEnabled(true);
-        if (button_ti_native_kitchen != null) button_ti_native_kitchen.setEnabled(true);
         updateTestPrintButtonState();
-        if (button_reprint != null) button_reprint.setEnabled(true);
         if (button_dashboard != null) button_dashboard.setEnabled(true);
         
         // Show logout button and hide login button
@@ -429,7 +436,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             if (!cachedOrdersList.isEmpty() && cachedJsonObjectMenus != null && cachedJsonObjectCategories != null) {
                 showOrdersPopup(cachedOrdersList, cachedJsonObjectMenus, cachedJsonObjectCategories);
             } else {
-                Toast.makeText(this, "Please wait for orders to load", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, R.string.please_wait_orders, Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -461,8 +468,24 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         // Setup toolbar navigation click listener
         MaterialToolbar toolbar = popupView.findViewById(R.id.toolbar);
         if (toolbar != null) {
-            toolbar.setNavigationOnClickListener(v -> popupWindow.dismiss());
+            toolbar.setNavigationOnClickListener(v -> {
+                popupWindow.dismiss();
+                // If opened from reprint action, finish activity and return to Dashboard
+                String action = getIntent().getStringExtra("action");
+                if ("reprint".equals(action)) {
+                    finish();
+                }
+            });
         }
+        
+        // Also handle popup dismissal when clicking outside or back button
+        popupWindow.setOnDismissListener(() -> {
+            // If opened from reprint action, finish activity and return to Dashboard
+            String action = getIntent().getStringExtra("action");
+            if ("reprint".equals(action)) {
+                finish();
+            }
+        });
         
         // Check if printer is selected
         boolean printerAvailable = isPrinterSelected && selectedDevice != null;
@@ -563,11 +586,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 .show();
     }
 
-    @SuppressLint("MissingSuperCall")
     @Override
     public void onBackPressed() {
-        //super.onBackPressed();
-        showExitConfirmationDialog();
+        // Navigate back to Dashboard - just finish to return to existing DashboardActivity in back stack
+        finish();
     }
 
     private void showExitConfirmationDialog() {
@@ -649,8 +671,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                         break;
                     }
                 }
-
-                button_reprint.setEnabled(true);
 
                 Log.e("MainActivity", "Orders List Size: " + ordersList.size());
 
@@ -1200,9 +1220,7 @@ private void restartWebservice(int buttonColor){
         if (button_bluetooth_browse != null) button_bluetooth_browse.setEnabled(false);
         if (button_ti_print != null) button_ti_print.setEnabled(false);
         if (button_ti_clear_ids != null) button_ti_clear_ids.setEnabled(false);
-        if (button_ti_native_kitchen != null) button_ti_native_kitchen.setEnabled(false);
         if (button_ti_testprint != null) button_ti_testprint.setEnabled(false);
-        if (button_reprint != null) button_reprint.setEnabled(false);
         if (button_dashboard != null) button_dashboard.setEnabled(false);
         
         // Show login dialog
@@ -1306,7 +1324,6 @@ private void restartWebservice(int buttonColor){
                         button_bluetooth_browse.setEnabled(true);
                         button_ti_print.setEnabled(true);
                 button_ti_clear_ids.setEnabled(true);
-                button_reprint.setEnabled(true);
                 if (button_dashboard != null) button_dashboard.setEnabled(true);
                         ((MainActivity)getActivity()).updateTestPrintButtonState();
                         dismiss();
@@ -1413,7 +1430,6 @@ private void restartWebservice(int buttonColor){
                         button_bluetooth_browse.setEnabled(true);
                         button_ti_print.setEnabled(true);
                 button_ti_clear_ids.setEnabled(true);
-                button_reprint.setEnabled(true);
                 if (button_dashboard != null) button_dashboard.setEnabled(true);
                         ((MainActivity) getActivity()).updateTestPrintButtonState();
                         dismiss();

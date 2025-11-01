@@ -18,12 +18,15 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/colorPrimary"
-            app:title="Settings &amp; Configuration"
-            app:titleTextColor="@color/colorTextOnPrimary" />
+            app:title="@string/title_activity_main"
+            app:titleTextColor="@color/colorTextOnPrimary"
+            app:navigationIcon="@drawable/ic_arrow_back"
+            app:navigationIconTint="@color/colorTextOnPrimary" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
@@ -58,7 +61,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Shop Information"
+                        android:text="@string/shop_information"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/colorTextPrimary"
@@ -68,7 +71,7 @@
                         android:id="@+id/textview_ti_header"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Please Login"
+                        android:text="@string/login_text"
                         android:textSize="16sp"
                         android:textColor="@color/colorTextSecondary"
                         android:layout_marginBottom="16dp" />
@@ -83,7 +86,7 @@
                             android:id="@+id/button_ti_login"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Login"
+                            android:text="@string/login_button"
                             android:layout_marginEnd="8dp"
                             android:background="@drawable/button_primary"
                             android:textColor="@color/colorTextOnPrimary"
@@ -94,7 +97,7 @@
                             android:id="@+id/button_ti_logout"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Logout"
+                            android:text="@string/logout_button"
                             android:background="@drawable/button_danger"
                             android:textColor="@color/colorTextOnPrimary"
                             android:textAllCaps="false"
@@ -132,7 +135,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Printer Configuration"
+                        android:text="@string/printer_configuration"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/colorTextPrimary"
@@ -142,7 +145,7 @@
                         android:id="@+id/button_bluetooth_browse"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="🔗 Select Bluetooth Printer"
+                        android:text="@string/select_bluetooth_printer"
                         android:textSize="16sp"
                         android:background="@drawable/button_secondary"
                         android:textColor="@color/colorTextOnPrimary"
@@ -155,7 +158,7 @@
                         android:id="@+id/button_ti_testprint"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Test Print"
+                        android:text="@string/test_print_button"
                         android:textSize="16sp"
                         android:background="@drawable/button_secondary"
                         android:textColor="@color/colorTextOnPrimary"
@@ -193,7 +196,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Service Control"
+                        android:text="@string/service_control"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/colorTextPrimary"
@@ -203,7 +206,7 @@
                         android:id="@+id/button_ti_print_monitoring"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Start Printing Service"
+                        android:text="@string/start_printing_service"
                         android:textSize="16sp"
                         android:background="@drawable/button_success"
                         android:textColor="@color/colorTextOnPrimary"
@@ -211,33 +214,6 @@
                         android:drawableStart="@android:drawable/ic_media_play"
                         android:drawablePadding="8dp"
                         android:layout_marginBottom="12dp"
-                        android:enabled="false" />
-
-                    <Button
-                        android:id="@+id/button_ti_native_kitchen"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="View Orders"
-                        android:textSize="16sp"
-                        android:background="@drawable/button_success"
-                        android:textColor="@color/colorTextOnPrimary"
-                        android:textAllCaps="false"
-                        android:drawableStart="@drawable/ic_receipt"
-                        android:drawablePadding="8dp"
-                        android:layout_marginBottom="12dp"
-                        android:enabled="false" />
-
-                    <Button
-                        android:id="@+id/button_reprint"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Reprint Orders"
-                        android:textSize="16sp"
-                        android:background="@drawable/button_secondary"
-                        android:textColor="@color/colorTextOnPrimary"
-                        android:textAllCaps="false"
-                        android:drawableStart="@drawable/ic_receipt"
-                        android:drawablePadding="8dp"
                         android:enabled="false" />
 
                 </LinearLayout>
@@ -269,7 +245,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Print Type Selection"
+                        android:text="@string/print_type_selection"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/colorTextPrimary"
@@ -278,7 +254,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Choose what to print automatically"
+                        android:text="@string/print_type_description"
                         android:textSize="14sp"
                         android:textColor="@color/colorTextSecondary"
                         android:layout_marginBottom="16dp" />
@@ -293,7 +269,7 @@
                             android:id="@+id/chip_receipt"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Receipt"
+                            android:text="@string/receipt"
                             android:checked="true"
                             android:checkable="true"
                             android:textColor="@color/colorTextOnPrimary"
@@ -304,7 +280,7 @@
                             android:id="@+id/chip_kitchen"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Kitchen"
+                            android:text="@string/kitchen"
                             android:checked="false"
                             android:checkable="true"
                             android:textColor="@color/colorTextOnPrimary"
@@ -342,7 +318,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Advanced Options"
+                        android:text="@string/advanced_options"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/colorTextPrimary"
@@ -352,7 +328,7 @@
                         android:id="@+id/button_ti_clear_ids"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Reset Print History"
+                        android:text="@string/reset_print_history"
                         android:textSize="16sp"
                         android:background="@drawable/button_danger"
                         android:textColor="@color/colorTextOnPrimary"
@@ -366,7 +342,7 @@
                         android:id="@+id/button_ti_updates"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Check for Updates"
+                        android:text="@string/check_for_updates"
                         android:textSize="16sp"
                         android:background="@drawable/button_secondary"
                         android:textColor="@color/colorPrimary"
@@ -380,7 +356,7 @@
                         android:id="@+id/button_dashboard"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Dashboard"
+                        android:text="@string/dashboard"
                         android:textSize="16sp"
                         android:background="@drawable/button_secondary"
                         android:textColor="@color/colorTextOnPrimary"

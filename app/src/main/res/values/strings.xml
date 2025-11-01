@@ -195,4 +195,31 @@
     <string name="order_id">Order ID:</string>
     <string name="asap">ASAP</string>
     <string name="collection">Collection</string>
+    
+    <!-- Additional Strings -->
+    <string name="today_order_statistics">Today\'s Order Statistics</string>
+    <string name="restaurant_name">Restaurant Name</string>
+    <string name="error_message_placeholder">Error message</string>
+    <string name="domain_url_hint">Domain URL (e.g. https://example.com)</string>
+    <string name="please_wait_orders">Please wait for orders to load</string>
+    <string name="prep">Prep</string>
+    <string name="done">Done</string>
+    <string name="print">Print</string>
+    <string name="delivery">DELIVERY</string>
+    <string name="cash">CASH</string>
+    <string name="scan_google_address">Scan Google Address</string>
+    <string name="not_an_invoice">This is not an invoice</string>
+    <string name="reset_print_title">Reset Print History</string>
+    <string name="reset_print_description">After resetting, orders with \'Received\' status can be printed again</string>
+    <string name="printer">Printer</string>
+    <string name="monitoring">Monitoring</string>
+    <string name="zoom">Zoom</string>
+    <string name="close">Close</string>
+    <string name="view_receipt_content">View Receipt</string>
+    <string name="close_content">Close</string>
+    <string name="shop_name">Shop Name</string>
+    <string name="order_number">Order #%1$s</string>
+    <string name="delivery_payment_total">Delivery - Cash Payment - %1$s€</string>
+    <string name="asap_order_time">ASAP: on %1$s</string>
+    <string name="customer_information">Customer Information</string>
 </resources>

@@ -16,7 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/colorPrimary"
-            app:title="Kitchen Display"
+            app:title="@string/kitchen_display_title"
             app:titleTextColor="@color/colorTextOnPrimary"
             app:navigationIcon="@drawable/ic_arrow_back"
             app:navigationIconTint="@color/colorTextOnPrimary">
@@ -33,7 +33,7 @@
                     android:id="@+id/button_dashboard"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Dashboard"
+                    android:text="@string/dashboard"
                     android:textSize="12sp"
                     android:background="@drawable/button_secondary"
                     android:textColor="@color/colorPrimary"
@@ -46,7 +46,7 @@
                     android:layout_width="40dp"
                     android:layout_height="40dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Close Kitchen Display"
+                    android:contentDescription="@string/close_kitchen_display"
                     android:src="@android:drawable/ic_menu_close_clear_cancel"
                     android:scaleType="centerInside"
                     app:tint="@color/colorTextOnPrimary" />
@@ -68,7 +68,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Active Orders"
+                android:text="@string/active_orders"
                 android:textSize="16sp"
                 android:textColor="@color/colorTextOnPrimary"
                 android:textStyle="bold" />
