@@ -24,11 +24,16 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.core.widget.NestedScrollView
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"
-        android:padding="16dp">
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <androidx.core.widget.NestedScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -371,7 +376,7 @@
                             android:text="Reprint Orders"
                             android:textSize="14sp"
                             android:background="@drawable/button_secondary"
-                            android:textColor="@color/colorPrimary"
+                            android:textColor="@color/colorTextOnPrimary"
                             android:textAllCaps="false"
                             android:drawableStart="@drawable/ic_receipt"
                             android:drawablePadding="8dp" />
@@ -395,25 +400,26 @@
                             android:text="Settings"
                             android:textSize="14sp"
                             android:background="@drawable/button_secondary"
-                            android:textColor="@color/colorPrimary"
+                            android:textColor="@color/colorTextOnPrimary"
                             android:textAllCaps="false"
                             android:drawableStart="@android:drawable/ic_menu_preferences"
                             android:drawablePadding="8dp" />
 
-                        <!-- Test Print Button -->
+                        <!-- Auto Print Button -->
                         <Button
-                            android:id="@+id/buttonTestPrint"
+                            android:id="@+id/buttonAutoPrint"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_margin="4dp"
-                            android:text="Test Print"
+                            android:text="@string/auto_print"
                             android:textSize="14sp"
-                            android:background="@drawable/button_secondary"
-                            android:textColor="@color/colorPrimary"
+                            android:background="@drawable/button_success"
+                            android:textColor="@color/colorTextOnPrimary"
                             android:textAllCaps="false"
-                            android:drawableStart="@drawable/ic_receipt"
-                            android:drawablePadding="8dp" />
+                            android:drawableStart="@android:drawable/ic_media_play"
+                            android:drawablePadding="8dp"
+                            android:enabled="false" />
 
                     </LinearLayout>
 
@@ -421,22 +427,10 @@
 
             </androidx.cardview.widget.CardView>
 
-            <!-- Refresh Button -->
-            <Button
-                android:id="@+id/buttonRefresh"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Refresh Data"
-                android:textSize="16sp"
-                android:background="@drawable/button_primary"
-                android:textColor="@color/colorTextOnPrimary"
-                android:textAllCaps="false"
-                android:drawableStart="@android:drawable/ic_popup_sync"
-                android:drawablePadding="8dp"
-                android:layout_marginTop="8dp" />
-
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

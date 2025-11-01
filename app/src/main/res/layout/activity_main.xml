@@ -205,7 +205,7 @@
                         android:layout_height="wrap_content"
                         android:text="Start Printing Service"
                         android:textSize="16sp"
-                        android:background="@drawable/button_primary"
+                        android:background="@drawable/button_success"
                         android:textColor="@color/colorTextOnPrimary"
                         android:textAllCaps="false"
                         android:drawableStart="@android:drawable/ic_media_play"
@@ -372,6 +372,20 @@
                         android:textColor="@color/colorPrimary"
                         android:textAllCaps="false"
                         android:drawableStart="@android:drawable/ic_menu_upload"
+                        android:drawablePadding="8dp"
+                        android:layout_marginBottom="12dp"
+                        android:enabled="false" />
+
+                    <Button
+                        android:id="@+id/button_dashboard"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Dashboard"
+                        android:textSize="16sp"
+                        android:background="@drawable/button_secondary"
+                        android:textColor="@color/colorTextOnPrimary"
+                        android:textAllCaps="false"
+                        android:drawableStart="@android:drawable/ic_menu_view"
                         android:drawablePadding="8dp"
                         android:enabled="false" />
 

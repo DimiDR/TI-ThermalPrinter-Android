@@ -13,6 +13,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
 import android.media.MediaPlayer;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -103,6 +104,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static Button button_ti_native_kitchen;
     private static Button button_ti_updates;
     private static Button button_ti_testprint;
+    private static Button button_dashboard;
     private Button button_ti_login;
     private Button button_ti_logout;
     private static TextView textview_ti_header;
@@ -190,6 +192,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (button_ti_updates != null) {
             button_ti_updates.setOnClickListener(view -> showUpdatePopup());
         }
+        button_dashboard = this.findViewById(R.id.button_dashboard);
+        if (button_dashboard != null) {
+            button_dashboard.setOnClickListener(view -> {
+                Intent intent = new Intent(this, DashboardActivity.class);
+                startActivity(intent);
+            });
+        }
         button_ti_testprint = this.findViewById(R.id.button_ti_testprint);
         if (button_ti_testprint != null) {
             button_ti_testprint.setOnClickListener(view -> TITestPrinter(true));
@@ -224,7 +233,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             apkFile = getIntent().getStringExtra("apkFile");
             button_ti_updates.setEnabled(true);
             button_ti_updates.setText(R.string.update_available_button);
-            button_ti_updates.setBackgroundColor(ContextCompat.getColor(this, R.color.colorError));
+            setButtonBackgroundWithRoundedCorners(button_ti_updates, ContextCompat.getColor(this, R.color.colorError));
             if (!networkHelperViewModel.isUpdatePopupShown()) {
                 showUpdatePopup();
                 networkHelperViewModel.setUpdatePopupShown(true);
@@ -286,7 +295,14 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     // Configure from stored domain and location
                     domain_shop = savedDomain;
                     location_id = sharedPreferences.getInt("location_id", 1);
-                    shop_name = savedDomain;
+                    
+                    // Try to get shop name from configuration
+                    String configShopName = getShopNameFromConfiguration(MainActivity.this, savedDomain);
+                    if (configShopName != null && !configShopName.isEmpty()) {
+                        shop_name = configShopName;
+                    } else {
+                        shop_name = savedDomain; // fallback to domain
+                    }
                     if (textview_ti_header != null) textview_ti_header.setText(shop_name);
                     tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
                     tiMenusEndpointURL = domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
@@ -337,6 +353,16 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             }
         }
     }
+    
+    private static String getShopNameFromConfiguration(Context context, String domain) {
+        List<ShopConfigUtils.Shop> shops = ShopConfigUtils.getShops(context);
+        for (ShopConfigUtils.Shop shop : shops) {
+            if (shop.domain_shop.equals(domain)) {
+                return shop.shop_name;
+            }
+        }
+        return null;
+    }
 
     private void enableAllButtons() {
         if (button_bluetooth_browse != null) button_bluetooth_browse.setEnabled(true);
@@ -345,6 +371,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (button_ti_native_kitchen != null) button_ti_native_kitchen.setEnabled(true);
         updateTestPrintButtonState();
         if (button_reprint != null) button_reprint.setEnabled(true);
+        if (button_dashboard != null) button_dashboard.setEnabled(true);
         
         // Show logout button and hide login button
         if (button_ti_login != null) button_ti_login.setVisibility(View.GONE);
@@ -759,7 +786,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
                 // Update button appearance and store the selected index
                 int buttonColor = ContextCompat.getColor(this, R.color.light_green);
-                button_bluetooth_browse.setBackgroundColor(buttonColor);
+                setButtonBackgroundWithRoundedCorners(button_bluetooth_browse, buttonColor);
 
                 // Save the selected index in SharedPreferences
                 SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
@@ -791,7 +818,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
                             // Update button appearance and store the selected index
                             int buttonColor = ContextCompat.getColor(this, R.color.light_green);
-                            button_bluetooth_browse.setBackgroundColor(buttonColor);
+                            setButtonBackgroundWithRoundedCorners(button_bluetooth_browse, buttonColor);
 
                             SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
                             SharedPreferences.Editor editor = prefs.edit();
@@ -842,7 +869,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             // Update UI elements or perform other tasks related to starting the service
             int buttonColor = ContextCompat.getColor(this, R.color.light_green);
             if (button_ti_print != null) {
-                button_ti_print.setBackgroundColor(buttonColor);
+                setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
                 button_ti_print.setText(R.string.printer_active);
             }
             // Acquire wake lock to keep CPU running
@@ -875,7 +902,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             // Update UI elements or perform other tasks related to stopping the service
             int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
             if (button_ti_print != null) {
-                button_ti_print.setBackgroundColor(buttonColor);
+                setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
                 button_ti_print.setText(R.string.printer_inactive);
             }
 
@@ -898,7 +925,21 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
     private void changeColorOfButton(int buttonColor, Button button) {
         int buttonColorID = ContextCompat.getColor(this, buttonColor);
-        button.setBackgroundColor(buttonColorID);
+        setButtonBackgroundWithRoundedCorners(button, buttonColorID);
+    }
+    
+    private void setButtonBackgroundWithRoundedCorners(Button button, int color) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setColor(color);
+        // Convert 8dp to pixels for rounded corners (matching button_primary.xml)
+        float cornerRadiusPx = 8 * getResources().getDisplayMetrics().density;
+        drawable.setCornerRadius(cornerRadiusPx);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            button.setBackground(drawable);
+        } else {
+            button.setBackgroundDrawable(drawable);
+        }
     }
 
 private void restartWebservice(int buttonColor){
@@ -910,7 +951,7 @@ private void restartWebservice(int buttonColor){
     startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
     int buttonColorID = ContextCompat.getColor(this, buttonColor);
     if (button_ti_print != null) {
-        button_ti_print.setBackgroundColor(buttonColorID); // set to yellow if connection to printer is broken
+        setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColorID); // set to yellow if connection to printer is broken
     }
 }
 
@@ -925,7 +966,7 @@ private void restartWebservice(int buttonColor){
                 // Update UI elements for active service
                 int buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
                 if (button_ti_print != null) {
-                    button_ti_print.setBackgroundColor(buttonColor);
+                    setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
                     button_ti_print.setText(R.string.printer_active);
                 }
                 MyWakeLockManager.acquireFullWakeLock(this);
@@ -937,7 +978,7 @@ private void restartWebservice(int buttonColor){
                 // Update UI elements for inactive service
                 int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
                 if (button_ti_print != null) {
-                    button_ti_print.setBackgroundColor(buttonColor);
+                    setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
                     button_ti_print.setText(R.string.printer_inactive);
                 }
                 MyWakeLockManager.releaseFullWakeLock();
@@ -1162,6 +1203,7 @@ private void restartWebservice(int buttonColor){
         if (button_ti_native_kitchen != null) button_ti_native_kitchen.setEnabled(false);
         if (button_ti_testprint != null) button_ti_testprint.setEnabled(false);
         if (button_reprint != null) button_reprint.setEnabled(false);
+        if (button_dashboard != null) button_dashboard.setEnabled(false);
         
         // Show login dialog
         LoginUser();
@@ -1263,8 +1305,9 @@ private void restartWebservice(int buttonColor){
 
                         button_bluetooth_browse.setEnabled(true);
                         button_ti_print.setEnabled(true);
-                        button_ti_clear_ids.setEnabled(true);
-                        button_reprint.setEnabled(true);
+                button_ti_clear_ids.setEnabled(true);
+                button_reprint.setEnabled(true);
+                if (button_dashboard != null) button_dashboard.setEnabled(true);
                         ((MainActivity)getActivity()).updateTestPrintButtonState();
                         dismiss();
                     } else {
@@ -1349,8 +1392,15 @@ private void restartWebservice(int buttonColor){
 
                         // Update globals minimally
                         domain_shop = finalDomain;
-                        shop_name = finalDomain; // show domain as header
                         location_id = sharedPreferences.getInt("location_id", 1);
+                        
+                        // Try to get shop name from configuration
+                        String configShopName = getShopNameFromConfiguration(getActivity(), finalDomain);
+                        if (configShopName != null && !configShopName.isEmpty()) {
+                            shop_name = configShopName;
+                        } else {
+                            shop_name = finalDomain; // fallback to domain as header
+                        }
                         if (textview_ti_header != null) textview_ti_header.setText(shop_name);
 
                         // Set API endpoints
@@ -1362,8 +1412,9 @@ private void restartWebservice(int buttonColor){
                         ((MainActivity) getActivity()).initilizeURLs();
                         button_bluetooth_browse.setEnabled(true);
                         button_ti_print.setEnabled(true);
-                        button_ti_clear_ids.setEnabled(true);
-                        button_reprint.setEnabled(true);
+                button_ti_clear_ids.setEnabled(true);
+                button_reprint.setEnabled(true);
+                if (button_dashboard != null) button_dashboard.setEnabled(true);
                         ((MainActivity) getActivity()).updateTestPrintButtonState();
                         dismiss();
                     });

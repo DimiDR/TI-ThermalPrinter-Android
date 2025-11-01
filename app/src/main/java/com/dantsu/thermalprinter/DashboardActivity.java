@@ -16,6 +16,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
@@ -26,8 +27,13 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -46,8 +52,8 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     private Button buttonViewOrders;
     private Button buttonReprintOrders;
     private Button buttonSettings;
-    private Button buttonTestPrint;
-    private Button buttonRefresh;
+    private Button buttonAutoPrint;
+    private SwipeRefreshLayout swipeRefreshLayout;
     
     private NetworkHelperViewModel networkHelperViewModel;
     private Timer refreshTimer;
@@ -88,6 +94,9 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         // Setup button listeners
         setupButtonListeners();
         
+        // Setup pull-to-refresh
+        setupPullToRefresh();
+        
         // Update button states based on printer availability
         updateButtonStates();
         
@@ -112,8 +121,8 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         buttonViewOrders = findViewById(R.id.buttonViewOrders);
         buttonReprintOrders = findViewById(R.id.buttonReprintOrders);
         buttonSettings = findViewById(R.id.buttonSettings);
-        buttonTestPrint = findViewById(R.id.buttonTestPrint);
-        buttonRefresh = findViewById(R.id.buttonRefresh);
+        buttonAutoPrint = findViewById(R.id.buttonAutoPrint);
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
     }
     
     private void setupToolbar() {
@@ -171,37 +180,137 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
             startActivity(intent);
         });
         
-        buttonTestPrint.setOnClickListener(v -> {
-            // Check if printer is available before navigating
-            SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
-            int storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
-            if (storedPrinterIndex < 0) {
-                Toast.makeText(this, R.string.no_printer_selected_settings, Toast.LENGTH_LONG).show();
-                return;
-            }
-            // Navigate to MainActivity for test print
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.putExtra("action", "test_print");
-            startActivity(intent);
-        });
-        
-        buttonRefresh.setOnClickListener(v -> refreshData());
+        buttonAutoPrint.setOnClickListener(v -> toggleAutoPrint());
+    }
+    
+    private void setupPullToRefresh() {
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setOnRefreshListener(() -> {
+                refreshData();
+            });
+        }
     }
     
     private void updateButtonStates() {
-        // Update Test Print button state based on printer availability
+        // Update Auto Print button state based on printer availability and service status
         SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
         int storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
         boolean printerAvailable = storedPrinterIndex >= 0;
         
-        if (buttonTestPrint != null) {
-            buttonTestPrint.setEnabled(printerAvailable);
-            if (!printerAvailable) {
-                buttonTestPrint.setAlpha(0.5f); // Make button appear disabled
-            } else {
-                buttonTestPrint.setAlpha(1.0f); // Make button appear enabled
-            }
+        if (buttonAutoPrint != null) {
+            buttonAutoPrint.setEnabled(printerAvailable);
+            updateAutoPrintButtonAppearance();
         }
+    }
+    
+    private void toggleAutoPrint() {
+        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+        int storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
+        
+        if (storedPrinterIndex < 0) {
+            Toast.makeText(this, R.string.select_printer_text, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        if (!Constants.isServiceActive) {
+            // Start printing service
+            startAutoPrintService();
+        } else {
+            // Stop printing service
+            stopAutoPrintService();
+        }
+    }
+    
+    private void startAutoPrintService() {
+        if (!Constants.isServiceActive) {
+            // Update UI
+            int buttonColor = ContextCompat.getColor(this, R.color.light_green);
+            if (buttonAutoPrint != null) {
+                setButtonBackgroundWithRoundedCorners(buttonAutoPrint, buttonColor);
+                buttonAutoPrint.setText(R.string.printer_active);
+            }
+            
+            // Start web service task
+            startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
+            
+            Constants.isServiceActive = true;
+            updateSystemStatus();
+        }
+    }
+    
+    private void stopAutoPrintService() {
+        if (Constants.isServiceActive) {
+            // Cancel network tasks
+            if (networkHelperViewModel.getNetworkHelper().isNetworkTaskRunning()) {
+                networkHelperViewModel.getNetworkHelper().cancelNetworkTask();
+            }
+            networkHelperViewModel.cancelTimer();
+            
+            // Update UI
+            int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
+            if (buttonAutoPrint != null) {
+                setButtonBackgroundWithRoundedCorners(buttonAutoPrint, buttonColor);
+                buttonAutoPrint.setText(R.string.auto_print);
+            }
+            
+            Constants.isServiceActive = false;
+            updateSystemStatus();
+        }
+    }
+    
+    private void updateAutoPrintButtonAppearance() {
+        if (buttonAutoPrint == null) return;
+        
+        int buttonColor;
+        int textResId;
+        
+        if (Constants.isServiceActive) {
+            buttonColor = ContextCompat.getColor(this, R.color.light_green);
+            textResId = R.string.printer_active;
+        } else {
+            buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
+            textResId = R.string.auto_print;
+        }
+        
+        setButtonBackgroundWithRoundedCorners(buttonAutoPrint, buttonColor);
+        buttonAutoPrint.setText(textResId);
+    }
+    
+    private void setButtonBackgroundWithRoundedCorners(Button button, int color) {
+        android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
+        drawable.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        drawable.setColor(color);
+        float cornerRadiusPx = 8 * getResources().getDisplayMetrics().density;
+        drawable.setCornerRadius(cornerRadiusPx);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
+            button.setBackground(drawable);
+        } else {
+            button.setBackgroundDrawable(drawable);
+        }
+    }
+    
+    private void startWebServiceTask(Context activity, String ordersUrl, String menusUrl, String categoriesUrl) {
+        Timer timer = networkHelperViewModel.getTimer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                SharedPreferences sharedPreferences = activity.getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+                String savedToken = sharedPreferences.getString("token", "");
+                if (savedToken.isEmpty()) {
+                    Log.d("DashboardActivity", "User not logged in, skipping refresh");
+                    return;
+                }
+                
+                boolean kitchenOpen = sharedPreferences.getBoolean("kitchen_display_open", false);
+                if (kitchenOpen) {
+                    Log.d("DashboardActivity", "KitchenDisplayActivity is open, skipping refresh");
+                    return;
+                }
+                
+                String[] urls = {ordersUrl, menusUrl, categoriesUrl};
+                networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, DashboardActivity.this);
+            }
+        }, 0, 60000); // Refresh every 60 seconds
     }
     
     private void refreshData() {
@@ -231,15 +340,61 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     }
     
     private void updateStatistics(List<JSONObject> orders) {
-        totalOrders = orders.size();
+        totalOrders = 0;
         pendingOrders = 0;
         inProgressOrders = 0;
         completedOrders = 0;
+        
+        // Get today's date for filtering
+        Calendar today = Calendar.getInstance();
+        today.set(Calendar.HOUR_OF_DAY, 0);
+        today.set(Calendar.MINUTE, 0);
+        today.set(Calendar.SECOND, 0);
+        today.set(Calendar.MILLISECOND, 0);
+        
+        // Date format used by the API: "2020-05-24 12:58:43"
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        SimpleDateFormat dateOnlyFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        String todayDateStr = dateOnlyFormat.format(today.getTime());
         
         for (JSONObject order : orders) {
             try {
                 JSONObject attributes = order.optJSONObject("attributes");
                 JSONObject orderData = attributes != null ? attributes : order;
+                
+                // Check if order was created today
+                String createdAtStr = orderData.optString("created_at", "");
+                if (createdAtStr.isEmpty()) {
+                    continue; // Skip orders without created_at
+                }
+                
+                // Parse the created_at date
+                Date createdAt = null;
+                try {
+                    createdAt = dateFormat.parse(createdAtStr);
+                } catch (ParseException e) {
+                    // Try alternative format if standard format fails
+                    try {
+                        SimpleDateFormat altFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                        createdAt = altFormat.parse(createdAtStr);
+                    } catch (ParseException e2) {
+                        Log.w("Dashboard", "Could not parse created_at: " + createdAtStr);
+                        continue;
+                    }
+                }
+                
+                if (createdAt == null) {
+                    continue;
+                }
+                
+                // Check if the order was created today
+                String orderDateStr = dateOnlyFormat.format(createdAt);
+                if (!orderDateStr.equals(todayDateStr)) {
+                    continue; // Skip orders not created today
+                }
+                
+                // Order is from today, count it
+                totalOrders++;
                 int statusId = orderData.optInt("status_id", -1);
                 
                 switch (statusId) {
@@ -262,7 +417,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 }
             } catch (Exception e) {
                 Log.e("Dashboard", "Error parsing order status", e);
-                pendingOrders++;
+                // Don't increment pendingOrders here since we're filtering by date
             }
         }
         
@@ -304,6 +459,11 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     
     @Override
     public void onSuccess(String[] results) {
+        // Stop refresh indicator if it's showing
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setRefreshing(false);
+        }
+        
         if (results != null && results[0] != null) {
             try {
                 JSONObject jsonObjectOrders = new JSONObject(results[0]);
@@ -327,6 +487,11 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     
     @Override
     public void onError(Exception exception) {
+        // Stop refresh indicator if it's showing
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setRefreshing(false);
+        }
+        
         Log.e("Dashboard", "Error fetching data", exception);
         Toast.makeText(this, getString(R.string.error_message, exception.getMessage()), Toast.LENGTH_SHORT).show();
     }
@@ -349,5 +514,6 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         startAutoRefresh();
         updateSystemStatus();
         updateButtonStates();
+        updateAutoPrintButtonAppearance();
     }
 }

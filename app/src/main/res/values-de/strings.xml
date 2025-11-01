@@ -87,6 +87,7 @@
     <string name="settings">Einstellungen</string>
     <string name="test_print">Testdruck</string>
     <string name="refresh_data">Daten aktualisieren</string>
+    <string name="auto_print">Auto Druck</string>
     
     <!-- Kitchen Display -->
     <string name="kitchen_display_title">Küchenanzeige</string>

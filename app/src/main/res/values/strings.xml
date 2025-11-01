@@ -37,6 +37,7 @@
     <string name="settings">Settings</string>
     <string name="test_print">Test Print</string>
     <string name="refresh_data">Refresh Data</string>
+    <string name="auto_print">Auto Print</string>
     
     <!-- Kitchen Display -->
     <string name="kitchen_display_title">Kitchen Display</string>

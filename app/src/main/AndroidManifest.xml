@@ -37,6 +37,9 @@
         <activity
             android:name="com.dantsu.thermalprinter.KitchenDisplayActivity"
             android:parentActivityName="com.dantsu.thermalprinter.MainActivity" />
+        <activity
+            android:name="com.dantsu.thermalprinter.DashboardActivity"
+            android:parentActivityName="com.dantsu.thermalprinter.MainActivity" />
 
         <service android:name="com.dantsu.thermalprinter.helpClasses.MyBackgroundService" />
     </application>
