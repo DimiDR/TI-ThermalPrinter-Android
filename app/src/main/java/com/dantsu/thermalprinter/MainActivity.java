@@ -96,6 +96,19 @@ import javax.net.ssl.SSLException;
 public class MainActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback  {
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
+    //set of orders IDs for which we've already played the new order sound
+    private static Set<String> soundPlayedOrders = new HashSet<>();
+    // Flag to track if we've done the initial load (to avoid playing sound for all existing orders)
+    private static boolean isInitialLoad = true;
+    
+    // Getter methods to access static sets from other activities
+    public static Set<String> getPrintedOrders() {
+        return printedOrders;
+    }
+    
+    public static Set<String> getSoundPlayedOrders() {
+        return soundPlayedOrders;
+    }
     private static Context context;
     private static Button button_bluetooth_browse;
 
@@ -228,6 +241,31 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         chipGroupPrinters = findViewById(R.id.chipGroup_printers);
         chipReceipt = findViewById(R.id.chip_receipt);
         chipKitchen = findViewById(R.id.chip_kitchen);
+        
+        // Load chip preferences from SharedPreferences
+        SharedPreferences chipPrefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+        boolean savedReceiptChecked = chipPrefs.getBoolean("chip_receipt_checked", true);
+        boolean savedKitchenChecked = chipPrefs.getBoolean("chip_kitchen_checked", false);
+        if (chipReceipt != null) chipReceipt.setChecked(savedReceiptChecked);
+        if (chipKitchen != null) chipKitchen.setChecked(savedKitchenChecked);
+        
+        // Save chip preferences when they change
+        if (chipReceipt != null) {
+            chipReceipt.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putBoolean("chip_receipt_checked", isChecked);
+                editor.apply();
+            });
+        }
+        if (chipKitchen != null) {
+            chipKitchen.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putBoolean("chip_kitchen_checked", isChecked);
+                editor.apply();
+            });
+        }
         //get the already printed IDs or orders
         context = this;
         printedOrders = IdManager.getIds(context);
@@ -318,17 +356,21 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     tiCategoriesEndpointURL = domain_shop + "/api/categories?location=" + location_id;
                     enableAllButtons();
                     
+                    // Fetch data immediately when app starts and URLs are initialized
+                    String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
+                    // NetworkHelper will use token from SharedPreferences
+                    networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, MainActivity.this);
+                    
                     // If reprint was requested, fetch orders now that URLs are initialized
                     if (shouldShowReprintPopup) {
-                        String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-                        // NetworkHelper will use token from SharedPreferences
-                        networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, MainActivity.this);
+                        // Already fetching above, shouldShowReprintPopup flag will be handled in onSuccess
                     }
                     
-                    // Start initial refresh after 1 second delay
+                    // Start initial refresh after 1 second delay if service should be active
                     new Handler().postDelayed(() -> {
-                        if (Constants.isServiceActive) {
-                            startWebServiceTask(MainActivity.this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
+                        if (Constants.isServiceActive && !isServiceStarted) {
+                            // Use startService() to properly initialize all service components
+                            startService();
                         }
                     }, 1000);
                 });
@@ -555,20 +597,55 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     @Override
     protected void onResume() {
         super.onResume();
-        updateUIBasedOnServiceStatus(); //TODO check if needed
         
         // Update test print button state when activity resumes
         updateTestPrintButtonState();
         
-        // Check if KitchenDisplayActivity was closed and restart timer if needed
+        // Fetch data immediately when app comes to foreground
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+        String savedToken = sharedPreferences.getString("token", "");
+        
+        // Check if URLs are initialized and user is logged in
+        if (!savedToken.isEmpty() && 
+            tiOrdersEndpointURL != null && !tiOrdersEndpointURL.isEmpty() && 
+            tiMenusEndpointURL != null && !tiMenusEndpointURL.isEmpty() &&
+            tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
+            // Fetch data immediately when coming to foreground
+            String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
+            networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, this);
+            
+            // Check if service should be active and start it if needed
+            // This ensures the service starts even if activated from DashboardActivity
+            if (Constants.isServiceActive && !isServiceStarted) {
+                Log.d("MainActivity", "Service flag is active but service not started, starting service");
+                startService();
+            }
+        }
+        
+        updateUIBasedOnServiceStatus(); // Update UI based on service status
+        
+        // Check if KitchenDisplayActivity was closed and restart timer if needed
         boolean kitchenOpen = sharedPreferences.getBoolean("kitchen_display_open", false);
-        if (!kitchenOpen && Constants.isServiceActive && !isKitchenDisplayOpen) {
+        if (!kitchenOpen && Constants.isServiceActive && !isKitchenDisplayOpen && isServiceStarted) {
             // KitchenDisplayActivity was closed, restart MainActivity timer
             startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
         }
         isKitchenDisplayOpen = kitchenOpen;
     }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Save chip preferences when activity is paused
+        if (chipReceipt != null && chipKitchen != null) {
+            SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putBoolean("chip_receipt_checked", chipReceipt.isChecked());
+            editor.putBoolean("chip_kitchen_checked", chipKitchen.isChecked());
+            editor.apply();
+        }
+    }
+    
     private void showUpdatePopup() {
         new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle(R.string.update_available)
@@ -631,44 +708,148 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 Log.d("ReprintOrders", "API returned " + dataArrayOrders.length() + " orders");
                 JSONArray filteredOrders = DocketStringModeler.filterPrintableOrders(dataArrayOrders, printedOrders);
                 
-                // Count open orders (not completed - status_id != 5)
+                // Count open orders (not completed - status_id != 5) and check for new unprinted orders
                 int openOrderCount = 0;
+                boolean hasNewUnprintedOrder = false;
+                List<String> newOrderIds = new ArrayList<>();
+                
+                // On initial load, populate soundPlayedOrders with all existing unprinted orders
+                // to avoid playing sound for orders that were already there when app started
+                if (isInitialLoad) {
+                    Log.d("MainActivity", "Initial load - marking all existing orders as 'sound played'");
+                    for (int i = 0; i < dataArrayOrders.length(); i++) {
+                        try {
+                            JSONObject order = dataArrayOrders.getJSONObject(i);
+                            String orderId = order.getString("id");
+                            if (!printedOrders.contains(orderId)) {
+                                soundPlayedOrders.add(orderId);
+                            }
+                        } catch (Exception e) {
+                            Log.e("MainActivity", "Error processing order during initial load", e);
+                        }
+                    }
+                    isInitialLoad = false;
+                    Log.d("MainActivity", "Initial load complete. Marked " + soundPlayedOrders.size() + " orders as 'sound played'");
+                }
+                
                 for (int i = 0; i < dataArrayOrders.length(); i++) {
                     dataObjectOrders = dataArrayOrders.getJSONObject(i);
                     ordersList.add(dataObjectOrders); // Add to orders list
                     
-                    // Check if order is not completed
                     try {
+                        String orderId = dataObjectOrders.getString("id");
                         JSONObject attributes = dataObjectOrders.optJSONObject("attributes");
                         JSONObject orderData = attributes != null ? attributes : dataObjectOrders;
-                        int statusId = orderData.optInt("status_id", -1);
+                        
+                        // Try to get status_id from nested structure (status.status_id)
+                        int statusId = -1;
+                        if (attributes != null) {
+                            JSONObject status = attributes.optJSONObject("status");
+                            if (status != null) {
+                                statusId = status.optInt("status_id", -1);
+                            } else {
+                                statusId = attributes.optInt("status_id", -1);
+                            }
+                        } else {
+                            statusId = orderData.optInt("status_id", -1);
+                        }
+                        
+                        // Check if order is not completed
                         if (statusId != 5) { // Not completed
                             openOrderCount++;
+                        }
+                        
+                        // Check if this is a new unprinted order that we haven't played sound for yet
+                        boolean isNotPrinted = !printedOrders.contains(orderId);
+                        boolean hasNotPlayedSound = !soundPlayedOrders.contains(orderId);
+                        
+                        if (isNotPrinted && hasNotPlayedSound) {
+                            hasNewUnprintedOrder = true;
+                            newOrderIds.add(orderId);
+                            soundPlayedOrders.add(orderId); // Mark that we've played sound for this order
+                            Log.d("MainActivity", "New unprinted order detected: " + orderId + " (status_id: " + statusId + ")");
                         }
                     } catch (Exception e) {
                         // If there's an error checking status, include the order
                         openOrderCount++;
+                        Log.e("MainActivity", "Error processing order for sound notification", e);
                     }
+                }
+                
+                // Play sound for new unprinted orders
+                if (hasNewUnprintedOrder) {
+                    Log.d("MainActivity", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
+                    
+                    // Ensure MediaPlayer is initialized
+                    if (mediaPlayer == null) {
+                        Log.d("MainActivity", "MediaPlayer is null, creating new instance");
+                        mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
+                    }
+                    
+                    if (mediaPlayer != null) {
+                        try {
+                            // Reset MediaPlayer to beginning to allow replaying
+                            if (mediaPlayer.isPlaying()) {
+                                mediaPlayer.stop();
+                                mediaPlayer.reset();
+                            } else {
+                                mediaPlayer.reset();
+                            }
+                            
+                            // Recreate MediaPlayer to ensure it's in a fresh state
+                            mediaPlayer.release();
+                            mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
+                            
+                            if (mediaPlayer != null) {
+                                mediaPlayer.start();
+                                Log.d("MainActivity", "Successfully played sound for new unprinted order(s)");
+                            } else {
+                                Log.e("MainActivity", "Failed to create MediaPlayer instance");
+                            }
+                        } catch (Exception e) {
+                            Log.e("MainActivity", "Error playing new order sound", e);
+                            // If MediaPlayer fails, try recreating it
+                            try {
+                                if (mediaPlayer != null) {
+                                    mediaPlayer.release();
+                                }
+                                mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
+                                if (mediaPlayer != null) {
+                                    mediaPlayer.start();
+                                    Log.d("MainActivity", "Successfully played sound after recreating MediaPlayer");
+                                }
+                            } catch (Exception e2) {
+                                Log.e("MainActivity", "Error recreating MediaPlayer for new order sound", e2);
+                            }
+                        }
+                    } else {
+                        Log.e("MainActivity", "MediaPlayer is null and could not be created");
+                    }
+                } else {
+                    Log.d("MainActivity", "No new unprinted orders found. Printed orders: " + printedOrders.size() + ", Sound played: " + soundPlayedOrders.size());
                 }
                 
                 // Update the order count badge
                 updateOrderCountBadge(openOrderCount);
 
-                for (int i = 0; i < filteredOrders.length(); i++) {
-                    dataObjectOrders = filteredOrders.getJSONObject(i);
-                    orderID = dataObjectOrders.getString("id");
+                // Only print automatically if Auto Print service is active
+                if (Constants.isServiceActive) {
+                    for (int i = 0; i < filteredOrders.length(); i++) {
+                        dataObjectOrders = filteredOrders.getJSONObject(i);
+                        orderID = dataObjectOrders.getString("id");
 
-                    //print receipt
-                    if (chipReceipt.isChecked()) {
-                        TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
-                    }
-                    // print receipt for kitchen
-                    if (chipKitchen.isChecked()) {
-                        TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
-                    }
+                        //print receipt
+                        if (chipReceipt.isChecked()) {
+                            TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                        }
+                        // print receipt for kitchen
+                        if (chipKitchen.isChecked()) {
+                            TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                        }
 
-                    if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
-                        break;
+                        if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
+                            break;
+                        }
                     }
                 }
 
@@ -882,7 +1063,16 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     }
 
     private void startService() {
+        // Check if service should be active and if URLs are initialized
         if (!Constants.isServiceActive) {
+            Constants.isServiceActive = true;
+        }
+        
+        // Only start the actual service task if it's not already started and URLs are ready
+        if (!isServiceStarted && 
+            tiOrdersEndpointURL != null && !tiOrdersEndpointURL.isEmpty() &&
+            tiMenusEndpointURL != null && !tiMenusEndpointURL.isEmpty() &&
+            tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
             //bindToService();
             Log.d("MainActivity", "Service bound");
 
@@ -906,13 +1096,20 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
             Log.d("MainActivity", "Web service task started");
 
-            Constants.isServiceActive = true;
             isServiceStarted = true;
+        } else if (isServiceStarted) {
+            // Service already started, just update UI
+            int buttonColor = ContextCompat.getColor(this, R.color.light_green);
+            if (button_ti_print != null) {
+                setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
+                button_ti_print.setText(R.string.printer_active);
+            }
         }
     }
 
     private void stopService() {
-        if (Constants.isServiceActive) {
+        // Stop the service if it's actually running
+        if (isServiceStarted) {
             //stopAndUnbindServiceWithDelay();
             if (networkHelperViewModel.getNetworkHelper().isNetworkTaskRunning()) {
                 networkHelperViewModel.getNetworkHelper().cancelNetworkTask();
@@ -940,6 +1137,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             Log.d("MainActivity", "Service stopped, isServiceActive set to false");
 
             isServiceStarted = false;
+        } else if (!Constants.isServiceActive) {
+            // Service not started but flag is false, just update UI
+            int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
+            if (button_ti_print != null) {
+                setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
+                button_ti_print.setText(R.string.printer_inactive);
+            }
         }
     }
 
@@ -1010,10 +1214,9 @@ private void restartWebservice(int buttonColor){
     }
 
     public void startWebServiceTask(Activity activity, String ordersUrl, String menusUrl, String categoriesUrl) {
-        startWebServiceTask(activity, ordersUrl, menusUrl, categoriesUrl, getRefreshInterval());
-    }
-    
-    public void startWebServiceTask(Activity activity, String ordersUrl, String menusUrl, String categoriesUrl, long refreshInterval) {
+        // This method is used for automatic printing service
+        // It fetches orders periodically to detect new ones for printing
+        // Note: API refresh for UI updates is handled separately by foreground refresh in activities
         Timer timer = networkHelperViewModel.getTimer();
         timer.schedule(new TimerTask() {
             @Override
@@ -1035,18 +1238,12 @@ private void restartWebservice(int buttonColor){
 
                 String[] urls = {ordersUrl, menusUrl, categoriesUrl};
 
-                Log.e("timer", "running: ");
+                Log.d("MainActivity", "Automatic printing service: fetching orders");
                 // Ensure the activity is still bound and the task can be executed
                 networkHelperViewModel.getNetworkHelper().fetchData(urls, username, password, domain_shop, (NetworkHelper.NetworkCallback) activity);
 
             }
-        }, delayPeriod, refreshInterval);
-    }
-    
-    private long getRefreshInterval() {
-        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-        boolean kitchenOpen = sharedPreferences.getBoolean("kitchen_display_open", false);
-        return kitchenOpen ? Constants.REFRESH_INTERVAL_KITCHEN_OPEN : Constants.REFRESH_INTERVAL_KITCHEN_CLOSED;
+        }, delayPeriod, Constants.REFRESH_INTERVAL_KITCHEN_OPEN);
     }
 
     private void showError(String errorMessage) {
@@ -1100,8 +1297,24 @@ private void restartWebservice(int buttonColor){
                                     webViewDialogFragment.setPrinterCircleColor(R.color.light_green);
                                 }
                             }
-                            mediaPlayer.start(); // play if printing done
+                            // Play sound when printing is done
+                            if (mediaPlayer != null) {
+                                try {
+                                    if (mediaPlayer.isPlaying()) {
+                                        mediaPlayer.stop();
+                                    }
+                                    mediaPlayer.reset();
+                                    mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
+                                    if (mediaPlayer != null) {
+                                        mediaPlayer.start();
+                                    }
+                                } catch (Exception e) {
+                                    Log.e("MainActivity", "Error playing print completion sound", e);
+                                }
+                            }
                             printedOrders.add(orderId);
+                            // Remove from soundPlayedOrders since it's now printed (optional cleanup)
+                            soundPlayedOrders.remove(orderId);
                             IdManager.clearIds(context);
                             IdManager.saveIds(context, printedOrders);
                         }
@@ -1243,6 +1456,8 @@ private void restartWebservice(int buttonColor){
                     //clear the id, so that the printing of open orders can be restarted
                     IdManager.clearIds(context);
                     printedOrders.clear();
+                    soundPlayedOrders.clear(); // Also clear sound tracking when resetting print IDs
+                    isInitialLoad = true; // Reset initial load flag so we don't play sound for all orders again
 //                    AsyncTask tast = new WebServiceTask().execute(tiOrdersEndpointURL); //TODO test printing initial requests immediately
                     dismiss();
                 }
@@ -1506,7 +1721,21 @@ private void restartWebservice(int buttonColor){
                         @Override
                         public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
                             Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
-                            mediaPlayer.start(); // play if printing done
+                            // Play sound when test print is done
+                            if (mediaPlayer != null) {
+                                try {
+                                    if (mediaPlayer.isPlaying()) {
+                                        mediaPlayer.stop();
+                                    }
+                                    mediaPlayer.reset();
+                                    mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
+                                    if (mediaPlayer != null) {
+                                        mediaPlayer.start();
+                                    }
+                                } catch (Exception e) {
+                                    Log.e("MainActivity", "Error playing test print sound", e);
+                                }
+                            }
                         }
                     }
             )

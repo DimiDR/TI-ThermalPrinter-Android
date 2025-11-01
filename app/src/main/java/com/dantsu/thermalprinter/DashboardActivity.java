@@ -20,8 +20,17 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
+import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
 import com.google.android.material.appbar.MaterialToolbar;
+import android.media.MediaPlayer;
+import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
+import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections;
+import com.dantsu.thermalprinter.async.AsyncBluetoothEscPosPrint;
+import com.dantsu.thermalprinter.async.AsyncEscPosPrint;
+import com.dantsu.thermalprinter.async.AsyncEscPosPrinter;
+import com.dantsu.thermalprinter.helpClasses.IdManager;
+import android.annotation.SuppressLint;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -41,7 +50,6 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     
     private MaterialToolbar toolbar;
     private TextView textTotalOrders;
-    private TextView textPendingOrders;
     private TextView textInProgressOrders;
     private TextView textCompletedOrders;
     private View viewPrinterStatus;
@@ -69,9 +77,19 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     
     // Statistics
     private int totalOrders = 0;
-    private int pendingOrders = 0;
     private int inProgressOrders = 0;
     private int completedOrders = 0;
+    
+    // Sound notification
+    private MediaPlayer mediaPlayer;
+    private boolean isInitialLoad = true;
+    
+    // Printing functionality
+    private BluetoothConnection selectedDevice;
+    private DocketStringModeler docketStringModeler;
+    private boolean chipReceiptChecked = true;  // default to receipt
+    private boolean chipKitchenChecked = false; // default to not kitchen
+    private boolean isLongerConnectionTime = false;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,17 +118,24 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         // Update button states based on printer availability
         updateButtonStates();
         
+        // Initialize MediaPlayer for sound notifications
+        mediaPlayer = MediaPlayer.create(this, R.raw.newordersound);
+        
+        // Initialize printing components
+        docketStringModeler = new DocketStringModeler();
+        loadPrinterConfiguration();
+        loadChipPreferences();
+        
         // Load initial data
         refreshData();
         
-        // Start auto-refresh timer
-        startAutoRefresh();
+        // Start foreground-based API refresh
+        startForegroundRefresh();
     }
     
     private void initializeViews() {
         toolbar = findViewById(R.id.toolbar);
         textTotalOrders = findViewById(R.id.textTotalOrders);
-        textPendingOrders = findViewById(R.id.textPendingOrders);
         textInProgressOrders = findViewById(R.id.textInProgressOrders);
         textCompletedOrders = findViewById(R.id.textCompletedOrders);
         viewPrinterStatus = findViewById(R.id.viewPrinterStatus);
@@ -173,6 +198,26 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 break;
             }
         }
+    }
+    
+    private void loadPrinterConfiguration() {
+        // Load printer configuration from SharedPreferences
+        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+        int storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
+        
+        if (storedPrinterIndex >= 0) {
+            BluetoothConnection[] bluetoothDevicesList = (new BluetoothPrintersConnections()).getList();
+            if (bluetoothDevicesList != null && storedPrinterIndex < bluetoothDevicesList.length) {
+                selectedDevice = bluetoothDevicesList[storedPrinterIndex];
+            }
+        }
+    }
+    
+    private void loadChipPreferences() {
+        // Load chip preferences from SharedPreferences (set by MainActivity)
+        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+        chipReceiptChecked = prefs.getBoolean("chip_receipt_checked", true);  // default to receipt
+        chipKitchenChecked = prefs.getBoolean("chip_kitchen_checked", false); // default to not kitchen
     }
     
     private void setupButtonListeners() {
@@ -243,8 +288,8 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 buttonAutoPrint.setText(R.string.printer_active);
             }
             
-            // Start web service task
-            startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
+            // Note: API refresh is handled separately by foreground refresh
+            // This button only controls automatic printing
             
             Constants.isServiceActive = true;
             updateSystemStatus();
@@ -253,11 +298,8 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     
     private void stopAutoPrintService() {
         if (Constants.isServiceActive) {
-            // Cancel network tasks
-            if (networkHelperViewModel.getNetworkHelper().isNetworkTaskRunning()) {
-                networkHelperViewModel.getNetworkHelper().cancelNetworkTask();
-            }
-            networkHelperViewModel.cancelTimer();
+            // Note: API refresh is handled separately by foreground refresh
+            // This only stops automatic printing
             
             // Update UI
             int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
@@ -302,29 +344,6 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         }
     }
     
-    private void startWebServiceTask(Context activity, String ordersUrl, String menusUrl, String categoriesUrl) {
-        Timer timer = networkHelperViewModel.getTimer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                SharedPreferences sharedPreferences = activity.getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-                String savedToken = sharedPreferences.getString("token", "");
-                if (savedToken.isEmpty()) {
-                    Log.d("DashboardActivity", "User not logged in, skipping refresh");
-                    return;
-                }
-                
-                boolean kitchenOpen = sharedPreferences.getBoolean("kitchen_display_open", false);
-                if (kitchenOpen) {
-                    Log.d("DashboardActivity", "KitchenDisplayActivity is open, skipping refresh");
-                    return;
-                }
-                
-                String[] urls = {ordersUrl, menusUrl, categoriesUrl};
-                networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, DashboardActivity.this);
-            }
-        }, 0, 60000); // Refresh every 60 seconds
-    }
     
     private void refreshData() {
         if (domain_shop == null || domain_shop.isEmpty()) {
@@ -335,17 +354,29 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, this);
     }
     
-    private void startAutoRefresh() {
+    private void startForegroundRefresh() {
+        // Start API refresh timer when app is in foreground
+        if (refreshTimer != null) {
+            refreshTimer.cancel();
+        }
         refreshTimer = new Timer();
         refreshTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                mainHandler.post(() -> refreshData());
+                mainHandler.post(() -> {
+                    SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+                    String savedToken = sharedPreferences.getString("token", "");
+                    if (savedToken.isEmpty()) {
+                        Log.d("DashboardActivity", "User not logged in, skipping refresh");
+                        return;
+                    }
+                    refreshData();
+                });
             }
-        }, 30000, 30000); // Refresh every 30 seconds
+        }, 0, Constants.REFRESH_INTERVAL_KITCHEN_OPEN);
     }
     
-    private void stopAutoRefresh() {
+    private void stopForegroundRefresh() {
         if (refreshTimer != null) {
             refreshTimer.cancel();
             refreshTimer = null;
@@ -354,11 +385,10 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     
     private void updateStatistics(List<JSONObject> orders) {
         totalOrders = 0;
-        pendingOrders = 0;
         inProgressOrders = 0;
         completedOrders = 0;
         
-        // Get today's date for filtering
+        // Get today's date for filtering (used for Total and Completed only)
         Calendar today = Calendar.getInstance();
         today.set(Calendar.HOUR_OF_DAY, 0);
         today.set(Calendar.MINUTE, 0);
@@ -375,68 +405,60 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 JSONObject attributes = order.optJSONObject("attributes");
                 JSONObject orderData = attributes != null ? attributes : order;
                 
-                // Check if order was created today
-                String createdAtStr = orderData.optString("created_at", "");
-                if (createdAtStr.isEmpty()) {
-                    continue; // Skip orders without created_at
-                }
+                // Get status_id first to determine how to filter
+                int statusId = orderData.optInt("status_id", -1);
                 
-                // Parse the created_at date
+                // Parse the created_at date (needed for today filter on Total/Completed)
+                String createdAtStr = orderData.optString("created_at", "");
                 Date createdAt = null;
-                try {
-                    createdAt = dateFormat.parse(createdAtStr);
-                } catch (ParseException e) {
-                    // Try alternative format if standard format fails
+                boolean isToday = false;
+                
+                if (!createdAtStr.isEmpty()) {
                     try {
-                        SimpleDateFormat altFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                        createdAt = altFormat.parse(createdAtStr);
-                    } catch (ParseException e2) {
-                        Log.w("Dashboard", "Could not parse created_at: " + createdAtStr);
-                        continue;
+                        createdAt = dateFormat.parse(createdAtStr);
+                    } catch (ParseException e) {
+                        // Try alternative format if standard format fails
+                        try {
+                            SimpleDateFormat altFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                            createdAt = altFormat.parse(createdAtStr);
+                        } catch (ParseException e2) {
+                            Log.w("Dashboard", "Could not parse created_at: " + createdAtStr);
+                        }
+                    }
+                    
+                    if (createdAt != null) {
+                        String orderDateStr = dateOnlyFormat.format(createdAt);
+                        isToday = orderDateStr.equals(todayDateStr);
                     }
                 }
                 
-                if (createdAt == null) {
+                // Count In Progress orders from all available data (no date filter)
+                // In Progress = all orders that are NOT Completed (status_id != 5)
+                if (statusId != 5) { // Not Completed
+                    inProgressOrders++;
+                }
+                
+                // Count Total and Completed orders only from today (with date filter)
+                if (createdAtStr.isEmpty() || !isToday) {
+                    // Skip for Total/Completed if not today or no date, but continue to next order
+                    // (In Progress already counted above)
                     continue;
                 }
                 
-                // Check if the order was created today
-                String orderDateStr = dateOnlyFormat.format(createdAt);
-                if (!orderDateStr.equals(todayDateStr)) {
-                    continue; // Skip orders not created today
-                }
-                
-                // Order is from today, count it
+                // Order is from today, count it for Total
                 totalOrders++;
-                int statusId = orderData.optInt("status_id", -1);
                 
-                switch (statusId) {
-                    case 1: // Pending
-                        pendingOrders++;
-                        break;
-                    case 2: // Confirmed
-                    case 3: // Preparation
-                        inProgressOrders++;
-                        break;
-                    case 4: // Delivery
-                        inProgressOrders++;
-                        break;
-                    case 5: // Completed
-                        completedOrders++;
-                        break;
-                    default:
-                        pendingOrders++;
-                        break;
+                // Count Completed orders (today only)
+                if (statusId == 5) { // Completed
+                    completedOrders++;
                 }
             } catch (Exception e) {
                 Log.e("Dashboard", "Error parsing order status", e);
-                // Don't increment pendingOrders here since we're filtering by date
             }
         }
         
         // Update UI
         textTotalOrders.setText(String.valueOf(totalOrders));
-        textPendingOrders.setText(String.valueOf(pendingOrders));
         textInProgressOrders.setText(String.valueOf(inProgressOrders));
         textCompletedOrders.setText(String.valueOf(completedOrders));
     }
@@ -477,7 +499,102 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
             swipeRefreshLayout.setRefreshing(false);
         }
         
-        if (results != null && results[0] != null) {
+        if (results != null && results[0] != null && results[1] != null && results[2] != null) {
+            try {
+                JSONObject jsonObjectOrders = new JSONObject(results[0]);
+                JSONObject jsonObjectMenus = new JSONObject(results[1]);
+                JSONObject jsonObjectCategories = new JSONObject(results[2]);
+                JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
+                List<JSONObject> ordersList = new ArrayList<>();
+                
+                // Get static sets from MainActivity for tracking printed orders and sound played orders
+                java.util.Set<String> printedOrders = MainActivity.getPrintedOrders();
+                java.util.Set<String> soundPlayedOrders = MainActivity.getSoundPlayedOrders();
+                
+                // Filter printable orders (not yet printed)
+                JSONArray filteredOrders = DocketStringModeler.filterPrintableOrders(dataArrayOrders, printedOrders);
+                
+                // Check for new unprinted orders and play sound
+                boolean hasNewUnprintedOrder = false;
+                List<String> newOrderIds = new ArrayList<>();
+                
+                // On initial load, populate soundPlayedOrders with all existing unprinted orders
+                // to avoid playing sound for orders that were already there when activity started
+                if (isInitialLoad) {
+                    Log.d("Dashboard", "Initial load - marking all existing orders as 'sound played'");
+                    for (int i = 0; i < dataArrayOrders.length(); i++) {
+                        try {
+                            JSONObject order = dataArrayOrders.getJSONObject(i);
+                            String orderId = order.getString("id");
+                            if (!printedOrders.contains(orderId)) {
+                                soundPlayedOrders.add(orderId);
+                            }
+                        } catch (Exception e) {
+                            Log.e("Dashboard", "Error processing order during initial load", e);
+                        }
+                    }
+                    isInitialLoad = false;
+                    Log.d("Dashboard", "Initial load complete. Marked " + soundPlayedOrders.size() + " orders as 'sound played'");
+                }
+                
+                for (int i = 0; i < dataArrayOrders.length(); i++) {
+                    JSONObject order = dataArrayOrders.getJSONObject(i);
+                    ordersList.add(order);
+                    
+                    try {
+                        String orderId = order.getString("id");
+                        
+                        // Check if this is a new unprinted order that we haven't played sound for yet
+                        boolean isNotPrinted = !printedOrders.contains(orderId);
+                        boolean hasNotPlayedSound = !soundPlayedOrders.contains(orderId);
+                        
+                        if (isNotPrinted && hasNotPlayedSound) {
+                            hasNewUnprintedOrder = true;
+                            newOrderIds.add(orderId);
+                            soundPlayedOrders.add(orderId); // Mark that we've played sound for this order
+                            Log.d("Dashboard", "New unprinted order detected: " + orderId);
+                        }
+                    } catch (Exception e) {
+                        Log.e("Dashboard", "Error processing order for sound notification", e);
+                    }
+                }
+                
+                // Play sound for new unprinted orders
+                if (hasNewUnprintedOrder) {
+                    Log.d("Dashboard", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
+                    playNewOrderSound();
+                }
+                
+                // Only print automatically if Auto Print service is active and printer is selected
+                if (Constants.isServiceActive && selectedDevice != null) {
+                    for (int i = 0; i < filteredOrders.length(); i++) {
+                        JSONObject dataObjectOrders = filteredOrders.getJSONObject(i);
+                        String orderID = dataObjectOrders.getString("id");
+
+                        //print receipt
+                        if (chipReceiptChecked) {
+                            TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                        }
+                        // print receipt for kitchen
+                        if (chipKitchenChecked) {
+                            TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                        }
+
+                        if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
+                            break;
+                        }
+                    }
+                }
+                
+                updateStatistics(ordersList);
+                updateSystemStatus();
+                
+            } catch (JSONException e) {
+                Log.e("Dashboard", "Error parsing orders JSON", e);
+                Toast.makeText(this, R.string.error_loading_order_data, Toast.LENGTH_SHORT).show();
+            }
+        } else if (results != null && results[0] != null) {
+            // Fallback: handle case where only orders data is available (for backwards compatibility)
             try {
                 JSONObject jsonObjectOrders = new JSONObject(results[0]);
                 JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
@@ -490,11 +607,97 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 
                 updateStatistics(ordersList);
                 updateSystemStatus();
-                
             } catch (JSONException e) {
                 Log.e("Dashboard", "Error parsing orders JSON", e);
                 Toast.makeText(this, R.string.error_loading_order_data, Toast.LENGTH_SHORT).show();
             }
+        }
+    }
+    
+    @SuppressLint("SimpleDateFormat")
+    public void TIJobPrintBluetooth(String print_info, String orderId) {
+        // Check if printer is available
+        if (selectedDevice == null) {
+            Log.e("Dashboard", "Printer not selected");
+            return;
+        }
+        
+        // Create AsyncEscPosPrinter similar to MainActivity
+        com.dantsu.thermalprinter.async.AsyncEscPosPrinter printer = new com.dantsu.thermalprinter.async.AsyncEscPosPrinter(selectedDevice, 203, 48f, 32);
+        printer.addTextToPrint(print_info);
+        printer.getPrinterConnection().disconnect(); // important so that the printer can reconnect
+        
+        new AsyncBluetoothEscPosPrint(
+                this,
+                new AsyncEscPosPrint.OnPrintFinished() {
+                    @Override
+                    public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                        Log.e("Dashboard", "Print error occurred");
+                        isLongerConnectionTime = true;
+                    }
+
+                    @Override
+                    public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+                        Log.i("Dashboard", "Print finished successfully");
+                        if (isLongerConnectionTime) {
+                            isLongerConnectionTime = false;
+                        }
+                        
+                        // Mark order as printed
+                        java.util.Set<String> printedOrders = MainActivity.getPrintedOrders();
+                        printedOrders.add(orderId);
+                        IdManager.clearIds(DashboardActivity.this);
+                        IdManager.saveIds(DashboardActivity.this, printedOrders);
+                    }
+                }
+        ).execute(printer);
+    }
+    
+    private void playNewOrderSound() {
+        // Ensure MediaPlayer is initialized
+        if (mediaPlayer == null) {
+            Log.d("Dashboard", "MediaPlayer is null, creating new instance");
+            mediaPlayer = MediaPlayer.create(this, R.raw.newordersound);
+        }
+        
+        if (mediaPlayer != null) {
+            try {
+                // Reset MediaPlayer to beginning to allow replaying
+                if (mediaPlayer.isPlaying()) {
+                    mediaPlayer.stop();
+                    mediaPlayer.reset();
+                } else {
+                    mediaPlayer.reset();
+                }
+                
+                // Recreate MediaPlayer to ensure it's in a fresh state
+                mediaPlayer.release();
+                mediaPlayer = MediaPlayer.create(this, R.raw.newordersound);
+                
+                if (mediaPlayer != null) {
+                    mediaPlayer.start();
+                    Log.d("Dashboard", "Successfully played sound for new unprinted order(s)");
+                } else {
+                    Log.e("Dashboard", "Failed to create MediaPlayer instance");
+                }
+            } catch (Exception e) {
+                Log.e("Dashboard", "Error playing new order sound", e);
+                // If MediaPlayer fails, try recreating it
+                try {
+                    if (mediaPlayer != null) {
+                        mediaPlayer.release();
+                    }
+                    mediaPlayer = MediaPlayer.create(this, R.raw.newordersound);
+                    if (mediaPlayer != null) {
+                        mediaPlayer.start();
+                        Log.d("Dashboard", "Successfully played sound after recreating MediaPlayer");
+                    }
+                } catch (Exception e2) {
+                    Log.e("Dashboard", "Error recreating MediaPlayer for new order sound", e2);
+                }
+            }
+        } else {
+            Log.e("Dashboard", "MediaPlayer is null and could not be created");
         }
     }
     
@@ -512,19 +715,36 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopAutoRefresh();
+        stopForegroundRefresh();
+        
+        // Release MediaPlayer when activity is destroyed
+        if (mediaPlayer != null) {
+            try {
+                if (mediaPlayer.isPlaying()) {
+                    mediaPlayer.stop();
+                }
+                mediaPlayer.release();
+            } catch (Exception e) {
+                Log.e("Dashboard", "Error releasing MediaPlayer", e);
+            }
+            mediaPlayer = null;
+        }
     }
     
     @Override
     protected void onPause() {
         super.onPause();
-        stopAutoRefresh();
+        stopForegroundRefresh();
     }
     
     @Override
     protected void onResume() {
         super.onResume();
-        startAutoRefresh();
+        // Reload chip preferences in case they were changed in MainActivity
+        loadChipPreferences();
+        // Reload printer configuration in case it was changed
+        loadPrinterConfiguration();
+        startForegroundRefresh();
         updateSystemStatus();
         updateButtonStates();
         updateAutoPrintButtonAppearance();

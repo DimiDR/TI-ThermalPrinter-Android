@@ -66,7 +66,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:weightSum="4">
+                        android:weightSum="3">
 
                         <!-- Total Orders Today -->
                         <LinearLayout
@@ -92,36 +92,6 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/total_today"
-                                android:textSize="12sp"
-                                android:textColor="@color/colorTextSecondary"
-                                android:gravity="center" />
-
-                        </LinearLayout>
-
-                        <!-- Pending Orders -->
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center"
-                            android:background="@drawable/stat_card_background"
-                            android:padding="12dp"
-                            android:layout_margin="4dp">
-
-                            <TextView
-                                android:id="@+id/textPendingOrders"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="0"
-                                android:textSize="24sp"
-                                android:textStyle="bold"
-                                android:textColor="@color/statusPending" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/pending_orders"
                                 android:textSize="12sp"
                                 android:textColor="@color/colorTextSecondary"
                                 android:gravity="center" />

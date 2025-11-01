@@ -63,7 +63,6 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     private Integer location_id;
     
     // Refresh settings
-    private long refreshInterval = Constants.REFRESH_INTERVAL_KITCHEN_OPEN; // 1 minute when KitchenDisplayActivity is open
     private boolean isRefreshing = false;
     
     // Pagination settings
@@ -80,6 +79,9 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     // Chip selection from main screen
     private boolean chipReceiptChecked = true;  // default to receipt
     private boolean chipKitchenChecked = false; // default to not kitchen
+    
+    // Flag to track if we've done the initial load for this activity
+    private boolean isInitialLoad = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -191,8 +193,8 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         editor.putBoolean("kitchen_display_open", true);
         editor.apply();
         
-        // Start auto-refresh timer
-        startAutoRefresh();
+        // Start foreground-based API refresh
+        startForegroundRefresh();
         
         // Keep screen awake while Kitchen Display is open
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -262,7 +264,6 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             }
         } catch (JSONException e) {
             Log.e("KitchenDisplay", "Error getting order ID", e);
-            Toast.makeText(this, R.string.error_updating_order_status, Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -273,9 +274,6 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 int statusId = getStatusIdByName(statusName);
                 if (statusId == -1) {
                     Log.e("KitchenDisplay", "Status not found: " + statusName);
-                    mainHandler.post(() -> {
-                        Toast.makeText(this, getString(R.string.invalid_status, statusName), Toast.LENGTH_SHORT).show();
-                    });
                     return;
                 }
                 
@@ -289,21 +287,12 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 
                 if (result != null) {
                     Log.d("KitchenDisplay", "Order " + orderId + " status updated to " + statusName);
-                    mainHandler.post(() -> {
-                        Toast.makeText(this, getString(R.string.order_status_updated, orderId, statusName), Toast.LENGTH_SHORT).show();
-                    });
                 } else {
                     Log.e("KitchenDisplay", "Failed to update order " + orderId);
-                    mainHandler.post(() -> {
-                        Toast.makeText(this, getString(R.string.failed_update_order_status, orderId), Toast.LENGTH_SHORT).show();
-                    });
                 }
                 
             } catch (Exception e) {
                 Log.e("KitchenDisplay", "Error updating order status", e);
-                mainHandler.post(() -> {
-                    Toast.makeText(this, getString(R.string.error_updating_order_status_with_message, e.getMessage()), Toast.LENGTH_SHORT).show();
-                });
             }
         }).start();
     }
@@ -455,21 +444,31 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, paginationCallback);
     }
     
-    private void startAutoRefresh() {
+    private void startForegroundRefresh() {
+        // Start API refresh timer when app is in foreground
+        if (refreshTimer != null) {
+            refreshTimer.cancel();
+        }
         refreshTimer = new Timer();
         refreshTimer.schedule(new TimerTask() {
             @Override
             public void run() {
                 mainHandler.post(() -> {
+                    SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+                    String savedToken = sharedPreferences.getString("token", "");
+                    if (savedToken.isEmpty()) {
+                        Log.d("KitchenDisplayActivity", "User not logged in, skipping refresh");
+                        return;
+                    }
                     if (!isRefreshing) {
                         refreshOrders();
                     }
                 });
             }
-        }, refreshInterval, refreshInterval);
+        }, 0, Constants.REFRESH_INTERVAL_KITCHEN_OPEN);
     }
     
-    private void stopAutoRefresh() {
+    private void stopForegroundRefresh() {
         if (refreshTimer != null) {
             refreshTimer.cancel();
             refreshTimer = null;
@@ -491,9 +490,59 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
                 List<JSONObject> ordersList = new ArrayList<>();
                 
+                // Get static sets from MainActivity for tracking printed orders and sound played orders
+                java.util.Set<String> printedOrders = MainActivity.getPrintedOrders();
+                java.util.Set<String> soundPlayedOrders = MainActivity.getSoundPlayedOrders();
+                
+                // Check for new unprinted orders and play sound
+                boolean hasNewUnprintedOrder = false;
+                List<String> newOrderIds = new ArrayList<>();
+                
+                // On initial load, populate soundPlayedOrders with all existing unprinted orders
+                // to avoid playing sound for orders that were already there when activity started
+                if (isInitialLoad) {
+                    Log.d("KitchenDisplay", "Initial load - marking all existing orders as 'sound played'");
+                    for (int i = 0; i < dataArrayOrders.length(); i++) {
+                        try {
+                            JSONObject order = dataArrayOrders.getJSONObject(i);
+                            String orderId = order.getString("id");
+                            if (!printedOrders.contains(orderId)) {
+                                soundPlayedOrders.add(orderId);
+                            }
+                        } catch (Exception e) {
+                            Log.e("KitchenDisplay", "Error processing order during initial load", e);
+                        }
+                    }
+                    isInitialLoad = false;
+                    Log.d("KitchenDisplay", "Initial load complete. Marked " + soundPlayedOrders.size() + " orders as 'sound played'");
+                }
+                
                 for (int i = 0; i < dataArrayOrders.length(); i++) {
                     JSONObject order = dataArrayOrders.getJSONObject(i);
                     ordersList.add(order);
+                    
+                    try {
+                        String orderId = order.getString("id");
+                        
+                        // Check if this is a new unprinted order that we haven't played sound for yet
+                        boolean isNotPrinted = !printedOrders.contains(orderId);
+                        boolean hasNotPlayedSound = !soundPlayedOrders.contains(orderId);
+                        
+                        if (isNotPrinted && hasNotPlayedSound) {
+                            hasNewUnprintedOrder = true;
+                            newOrderIds.add(orderId);
+                            soundPlayedOrders.add(orderId); // Mark that we've played sound for this order
+                            Log.d("KitchenDisplay", "New unprinted order detected: " + orderId);
+                        }
+                    } catch (Exception e) {
+                        Log.e("KitchenDisplay", "Error processing order for sound notification", e);
+                    }
+                }
+                
+                // Play sound for new unprinted orders
+                if (hasNewUnprintedOrder) {
+                    Log.d("KitchenDisplay", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
+                    playNewOrderSound();
                 }
                 
                 // Check if we have more data based on the number of orders returned
@@ -518,6 +567,54 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         }
     }
     
+    private void playNewOrderSound() {
+        // Ensure MediaPlayer is initialized
+        if (mediaPlayer == null) {
+            Log.d("KitchenDisplay", "MediaPlayer is null, creating new instance");
+            mediaPlayer = MediaPlayer.create(this, R.raw.newordersound);
+        }
+        
+        if (mediaPlayer != null) {
+            try {
+                // Reset MediaPlayer to beginning to allow replaying
+                if (mediaPlayer.isPlaying()) {
+                    mediaPlayer.stop();
+                    mediaPlayer.reset();
+                } else {
+                    mediaPlayer.reset();
+                }
+                
+                // Recreate MediaPlayer to ensure it's in a fresh state
+                mediaPlayer.release();
+                mediaPlayer = MediaPlayer.create(this, R.raw.newordersound);
+                
+                if (mediaPlayer != null) {
+                    mediaPlayer.start();
+                    Log.d("KitchenDisplay", "Successfully played sound for new unprinted order(s)");
+                } else {
+                    Log.e("KitchenDisplay", "Failed to create MediaPlayer instance");
+                }
+            } catch (Exception e) {
+                Log.e("KitchenDisplay", "Error playing new order sound", e);
+                // If MediaPlayer fails, try recreating it
+                try {
+                    if (mediaPlayer != null) {
+                        mediaPlayer.release();
+                    }
+                    mediaPlayer = MediaPlayer.create(this, R.raw.newordersound);
+                    if (mediaPlayer != null) {
+                        mediaPlayer.start();
+                        Log.d("KitchenDisplay", "Successfully played sound after recreating MediaPlayer");
+                    }
+                } catch (Exception e2) {
+                    Log.e("KitchenDisplay", "Error recreating MediaPlayer for new order sound", e2);
+                }
+            }
+        } else {
+            Log.e("KitchenDisplay", "MediaPlayer is null and could not be created");
+        }
+    }
+    
     @Override
     public void onError(Exception exception) {
         isRefreshing = false;
@@ -531,7 +628,20 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopAutoRefresh();
+        stopForegroundRefresh();
+        
+        // Release MediaPlayer when activity is destroyed
+        if (mediaPlayer != null) {
+            try {
+                if (mediaPlayer.isPlaying()) {
+                    mediaPlayer.stop();
+                }
+                mediaPlayer.release();
+            } catch (Exception e) {
+                Log.e("KitchenDisplay", "Error releasing MediaPlayer", e);
+            }
+            mediaPlayer = null;
+        }
         
         // Clear flag that KitchenDisplayActivity is open
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
@@ -546,18 +656,17 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     @Override
     protected void onPause() {
         super.onPause();
-        stopAutoRefresh();
+        stopForegroundRefresh();
     }
     
     @Override
     protected void onResume() {
         super.onResume();
-        startAutoRefresh();
+        startForegroundRefresh();
     }
     
     private void printOrder(JSONObject order) {
         if (selectedDevice == null) {
-            Toast.makeText(this, R.string.no_printer_selected_main_app, Toast.LENGTH_LONG).show();
             return;
         }
         
@@ -567,34 +676,25 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             JSONObject categoriesData = orderAdapter.categoriesData;
             
             if (menusData == null || categoriesData == null) {
-                Toast.makeText(this, R.string.menu_data_not_available, Toast.LENGTH_SHORT).show();
                 return;
             }
             
             String orderId = order.optString("id");
-            boolean hasPrinted = false;
             
             // Print receipt if chip is checked
             if (chipReceiptChecked) {
                 String receiptPrintInfo = docketStringModeler.startPrintingReceipt(order, menusData, categoriesData, mediaPlayer, shop_name);
                 executePrint(receiptPrintInfo, "Receipt");
-                hasPrinted = true;
             }
             
             // Print kitchen receipt if chip is checked
             if (chipKitchenChecked) {
                 String kitchenPrintInfo = docketStringModeler.startPrintingKitchen(order, menusData, categoriesData, mediaPlayer, shop_name);
                 executePrint(kitchenPrintInfo, "Kitchen");
-                hasPrinted = true;
-            }
-            
-            if (!hasPrinted) {
-                Toast.makeText(this, R.string.select_print_option, Toast.LENGTH_SHORT).show();
             }
             
         } catch (Exception e) {
             Log.e("KitchenDisplay", "Error printing order", e);
-            Toast.makeText(this, getString(R.string.error_printing_order, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -606,13 +706,11 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 @Override
                 public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
                     Log.e("KitchenDisplay", "Print error for " + printType + ": " + codeException);
-                    Toast.makeText(KitchenDisplayActivity.this, getString(R.string.print_type_failed, printType), Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
                 public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
                     Log.i("KitchenDisplay", printType + " print successful");
-                    Toast.makeText(KitchenDisplayActivity.this, getString(R.string.print_type_successful, printType), Toast.LENGTH_SHORT).show();
                 }
             }
         ).execute(getAsyncEscPosPrinter(selectedDevice, printInfo));
