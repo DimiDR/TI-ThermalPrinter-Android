@@ -1297,21 +1297,6 @@ private void restartWebservice(int buttonColor){
                                     webViewDialogFragment.setPrinterCircleColor(R.color.light_green);
                                 }
                             }
-                            // Play sound when printing is done
-                            if (mediaPlayer != null) {
-                                try {
-                                    if (mediaPlayer.isPlaying()) {
-                                        mediaPlayer.stop();
-                                    }
-                                    mediaPlayer.reset();
-                                    mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
-                                    if (mediaPlayer != null) {
-                                        mediaPlayer.start();
-                                    }
-                                } catch (Exception e) {
-                                    Log.e("MainActivity", "Error playing print completion sound", e);
-                                }
-                            }
                             printedOrders.add(orderId);
                             // Remove from soundPlayedOrders since it's now printed (optional cleanup)
                             soundPlayedOrders.remove(orderId);
@@ -1556,8 +1541,31 @@ private void restartWebservice(int buttonColor){
                     dismiss(); // Close the dialog when Cancel button is clicked
                 }
             });
-            builder.setView(view);
-            return builder.create();
+            
+            // Ensure Settings view is visible when dialog is dismissed (user cancelled)
+            Dialog dialog = builder.setView(view).create();
+            dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                @Override
+                public void onDismiss(DialogInterface dialogInterface) {
+                    // When dialog is dismissed (cancelled), ensure Settings view is visible
+                    // The activity should already be showing the Settings screen with login button
+                    if (getActivity() instanceof MainActivity) {
+                        MainActivity activity = (MainActivity) getActivity();
+                        // Ensure nestedScrollView (Settings view) is visible
+                        androidx.core.widget.NestedScrollView nestedScrollView = 
+                            activity.findViewById(R.id.nestedScrollView);
+                        if (nestedScrollView != null) {
+                            nestedScrollView.setVisibility(View.VISIBLE);
+                        }
+                        // Ensure login button is visible
+                        Button loginButton = activity.findViewById(R.id.button_ti_login);
+                        if (loginButton != null) {
+                            loginButton.setVisibility(View.VISIBLE);
+                        }
+                    }
+                }
+            });
+            return dialog;
         }
 
         private String checkValidCredentials(String domainInput, String username, String password) {

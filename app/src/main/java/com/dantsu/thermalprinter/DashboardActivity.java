@@ -179,7 +179,9 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         location_id = sharedPreferences.getInt("location_id", 1);
         
         if (domain_shop.isEmpty()) {
-            Toast.makeText(this, R.string.no_shop_configuration, Toast.LENGTH_LONG).show();
+            // Navigate to Settings (MainActivity) instead of closing app
+            Intent intent = new Intent(this, MainActivity.class);
+            startActivity(intent);
             finish();
             return;
         }

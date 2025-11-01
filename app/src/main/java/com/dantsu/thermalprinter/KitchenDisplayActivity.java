@@ -1,5 +1,6 @@
 package com.dantsu.thermalprinter;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -25,6 +26,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
+import com.dantsu.thermalprinter.helpClasses.IdManager;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
 import com.dantsu.thermalprinter.async.AsyncBluetoothEscPosPrint;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrint;
@@ -82,6 +84,9 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     
     // Flag to track if we've done the initial load for this activity
     private boolean isInitialLoad = true;
+    
+    // Flag to track printer connection issues
+    private boolean isLongerConnectionTime = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,9 +101,12 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         textOrderCount = findViewById(R.id.textOrderCount);
         
         
-        // Get chip settings from main screen
+        // Get chip settings from main screen (fallback if not in SharedPreferences)
         chipReceiptChecked = getIntent().getBooleanExtra("chip_receipt_checked", true);
         chipKitchenChecked = getIntent().getBooleanExtra("chip_kitchen_checked", false);
+        
+        // Load chip preferences from SharedPreferences (will override Intent values if available)
+        loadChipPreferences();
         
         // Setup RecyclerView
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
@@ -243,6 +251,13 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         if (orderAdapter != null) {
             orderAdapter.setPrinterAvailable(selectedDevice != null);
         }
+    }
+    
+    private void loadChipPreferences() {
+        // Load chip preferences from SharedPreferences (set by MainActivity)
+        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+        chipReceiptChecked = prefs.getBoolean("chip_receipt_checked", true);  // default to receipt
+        chipKitchenChecked = prefs.getBoolean("chip_kitchen_checked", false); // default to not kitchen
     }
     
     
@@ -545,6 +560,30 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                     playNewOrderSound();
                 }
                 
+                // Filter printable orders (not yet printed) for automatic printing
+                JSONArray filteredOrders = DocketStringModeler.filterPrintableOrders(dataArrayOrders, printedOrders);
+                
+                // Only print automatically if Auto Print service is active and printer is selected
+                if (Constants.isServiceActive && selectedDevice != null) {
+                    for (int i = 0; i < filteredOrders.length(); i++) {
+                        JSONObject dataObjectOrders = filteredOrders.getJSONObject(i);
+                        String orderID = dataObjectOrders.getString("id");
+
+                        //print receipt
+                        if (chipReceiptChecked) {
+                            TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                        }
+                        // print receipt for kitchen
+                        if (chipKitchenChecked) {
+                            TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                        }
+
+                        if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
+                            break;
+                        }
+                    }
+                }
+                
                 // Check if we have more data based on the number of orders returned
                 if (ordersList.size() < 50) {
                     hasMoreData = false;
@@ -662,6 +701,10 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     @Override
     protected void onResume() {
         super.onResume();
+        // Reload chip preferences in case they were changed in MainActivity
+        loadChipPreferences();
+        // Reload printer configuration in case it was changed
+        loadPrinterConfiguration();
         startForegroundRefresh();
     }
     
@@ -714,6 +757,47 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 }
             }
         ).execute(getAsyncEscPosPrinter(selectedDevice, printInfo));
+    }
+    
+    @SuppressLint("SimpleDateFormat")
+    public void TIJobPrintBluetooth(String print_info, String orderId) {
+        // Check if printer is available
+        if (selectedDevice == null) {
+            Log.e("KitchenDisplay", "Printer not selected");
+            return;
+        }
+        
+        // Create AsyncEscPosPrinter similar to MainActivity and DashboardActivity
+        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(selectedDevice, 203, 48f, 32);
+        printer.addTextToPrint(print_info);
+        printer.getPrinterConnection().disconnect(); // important so that the printer can reconnect
+        
+        new AsyncBluetoothEscPosPrint(
+                this,
+                new AsyncEscPosPrint.OnPrintFinished() {
+                    @Override
+                    public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                        Log.e("KitchenDisplay", "Print error occurred");
+                        isLongerConnectionTime = true;
+                    }
+
+                    @Override
+                    public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+                        Log.i("KitchenDisplay", "Print finished successfully");
+                        if (isLongerConnectionTime) {
+                            isLongerConnectionTime = false;
+                        }
+                        
+                        // Mark order as printed
+                        java.util.Set<String> printedOrders = MainActivity.getPrintedOrders();
+                        printedOrders.add(orderId);
+                        // Remove from soundPlayedOrders since it's now printed (optional cleanup)
+                        MainActivity.getSoundPlayedOrders().remove(orderId);
+                        IdManager.clearIds(KitchenDisplayActivity.this);
+                        IdManager.saveIds(KitchenDisplayActivity.this, printedOrders);
+                    }
+                }
+        ).execute(printer);
     }
     
     private AsyncEscPosPrinter getAsyncEscPosPrinter(BluetoothConnection printerConnection, String print_info) {

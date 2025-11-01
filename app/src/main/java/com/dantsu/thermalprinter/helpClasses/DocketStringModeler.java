@@ -149,7 +149,6 @@ public JSONObject addInformation(){
 
     private void printDocketCustomerReceipt() {
         try {
-                mediaPlayer.start(); //always play if new order is available
                 String orderID = orders.getString("id");
                 JSONObject orderAttributes = orders.getJSONObject("attributes");
                 String payment = orderAttributes.getString("payment");//stripe, cod, paypalexpress
@@ -281,7 +280,6 @@ public JSONObject addInformation(){
 
     private void printDocketKitchenReceipt() {
         try {
-            mediaPlayer.start(); //always play if new order is available
             String orderID = orders.getString("id");
             JSONObject orderAttributes = orders.getJSONObject("attributes");
             String payment = orderAttributes.getString("payment");//stripe, cod, paypalexpress
