@@ -173,7 +173,9 @@
     <!-- Order Status Messages -->
     <string name="error_updating_order_status">Fehler beim Aktualisieren des Bestellstatus</string>
     <string name="invalid_status">Ungültiger Status: %1$s</string>
+    <string name="error_invalid_status">Ungültiger Status: %1$s</string>
     <string name="order_status_updated">Bestellung #%1$s Status aktualisiert auf %2$s</string>
+    <string name="status_updated_successfully">Status aktualisiert auf %1$s</string>
     <string name="failed_update_order_status">Fehler beim Aktualisieren des Status der Bestellung #%1$s</string>
     <string name="error_updating_order_status_with_message">Fehler beim Aktualisieren des Bestellstatus: %1$s</string>
     <string name="error_loading_orders_with_message">Fehler beim Laden der Bestellungen: %1$s</string>
@@ -188,9 +190,15 @@
     <string name="print_type_successful">%1$s erfolgreich gedruckt</string>
     <string name="error_loading_order_data">Fehler beim Laden der Bestelldaten</string>
     
+    <!-- Payment Methods -->
+    <string name="payment_cod">Barzahlung</string>
+    <string name="payment_stripe">Kreditkarte</string>
+    <string name="payment_paypalexpress">PayPal</string>
+    
     <!-- Order Display -->
     <string name="order_id">Bestell-ID:</string>
     <string name="asap">SOFORT</string>
+    <string name="move_delivery_time">Lieferzeit später verschieben</string>
     <string name="collection">Abholung</string>
     
     <!-- Additional Strings -->

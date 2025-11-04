@@ -173,10 +173,17 @@
     <string name="phone">Phone:</string>
     <string name="address">Address:</string>
     
+    <!-- Payment Methods -->
+    <string name="payment_cod">Cash</string>
+    <string name="payment_stripe">Creditcard</string>
+    <string name="payment_paypalexpress">PayPal</string>
+    
     <!-- Order Status Messages -->
     <string name="error_updating_order_status">Error updating order status</string>
     <string name="invalid_status">Invalid status: %1$s</string>
+    <string name="error_invalid_status">Invalid status: %1$s</string>
     <string name="order_status_updated">Order #%1$s status updated to %2$s</string>
+    <string name="status_updated_successfully">Status updated to %1$s</string>
     <string name="failed_update_order_status">Failed to update order #%1$s status</string>
     <string name="error_updating_order_status_with_message">Error updating order status: %1$s</string>
     <string name="error_loading_orders_with_message">Error loading orders: %1$s</string>
@@ -194,6 +201,7 @@
     <!-- Order Display -->
     <string name="order_id">Order ID:</string>
     <string name="asap">ASAP</string>
+    <string name="move_delivery_time">Move Delivery Time Later</string>
     <string name="collection">Collection</string>
     
     <!-- Additional Strings -->

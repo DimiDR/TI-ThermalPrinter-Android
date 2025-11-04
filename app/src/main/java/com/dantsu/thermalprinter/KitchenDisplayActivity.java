@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.WindowManager;
 import android.util.Log;
 import android.view.View;
@@ -44,7 +45,7 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class KitchenDisplayActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback, KitchenOrderAdapter.ReceiptPreviewClickListener {
+public class KitchenDisplayActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback, KitchenOrderAdapter.ReceiptPreviewClickListener, KitchenOrderAdapter.DeliveryTimeChangeClickListener {
     
     private RecyclerView recyclerViewOrders;
     private KitchenOrderAdapter orderAdapter;
@@ -128,7 +129,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             public void onStatusChangeClick(JSONObject order, String statusName) {
                 updateSingleOrderStatus(order, statusName);
             }
-        }, this, printerAvailable);
+        }, this, this, printerAvailable);
         recyclerViewOrders.setAdapter(orderAdapter);
         
         // Add scroll listener for pagination
@@ -261,24 +262,86 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     }
     
     
+    @Override
+    public void onDeliveryTimeChangeClick(JSONObject order) {
+        updateOrderDeliveryTime(order);
+    }
+    
+    private void updateOrderDeliveryTime(JSONObject order) {
+        new Thread(() -> {
+            try {
+                String orderId = order.getString("id");
+                
+                // Get order attributes
+                JSONObject attributes = order.optJSONObject("attributes");
+                JSONObject orderData = attributes != null ? attributes : order;
+                
+                // Use current time (now) + 30 minutes instead of order_date_time + 30 minutes
+                java.util.Date currentTime = new java.util.Date();
+                long newTime = currentTime.getTime() + (30 * 60 * 1000); // Current time + 30 minutes in milliseconds
+                java.util.Date newDate = new java.util.Date(newTime);
+                
+                // Format as "yyyy-MM-dd HH:mm:ss" for API request (no timezone indicator)
+                // Use Europe/Berlin timezone to match local time in Germany
+                java.text.SimpleDateFormat outputFormat = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US);
+                outputFormat.setTimeZone(java.util.TimeZone.getTimeZone("Europe/Berlin"));
+                String newDateTime = outputFormat.format(newDate);
+                
+                // Format order_time as "HH:mm:ss" (time only)
+                java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US);
+                timeFormat.setTimeZone(java.util.TimeZone.getTimeZone("Europe/Berlin"));
+                String newTimeString = timeFormat.format(newDate);
+                
+                // Create the update payload
+                JSONObject updatePayload = new JSONObject();
+                updatePayload.put("order_date_time", newDateTime);
+                updatePayload.put("order_time", newTimeString);
+                
+                // Make the API call
+                String updateUrl = domain_shop + "/api/orders/" + orderId;
+                String result = makePatchRequest(updateUrl, updatePayload.toString());
+                
+                if (result != null) {
+                    Log.d("KitchenDisplay", "Order " + orderId + " delivery time updated to " + newDateTime + " (order_time: " + newTimeString + ")");
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Delivery time moved 30 minutes later", Toast.LENGTH_SHORT).show();
+                    });
+                    
+                    // Refresh the list after a short delay to allow the API call to complete
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        refreshOrders();
+                    }, 1000);
+                } else {
+                    Log.e("KitchenDisplay", "Failed to update order " + orderId + " delivery time");
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Failed to update delivery time", Toast.LENGTH_SHORT).show();
+                    });
+                }
+                
+            } catch (Exception e) {
+                Log.e("KitchenDisplay", "Error updating order delivery time", e);
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Error updating delivery time: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+    
     private void updateSingleOrderStatus(JSONObject order, String statusName) {
         try {
             String orderId = order.getString("id");
             updateOrderStatus(orderId, statusName);
             
-            // If status is completed, refresh the list to filter out completed orders
-            if ("completed".equals(statusName)) {
-                // Delay the refresh to allow the API call to complete
-                new Handler().postDelayed(() -> {
-                    refreshOrders();
-                    // Order count will be updated in onSuccess callback after refresh
-                }, 1000);
-            } else {
-                // Update order count immediately for non-completed status changes
-                updateOrderCount(orderAdapter.getItemCount());
-            }
+            // Refresh the list after a short delay to allow the API call to complete
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                refreshOrders();
+                // Order count will be updated in onSuccess callback after refresh
+            }, 1000);
         } catch (JSONException e) {
             Log.e("KitchenDisplay", "Error getting order ID", e);
+            runOnUiThread(() -> {
+                Toast.makeText(this, R.string.error_updating_order_status, Toast.LENGTH_SHORT).show();
+            });
         }
     }
     
@@ -289,6 +352,9 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 int statusId = getStatusIdByName(statusName);
                 if (statusId == -1) {
                     Log.e("KitchenDisplay", "Status not found: " + statusName);
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, getString(R.string.error_invalid_status, statusName), Toast.LENGTH_SHORT).show();
+                    });
                     return;
                 }
                 
@@ -301,13 +367,22 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 String result = makePatchRequest(updateUrl, updatePayload.toString());
                 
                 if (result != null) {
-                    Log.d("KitchenDisplay", "Order " + orderId + " status updated to " + statusName);
+                    Log.d("KitchenDisplay", "Order " + orderId + " status updated to " + statusName + " (ID: " + statusId + ")");
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, getString(R.string.status_updated_successfully, statusName), Toast.LENGTH_SHORT).show();
+                    });
                 } else {
-                    Log.e("KitchenDisplay", "Failed to update order " + orderId);
+                    Log.e("KitchenDisplay", "Failed to update order " + orderId + " to status " + statusName);
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, R.string.error_updating_order_status, Toast.LENGTH_SHORT).show();
+                    });
                 }
                 
             } catch (Exception e) {
                 Log.e("KitchenDisplay", "Error updating order status", e);
+                runOnUiThread(() -> {
+                    Toast.makeText(this, getString(R.string.error_updating_order_status_with_message, e.getMessage()), Toast.LENGTH_SHORT).show();
+                });
             }
         }).start();
     }
@@ -331,11 +406,18 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     private String makePatchRequest(String url, String jsonPayload) {
         try {
             // Get the authentication token from SharedPreferences
+            // Try "api_token" first (used by NetworkHelper), then "loginPrefs" as fallback
             SharedPreferences tokenPrefs = getSharedPreferences("api_token", Context.MODE_PRIVATE);
             String token = tokenPrefs.getString("token", null);
             
+            // Fallback to loginPrefs if token not found in api_token
             if (token == null) {
-                Log.e("KitchenDisplay", "No authentication token found");
+                SharedPreferences loginPrefs = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+                token = loginPrefs.getString("token", null);
+            }
+            
+            if (token == null) {
+                Log.e("KitchenDisplay", "No authentication token found in api_token or loginPrefs");
                 return null;
             }
             

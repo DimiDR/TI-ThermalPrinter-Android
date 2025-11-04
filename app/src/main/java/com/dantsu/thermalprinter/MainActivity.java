@@ -484,6 +484,18 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     }
 
     private void showOrdersPopup(List<JSONObject> ordersList, JSONObject jsonObjectMenus, JSONObject jsonObjectCategories) {
+        // Check if Activity is still valid before showing popup
+        if (isFinishing() || isDestroyed()) {
+            Log.w("MainActivity", "Cannot show popup - Activity is finishing or destroyed");
+            return;
+        }
+        
+        // Check if window is still valid
+        if (getWindow() == null || getWindow().getDecorView() == null || getWindow().getDecorView().getWindowToken() == null) {
+            Log.w("MainActivity", "Cannot show popup - Window token is not valid");
+            return;
+        }
+        
         // reprint functionality
         // Log the total number of orders received
         Log.d("ReprintOrders", "Total orders received: " + ordersList.size());
@@ -865,7 +877,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 // Show popup automatically if requested (e.g., from DashboardActivity)
                 if (shouldShowReprintPopup && !ordersList.isEmpty()) {
                     shouldShowReprintPopup = false;
-                    showOrdersPopup(ordersList, jsonObjectMenus, jsonObjectCategories);
+                    // Only show popup if Activity is still valid
+                    if (!isFinishing() && !isDestroyed() && getWindow() != null && 
+                        getWindow().getDecorView() != null && getWindow().getDecorView().getWindowToken() != null) {
+                        showOrdersPopup(ordersList, jsonObjectMenus, jsonObjectCategories);
+                    } else {
+                        Log.w("MainActivity", "Cannot show popup - Activity is not in valid state");
+                    }
                 }
 
             } catch (JSONException e) {

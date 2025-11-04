@@ -1,6 +1,9 @@
 package com.dantsu.thermalprinter;
 
+import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 
 public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapter.OrderViewHolder> {
     
@@ -30,6 +34,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     private PrintButtonClickListener printListener;
     private StatusChangeClickListener statusChangeListener;
     private ReceiptPreviewClickListener receiptPreviewListener;
+    private DeliveryTimeChangeClickListener deliveryTimeChangeListener;
     private boolean printerAvailable = true;
     
     public interface PrintButtonClickListener {
@@ -42,6 +47,10 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     
     public interface ReceiptPreviewClickListener {
         void onReceiptPreviewClick(JSONObject order);
+    }
+    
+    public interface DeliveryTimeChangeClickListener {
+        void onDeliveryTimeChangeClick(JSONObject order);
     }
     
     public KitchenOrderAdapter(List<JSONObject> orders) {
@@ -71,6 +80,15 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         this.printListener = printListener;
         this.statusChangeListener = statusChangeListener;
         this.receiptPreviewListener = receiptPreviewListener;
+        this.printerAvailable = printerAvailable;
+    }
+    
+    public KitchenOrderAdapter(List<JSONObject> orders, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener, DeliveryTimeChangeClickListener deliveryTimeChangeListener, boolean printerAvailable) {
+        this.orders = orders != null ? orders : new ArrayList<>();
+        this.printListener = printListener;
+        this.statusChangeListener = statusChangeListener;
+        this.receiptPreviewListener = receiptPreviewListener;
+        this.deliveryTimeChangeListener = deliveryTimeChangeListener;
         this.printerAvailable = printerAvailable;
     }
     
@@ -140,15 +158,15 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         return new OrderViewHolder(view);
     }
     
-    @Override
-    public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
-        JSONObject order = orders.get(position);
-        try {
-            holder.bind(order, menusData, categoriesData, printListener, statusChangeListener, receiptPreviewListener, printerAvailable);
-        } catch (JSONException e) {
-            e.printStackTrace();
+        @Override
+        public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
+            JSONObject order = orders.get(position);
+            try {
+                holder.bind(order, menusData, categoriesData, printListener, statusChangeListener, receiptPreviewListener, deliveryTimeChangeListener, printerAvailable);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
-    }
     
     @Override
     public int getItemCount() {
@@ -169,10 +187,10 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         private TextView textPaymentMethod;
         private View viewStatusIndicator;
         private Button buttonPrint;
-        private Button buttonStatusConfirmed;
         private Button buttonStatusPreparation;
         private Button buttonStatusDelivery;
         private Button buttonStatusCompleted;
+        private Button buttonMoveDeliveryTime;
         private ImageView btnViewReceipt;
         
         public OrderViewHolder(@NonNull View itemView) {
@@ -190,14 +208,14 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             textPaymentMethod = itemView.findViewById(R.id.textPaymentMethod);
             viewStatusIndicator = itemView.findViewById(R.id.viewStatusIndicator);
             buttonPrint = itemView.findViewById(R.id.buttonPrint);
-            buttonStatusConfirmed = itemView.findViewById(R.id.buttonStatusConfirmed);
             buttonStatusPreparation = itemView.findViewById(R.id.buttonStatusPreparation);
             buttonStatusDelivery = itemView.findViewById(R.id.buttonStatusDelivery);
             buttonStatusCompleted = itemView.findViewById(R.id.buttonStatusCompleted);
+            buttonMoveDeliveryTime = itemView.findViewById(R.id.buttonMoveDeliveryTime);
             btnViewReceipt = itemView.findViewById(R.id.btnViewReceipt);
         }
         
-        public void bind(JSONObject order, JSONObject menusData, JSONObject categoriesData, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener, boolean printerAvailable) throws JSONException {
+        public void bind(JSONObject order, JSONObject menusData, JSONObject categoriesData, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener, DeliveryTimeChangeClickListener deliveryTimeChangeListener, boolean printerAvailable) throws JSONException {
             // Check if order has attributes object (JSON:API format)
             JSONObject attributes = order.optJSONObject("attributes");
             JSONObject orderData = attributes != null ? attributes : order;
@@ -205,19 +223,56 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             // Order ID
             textOrderId.setText("#" + order.getString("id"));
             
-            // Order time
-            String orderTime = orderData.optString("order_time", "");
-            if (!orderTime.isEmpty()) {
+            // Order time - format similar to ReceiptTextParser
+            String orderTimeIsASAP = orderData.optString("order_time_is_asap", "false");
+            String orderDateTime = orderData.optString("order_date_time", "");
+            boolean isASAP = "true".equals(orderTimeIsASAP);
+            
+            if (!orderDateTime.isEmpty()) {
                 try {
-                    SimpleDateFormat inputFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
-                    SimpleDateFormat outputFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
-                    Date time = inputFormat.parse(orderTime);
-                    textOrderTime.setText(outputFormat.format(time));
+                    SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US);
+                    inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                    Date date = inputFormat.parse(orderDateTime);
+                    SimpleDateFormat outputFormat = new SimpleDateFormat("EEE, MMM d, yyyy HH:mm", Locale.getDefault());
+                    outputFormat.setTimeZone(TimeZone.getTimeZone("Europe/Berlin"));
+                    String formattedDateTime = outputFormat.format(date);
+                    
+                    if (isASAP) {
+                        textOrderTime.setText("Sofort: am " + formattedDateTime);
+                    } else {
+                        textOrderTime.setText("Gewünschte Zeit: am " + formattedDateTime);
+                    }
                 } catch (ParseException e) {
-                    textOrderTime.setText(orderTime);
+                    // Fallback to simple time format if date parsing fails
+                    String orderTime = orderData.optString("order_time", "");
+                    if (!orderTime.isEmpty()) {
+                        try {
+                            SimpleDateFormat inputFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+                            SimpleDateFormat outputFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                            Date time = inputFormat.parse(orderTime);
+                            textOrderTime.setText(outputFormat.format(time));
+                        } catch (ParseException e2) {
+                            textOrderTime.setText(orderTime);
+                        }
+                    } else {
+                        textOrderTime.setText(itemView.getContext().getString(R.string.asap));
+                    }
                 }
             } else {
-                textOrderTime.setText(itemView.getContext().getString(R.string.asap));
+                // Fallback to simple time format if order_date_time is not available
+                String orderTime = orderData.optString("order_time", "");
+                if (!orderTime.isEmpty()) {
+                    try {
+                        SimpleDateFormat inputFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+                        SimpleDateFormat outputFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                        Date time = inputFormat.parse(orderTime);
+                        textOrderTime.setText(outputFormat.format(time));
+                    } catch (ParseException e) {
+                        textOrderTime.setText(orderTime);
+                    }
+                } else {
+                    textOrderTime.setText(itemView.getContext().getString(R.string.asap));
+                }
             }
             
             // Order value
@@ -234,7 +289,22 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             textOrderType.setText(orderType.toUpperCase());
             
             // Phone
-            textPhone.setText(orderData.optString("telephone", ""));
+            String phoneNumber = orderData.optString("telephone", "");
+            textPhone.setText(phoneNumber);
+            
+            // Set up phone click listener to open dialer
+            if (textPhone != null) {
+                if (!phoneNumber.isEmpty()) {
+                    textPhone.setOnClickListener(v -> {
+                        Intent intent = new Intent(Intent.ACTION_DIAL);
+                        intent.setData(Uri.parse("tel:" + phoneNumber));
+                        itemView.getContext().startActivity(intent);
+                    });
+                } else {
+                    // Clear click listener if phone number is empty
+                    textPhone.setOnClickListener(null);
+                }
+            }
             
             // Address
             JSONObject address = orderData.optJSONObject("address");
@@ -243,8 +313,27 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                                    (address.optString("address_2", "").isEmpty() ? "" : ", " + address.optString("address_2", "")) +
                                    ", " + address.optString("city", "");
                 textAddress.setText(addressText);
+                
+                // Set up address click listener to open Google Maps navigation
+                textAddress.setOnClickListener(v -> {
+                    // Create a Uri for Google Maps navigation
+                    String mapUri = "google.navigation:q=" + Uri.encode(addressText);
+                    Intent mapIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(mapUri));
+                    mapIntent.setPackage("com.google.android.apps.maps");
+                    
+                    // If Google Maps is not installed, try opening in browser
+                    if (mapIntent.resolveActivity(itemView.getContext().getPackageManager()) == null) {
+                        // Fallback to web browser with Google Maps
+                        mapUri = "https://www.google.com/maps/search/?api=1&query=" + Uri.encode(addressText);
+                        mapIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(mapUri));
+                    }
+                    
+                    itemView.getContext().startActivity(mapIntent);
+                });
             } else {
                 textAddress.setText(itemView.getContext().getString(R.string.collection));
+                // Clear click listener if no address available
+                textAddress.setOnClickListener(null);
             }
             
             // Order items
@@ -255,7 +344,15 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                     JSONObject menuItem = orderMenus.getJSONObject(i);
                     int quantity = menuItem.optInt("qty", 1);
                     String name = menuItem.optString("name", "");
-                    itemsText.append(quantity).append("x ").append(name).append("\n");
+                    itemsText.append(quantity).append("x ").append(name);
+                    
+                    // Add menu item comment if exists
+                    String itemComment = menuItem.optString("comment", "");
+                    if (!"null".equals(itemComment) && !itemComment.isEmpty()) {
+                        itemsText.append(" (").append(itemView.getContext().getString(R.string.comment)).append(": ").append(itemComment).append(")");
+                    }
+                    
+                    itemsText.append("\n");
                 }
             }
             textOrderItems.setText(itemsText.toString().trim());
@@ -280,7 +377,8 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             
             // Payment method
             String paymentCode = orderData.optString("payment", "cod");
-            textPaymentMethod.setText(paymentCode.toUpperCase());
+            String paymentText = getPaymentMethodText(itemView.getContext(), paymentCode);
+            textPaymentMethod.setText(paymentText);
             
             // Set up print button click listener
             if (buttonPrint != null) {
@@ -299,14 +397,6 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             }
             
             // Set up status change button click listeners
-            if (buttonStatusConfirmed != null) {
-                buttonStatusConfirmed.setOnClickListener(v -> {
-                    if (statusChangeListener != null) {
-                        statusChangeListener.onStatusChangeClick(order, "confirmed");
-                    }
-                });
-            }
-            
             if (buttonStatusPreparation != null) {
                 buttonStatusPreparation.setOnClickListener(v -> {
                     if (statusChangeListener != null) {
@@ -336,6 +426,15 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                 btnViewReceipt.setOnClickListener(v -> {
                     if (receiptPreviewListener != null) {
                         receiptPreviewListener.onReceiptPreviewClick(order);
+                    }
+                });
+            }
+            
+            // Set up move delivery time button click listener
+            if (buttonMoveDeliveryTime != null) {
+                buttonMoveDeliveryTime.setOnClickListener(v -> {
+                    if (deliveryTimeChangeListener != null) {
+                        deliveryTimeChangeListener.onDeliveryTimeChangeClick(order);
                     }
                 });
             }
@@ -372,6 +471,22 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                     return Color.parseColor("#9E9E9E"); // Gray for Completed
                 default:
                     return Color.parseColor("#FF0000"); // Red for Unknown
+            }
+        }
+        
+        private String getPaymentMethodText(Context context, String paymentCode) {
+            if (paymentCode == null) {
+                paymentCode = "cod";
+            }
+            
+            String resourceName = "payment_" + paymentCode.toLowerCase();
+            int resourceId = context.getResources().getIdentifier(resourceName, "string", context.getPackageName());
+            
+            if (resourceId != 0) {
+                return context.getString(resourceId);
+            } else {
+                // Fallback to uppercase payment code if translation not found
+                return paymentCode.toUpperCase();
             }
         }
     }

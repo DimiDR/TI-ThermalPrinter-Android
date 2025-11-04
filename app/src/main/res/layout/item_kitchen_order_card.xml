@@ -65,9 +65,11 @@
                         android:id="@+id/textOrderTime"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="12:30"
-                        android:textSize="14sp"
-                        android:textColor="@color/colorTextSecondary" />
+                        android:text="Sofort: am Mo, Jan 1, 2024 12:30"
+                        android:textSize="12sp"
+                        android:textColor="@color/colorTextSecondary"
+                        android:maxLines="2"
+                        android:ellipsize="end" />
 
                     <TextView
                         android:id="@+id/textOrderValue"
@@ -132,7 +134,9 @@
                     android:textColor="@color/colorTextSecondary"
                     android:drawableStart="@android:drawable/ic_menu_call"
                     android:drawablePadding="8dp"
-                    android:drawableTint="@color/colorPrimary" />
+                    android:drawableTint="@color/colorPrimary"
+                    android:clickable="true"
+                    android:focusable="true" />
 
                 <TextView
                     android:id="@+id/textAddress"
@@ -145,7 +149,9 @@
                     android:drawableStart="@android:drawable/ic_menu_mylocation"
                     android:drawablePadding="8dp"
                     android:drawableTint="@color/colorPrimary"
-                    android:gravity="end" />
+                    android:gravity="end"
+                    android:clickable="true"
+                    android:focusable="true" />
 
             </LinearLayout>
 
@@ -229,19 +235,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_marginBottom="12dp"
-                android:weightSum="4">
-
-                <Button
-                    android:id="@+id/buttonStatusConfirmed"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_margin="2dp"
-                    android:text="@string/status_confirmed"
-                    android:textSize="10sp"
-                    android:background="@drawable/status_button_confirmed"
-                    android:textColor="@color/colorTextOnPrimary"
-                    android:textAllCaps="false" />
+                android:weightSum="3">
 
                 <Button
                     android:id="@+id/buttonStatusPreparation"
@@ -280,6 +274,20 @@
                     android:textAllCaps="false" />
 
             </LinearLayout>
+
+            <!-- Move Delivery Time Button -->
+            <Button
+                android:id="@+id/buttonMoveDeliveryTime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/move_delivery_time"
+                android:textSize="14sp"
+                android:background="@drawable/button_secondary"
+                android:textColor="@color/colorTextOnPrimary"
+                android:textAllCaps="false"
+                android:layout_marginBottom="12dp"
+                android:drawableStart="@android:drawable/ic_menu_recent_history"
+                android:drawablePadding="8dp" />
 
             <!-- Print Button -->
             <Button
