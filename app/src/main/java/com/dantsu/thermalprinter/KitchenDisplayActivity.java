@@ -263,11 +263,11 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     
     
     @Override
-    public void onDeliveryTimeChangeClick(JSONObject order) {
-        updateOrderDeliveryTime(order);
+    public void onDeliveryTimeChangeClick(JSONObject order, int minutesOffset) {
+        updateOrderDeliveryTime(order, minutesOffset);
     }
     
-    private void updateOrderDeliveryTime(JSONObject order) {
+    private void updateOrderDeliveryTime(JSONObject order, int minutesOffset) {
         new Thread(() -> {
             try {
                 String orderId = order.getString("id");
@@ -276,9 +276,9 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 JSONObject attributes = order.optJSONObject("attributes");
                 JSONObject orderData = attributes != null ? attributes : order;
                 
-                // Use current time (now) + 30 minutes instead of order_date_time + 30 minutes
+                // Use current time (now) + specified minutes offset
                 java.util.Date currentTime = new java.util.Date();
-                long newTime = currentTime.getTime() + (30 * 60 * 1000); // Current time + 30 minutes in milliseconds
+                long newTime = currentTime.getTime() + (minutesOffset * 60 * 1000); // Current time + minutesOffset in milliseconds
                 java.util.Date newDate = new java.util.Date(newTime);
                 
                 // Format as "yyyy-MM-dd HH:mm:ss" for API request (no timezone indicator)
@@ -303,8 +303,9 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 
                 if (result != null) {
                     Log.d("KitchenDisplay", "Order " + orderId + " delivery time updated to " + newDateTime + " (order_time: " + newTimeString + ")");
+                    final int minutes = minutesOffset;
                     runOnUiThread(() -> {
-                        Toast.makeText(this, "Delivery time moved 30 minutes later", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Delivery time moved " + minutes + " minutes later", Toast.LENGTH_SHORT).show();
                     });
                     
                     // Refresh the list after a short delay to allow the API call to complete

@@ -50,7 +50,7 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     }
     
     public interface DeliveryTimeChangeClickListener {
-        void onDeliveryTimeChangeClick(JSONObject order);
+        void onDeliveryTimeChangeClick(JSONObject order, int minutesOffset);
     }
     
     public KitchenOrderAdapter(List<JSONObject> orders) {
@@ -190,7 +190,9 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         private Button buttonStatusPreparation;
         private Button buttonStatusDelivery;
         private Button buttonStatusCompleted;
-        private Button buttonMoveDeliveryTime;
+        private Button buttonMoveDeliveryTime15;
+        private Button buttonMoveDeliveryTime30;
+        private Button buttonMoveDeliveryTime45;
         private ImageView btnViewReceipt;
         
         public OrderViewHolder(@NonNull View itemView) {
@@ -211,7 +213,9 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             buttonStatusPreparation = itemView.findViewById(R.id.buttonStatusPreparation);
             buttonStatusDelivery = itemView.findViewById(R.id.buttonStatusDelivery);
             buttonStatusCompleted = itemView.findViewById(R.id.buttonStatusCompleted);
-            buttonMoveDeliveryTime = itemView.findViewById(R.id.buttonMoveDeliveryTime);
+            buttonMoveDeliveryTime15 = itemView.findViewById(R.id.buttonMoveDeliveryTime15);
+            buttonMoveDeliveryTime30 = itemView.findViewById(R.id.buttonMoveDeliveryTime30);
+            buttonMoveDeliveryTime45 = itemView.findViewById(R.id.buttonMoveDeliveryTime45);
             btnViewReceipt = itemView.findViewById(R.id.btnViewReceipt);
         }
         
@@ -430,11 +434,27 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                 });
             }
             
-            // Set up move delivery time button click listener
-            if (buttonMoveDeliveryTime != null) {
-                buttonMoveDeliveryTime.setOnClickListener(v -> {
+            // Set up move delivery time button click listeners
+            if (buttonMoveDeliveryTime15 != null) {
+                buttonMoveDeliveryTime15.setOnClickListener(v -> {
                     if (deliveryTimeChangeListener != null) {
-                        deliveryTimeChangeListener.onDeliveryTimeChangeClick(order);
+                        deliveryTimeChangeListener.onDeliveryTimeChangeClick(order, 15);
+                    }
+                });
+            }
+            
+            if (buttonMoveDeliveryTime30 != null) {
+                buttonMoveDeliveryTime30.setOnClickListener(v -> {
+                    if (deliveryTimeChangeListener != null) {
+                        deliveryTimeChangeListener.onDeliveryTimeChangeClick(order, 30);
+                    }
+                });
+            }
+            
+            if (buttonMoveDeliveryTime45 != null) {
+                buttonMoveDeliveryTime45.setOnClickListener(v -> {
+                    if (deliveryTimeChangeListener != null) {
+                        deliveryTimeChangeListener.onDeliveryTimeChangeClick(order, 45);
                     }
                 });
             }
