@@ -646,24 +646,32 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 // Filter printable orders (not yet printed) for automatic printing
                 JSONArray filteredOrders = DocketStringModeler.filterPrintableOrders(dataArrayOrders, printedOrders);
                 
-                // Only print automatically if Auto Print service is active and printer is selected
-                if (Constants.isServiceActive && selectedDevice != null) {
-                    for (int i = 0; i < filteredOrders.length(); i++) {
-                        JSONObject dataObjectOrders = filteredOrders.getJSONObject(i);
-                        String orderID = dataObjectOrders.getString("id");
+                // Only print automatically if Auto Print service is active
+                if (Constants.isServiceActive) {
+                    // Reload printer configuration before printing to ensure we have a valid connection
+                    loadPrinterConfiguration();
+                    
+                    // Check if printer is available after reloading
+                    if (selectedDevice != null) {
+                        for (int i = 0; i < filteredOrders.length(); i++) {
+                            JSONObject dataObjectOrders = filteredOrders.getJSONObject(i);
+                            String orderID = dataObjectOrders.getString("id");
 
-                        //print receipt
-                        if (chipReceiptChecked) {
-                            TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
-                        }
-                        // print receipt for kitchen
-                        if (chipKitchenChecked) {
-                            TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
-                        }
+                            //print receipt
+                            if (chipReceiptChecked) {
+                                TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                            }
+                            // print receipt for kitchen
+                            if (chipKitchenChecked) {
+                                TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                            }
 
-                        if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
-                            break;
+                            if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
+                                break;
+                            }
                         }
+                    } else {
+                        Log.w("KitchenDisplay", "Auto print service is active but printer is not selected or available");
                     }
                 }
                 
