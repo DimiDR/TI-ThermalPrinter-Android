@@ -443,6 +443,26 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         // Also clear API token
         NetworkHelper networkHelper = new NetworkHelper(this);
         networkHelper.clearToken();
+        
+        // Clear shop-specific data
+        clearShopSpecificData();
+    }
+    
+    /**
+     * Clears shop-specific data when switching shops.
+     * This includes printed orders, sound played orders, and cached data.
+     */
+    private static void clearShopSpecificData() {
+        printedOrders.clear();
+        soundPlayedOrders.clear();
+        isInitialLoad = true; // Reset initial load flag so we don't play sound for all orders again
+        
+        // Clear persisted order IDs from storage
+        if (context != null) {
+            IdManager.clearIds(context);
+        }
+        
+        Log.d("MainActivity", "Cleared shop-specific data (printed orders, sound played orders, and cached IDs)");
     }
 
     private void clearWebViewCookies() {
@@ -1634,8 +1654,18 @@ private void restartWebservice(int buttonColor){
                 public void onTokenGenerated(String token) {
                     // Authentication successful
                     getActivity().runOnUiThread(() -> {
-                        // Save login data with manual domain
+                        // Check if this is a different shop than the one currently logged in
                         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+                        String previousDomain = sharedPreferences.getString("domain_shop", "");
+                        boolean isShopChanged = !previousDomain.equals(finalDomain);
+                        
+                        // If switching to a different shop, clear shop-specific data
+                        if (isShopChanged && !previousDomain.isEmpty()) {
+                            Log.d("MainActivity", "Shop changed from " + previousDomain + " to " + finalDomain + ". Clearing shop-specific data.");
+                            clearShopSpecificData();
+                        }
+                        
+                        // Save login data with manual domain
                         SharedPreferences.Editor editor = sharedPreferences.edit();
                         editor.putInt("shop_id", 1); // legacy field, no longer used for selection
                         editor.putString("domain_shop", finalDomain);

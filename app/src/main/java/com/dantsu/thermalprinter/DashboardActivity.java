@@ -84,6 +84,9 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     private MediaPlayer mediaPlayer;
     private boolean isInitialLoad = true;
     
+    // Track current shop domain to detect changes
+    private String currentShopDomain = "";
+    
     // Printing functionality
     private BluetoothConnection selectedDevice;
     private DocketStringModeler docketStringModeler;
@@ -106,7 +109,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         networkHelperViewModel = new ViewModelProvider(this).get(NetworkHelperViewModel.class);
         mainHandler = new Handler();
         
-        // Load shop configuration
+        // Load shop configuration (this will also initialize currentShopDomain)
         loadShopConfiguration();
         
         // Setup button listeners
@@ -185,6 +188,25 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
             finish();
             return;
         }
+        
+        // Check if shop has changed
+        boolean isShopChanged = !currentShopDomain.equals(domain_shop) && !currentShopDomain.isEmpty();
+        if (isShopChanged) {
+            Log.d("Dashboard", "Shop changed from " + currentShopDomain + " to " + domain_shop + ". Resetting statistics and initial load flag.");
+            // Reset statistics when shop changes
+            totalOrders = 0;
+            inProgressOrders = 0;
+            completedOrders = 0;
+            // Update UI immediately to show zero values
+            textTotalOrders.setText("0");
+            textInProgressOrders.setText("0");
+            textCompletedOrders.setText("0");
+            // Reset initial load flag so we don't play sound for all existing orders
+            isInitialLoad = true;
+        }
+        
+        // Update current shop domain
+        currentShopDomain = domain_shop;
         
         // Set API endpoints
         tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
@@ -750,6 +772,8 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     @Override
     protected void onResume() {
         super.onResume();
+        // Reload shop configuration to detect shop changes
+        loadShopConfiguration();
         // Reload chip preferences in case they were changed in MainActivity
         loadChipPreferences();
         // Reload printer configuration in case it was changed
@@ -758,5 +782,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         updateSystemStatus();
         updateButtonStates();
         updateAutoPrintButtonAppearance();
+        // Refresh data to get new shop's orders
+        refreshData();
     }
 }
