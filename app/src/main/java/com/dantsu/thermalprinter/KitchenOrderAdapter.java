@@ -311,33 +311,86 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             }
             
             // Address
-            JSONObject address = orderData.optJSONObject("address");
-            if (address != null) {
-                String addressText = address.optString("address_1", "") + 
-                                   (address.optString("address_2", "").isEmpty() ? "" : ", " + address.optString("address_2", "")) +
-                                   ", " + address.optString("city", "");
-                textAddress.setText(addressText);
-                
-                // Set up address click listener to open Google Maps navigation
-                textAddress.setOnClickListener(v -> {
-                    // Create a Uri for Google Maps navigation
-                    String mapUri = "google.navigation:q=" + Uri.encode(addressText);
-                    Intent mapIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(mapUri));
-                    mapIntent.setPackage("com.google.android.apps.maps");
+            String addressText = "";
+            
+            // First try to get formatted_address from order data (if available)
+            String formattedAddress = orderData.optString("formatted_address", "").trim();
+            if (!formattedAddress.isEmpty() && !"null".equals(formattedAddress) && "delivery".equalsIgnoreCase(orderType)) {
+                addressText = formattedAddress.replaceAll("\\s+", " ").replaceAll(",\\s*,", ",");
+            } else {
+                // Fall back to building from address object components
+                JSONObject address = orderData.optJSONObject("address");
+                if (address != null && "delivery".equalsIgnoreCase(orderType)) {
+                    // Build address string from components
+                    StringBuilder addressBuilder = new StringBuilder();
+                    String address1 = address.optString("address_1", "").trim();
+                    String address2 = address.optString("address_2", "").trim();
+                    String city = address.optString("city", "").trim();
                     
-                    // If Google Maps is not installed, try opening in browser
-                    if (mapIntent.resolveActivity(itemView.getContext().getPackageManager()) == null) {
-                        // Fallback to web browser with Google Maps
-                        mapUri = "https://www.google.com/maps/search/?api=1&query=" + Uri.encode(addressText);
-                        mapIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(mapUri));
+                    if (!address1.isEmpty()) {
+                        addressBuilder.append(address1);
+                    }
+                    if (!address2.isEmpty()) {
+                        if (addressBuilder.length() > 0) {
+                            addressBuilder.append(", ");
+                        }
+                        addressBuilder.append(address2);
+                    }
+                    if (!city.isEmpty()) {
+                        if (addressBuilder.length() > 0) {
+                            addressBuilder.append(", ");
+                        }
+                        addressBuilder.append(city);
                     }
                     
-                    itemView.getContext().startActivity(mapIntent);
+                    addressText = addressBuilder.toString().trim();
+                }
+            }
+            
+            // Only set click listener if address text is not empty and order is delivery
+            if (!addressText.isEmpty() && "delivery".equalsIgnoreCase(orderType)) {
+                textAddress.setText(addressText);
+                // Ensure TextView is clickable and has visual feedback
+                textAddress.setClickable(true);
+                textAddress.setFocusable(true);
+                textAddress.setFocusableInTouchMode(true);
+                
+                // Create final copy for lambda expression
+                final String finalAddressText = addressText;
+                
+                // Set up address click listener to open Google Maps and show location
+                textAddress.setOnClickListener(v -> {
+                    try {
+                        // Try to open in Google Maps app first
+                        Intent googleMapsIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(finalAddressText)));
+                        googleMapsIntent.setPackage("com.google.android.apps.maps");
+                        
+                        // If Google Maps is installed, use it
+                        if (googleMapsIntent.resolveActivity(itemView.getContext().getPackageManager()) != null) {
+                            itemView.getContext().startActivity(googleMapsIntent);
+                        } else {
+                            // Fallback to generic geo intent
+                            Intent geoIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(finalAddressText)));
+                            if (geoIntent.resolveActivity(itemView.getContext().getPackageManager()) != null) {
+                                itemView.getContext().startActivity(geoIntent);
+                            } else {
+                                // Last resort: open in browser
+                                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(finalAddressText)));
+                                itemView.getContext().startActivity(browserIntent);
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 });
             } else {
+                // No address or empty address (pickup order)
                 textAddress.setText(itemView.getContext().getString(R.string.collection));
-                // Clear click listener if no address available
+                // Clear click listener and make it non-clickable
                 textAddress.setOnClickListener(null);
+                textAddress.setClickable(false);
+                textAddress.setFocusable(false);
+                textAddress.setFocusableInTouchMode(false);
             }
             
             // Order items
