@@ -1704,6 +1704,12 @@ private void restartWebservice(int buttonColor){
                 if (button_dashboard != null) button_dashboard.setEnabled(true);
                         ((MainActivity) getActivity()).updateTestPrintButtonState();
                         dismiss();
+                        
+                        // Navigate to Dashboard after successful login
+                        Intent intent = new Intent(getActivity(), DashboardActivity.class);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                        getActivity().finish();
                     });
                 }
 
