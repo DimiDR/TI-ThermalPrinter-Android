@@ -5,24 +5,227 @@
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
     <string name="login_button">Einloggen</string>
+    <string name="authenticating">Authentifizierung läuft...</string>
     <string name="homepage_button">Homepage</string>
     <string name="test_print_button">Test Druck</string>
     <string name="kitchen_display_button">Küchenanzeige</string>
     <string name="admin_button">Administration</string>
     <string name="select_printer_button">Drucker Wählen</string>
     <string name="service_started_button">Drucker An</string>
+    <string name="new_orders_button">Neue Bestellungen</string>
+    <string name="old_orders_button">Alte Bestellungen</string>
     <string name="reprint_button">Neudruck</string>
     <string name="revert_print_ids_button">Druck Zurücksetzen</string>
-    <string name="login_text">Bitter Einlogen</string>
-    <string name="open_websites_text">Zu den Webseiten</string>
+    <string name="login_text">Bitte Einloggen</string>
+    <string name="open_websites_text">Hauptfunktionen</string>
     <string name="bluetooth_printer_text">Bluetooth Drucker</string>
     <string name="service_stoped_button">Drucker Aus</string>
-    <string name="revert_print_ids_text">Nur neue Bestellungen mit Status \"Eingegangen\" werden gedruckt</string>
+    <string name="revert_print_ids_text">Nur neue Bestellungen mit Status &quot;Eingegangen&quot; werden gedruckt</string>
     <string name="select_printer_text">Bitte einen Drucker wählen</string>
     <string name="printer_connection_lost_text">Verbindung zum Drucker unterbrochen</string>
-    <string name="printer_connection_disrupted_text">Druckerverbindung \\n gestört</string>
+    <string name="printer_connection_disrupted_text">Druckerverbindung \n gestört</string>
     <string name="printer_connection_reactivated_text">Verbindung zum Drucker hergestellt</string>
     <string name="no_user_error_text">FEHLER: Der Benutzer wurde nicht gefunden</string>
     <string name="wrong_password_error_text">FEHLER: falsches Passwort</string>
+    <string name="authentication_failed">Authentifizierung fehlgeschlagen</string>
+    
+    <!-- Network & Login Validation Errors -->
+    <string name="no_internet_warning">⚠️ Keine Internetverbindung erkannt!\n\nBitte aktivieren Sie WiFi oder mobile Daten vor dem Anmelden.</string>
+    <string name="no_internet_error">Keine Internetverbindung!\n\nBitte überprüfen Sie:\n• WiFi ist eingeschaltet\n• Mobile Daten sind aktiviert\n• Sie sind mit einem Netzwerk verbunden</string>
+    <string name="domain_required">Bitte geben Sie eine Domain-URL ein</string>
+    <string name="invalid_domain">Ungültige Domain-URL. Bitte überprüfen Sie auf zusätzliche Leerzeichen.</string>
+    <string name="network_error_occurred">Netzwerkfehler aufgetreten. Bitte überprüfen Sie Ihre Internetverbindung.</string>
+    <string name="dns_resolution_failed">DNS-Auflösung fehlgeschlagen\n\nHostname kann nicht aufgelöst werden: %1$s\n\nBitte überprüfen Sie:\n• Ihre Internetverbindung ist aktiv\n• Die Domain ist korrekt: %2$s\n• Versuchen Sie, die Domain in einem Webbrowser zu öffnen\n• Überprüfen Sie, ob Sie hinter einer Firewall oder einem VPN sind\n• Versuchen Sie, zwischen WiFi und mobilen Daten zu wechseln</string>
+    <string name="dns_resolution_failed_no_network">DNS-Auflösung fehlgeschlagen\n\nHostname kann nicht aufgelöst werden: %1$s\n\n⚠️ Keine Netzwerkverbindung erkannt!\n\nBitte überprüfen Sie:\n• Ihre Internetverbindung ist aktiv\n• Die Domain ist korrekt: %2$s\n• Versuchen Sie, die Domain in einem Webbrowser zu öffnen\n• Überprüfen Sie, ob Sie hinter einer Firewall oder einem VPN sind\n• Versuchen Sie, zwischen WiFi und mobilen Daten zu wechseln</string>
+    <string name="connection_timeout">Verbindungszeitüberschreitung. Der Server hat zu lange benötigt, um zu antworten. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.</string>
+    <string name="connection_refused">Verbindung abgelehnt. Der Server ist möglicherweise nicht erreichbar oder akzeptiert keine Verbindungen.</string>
+    <string name="ssl_tls_error">SSL/TLS-Fehler. Bitte überprüfen Sie, ob das Sicherheitszertifikat des Servers gültig ist.</string>
+    <string name="network_unreachable">Netzwerk nicht erreichbar. Bitte überprüfen Sie Ihre Internetverbindung.</string>
+    <string name="invalid_url_format">Ungültiges URL-Format: %1$s. Bitte überprüfen Sie die Domain auf Tippfehler oder zusätzliche Leerzeichen.</string>
+    <string name="invalid_domain_spaces">Ungültige Domain-URL. Bitte überprüfen Sie auf zusätzliche Leerzeichen oder ungültige Zeichen.</string>
+    <string name="unknown_error">Unbekannter Fehler</string>
+    
+    <!-- Kitchen Order Card Strings -->
+    <string name="order_items_label">Bestellte Artikel:</string>
+    <string name="status_confirmed">Bestätigt</string>
+    <string name="status_preparation">Zubereitung</string>
+    <string name="status_delivery">Lieferung</string>
+    <string name="status_completed">Abgeschlossen</string>
+    <string name="print_order_button">Bestellung drucken</string>
+    
+    <!-- Activity Titles -->
+    <string name="title_activity_dashboard">Dashboard</string>
+    <string name="title_activity_main">Einstellungen &amp; Konfiguration</string>
+    
+    <!-- Login & Authentication -->
+    <string name="logout_button">Abmelden</string>
+    <string name="login_required">Anmeldung erforderlich</string>
+    <string name="login_description">Geben Sie Ihre TastyIgniter-Anmeldedaten ein, um auf das Restaurantverwaltungssystem zuzugreifen.</string>
+    <string name="select_shop">Shop auswählen</string>
+    <string name="username">Benutzername</string>
+    <string name="password">Passwort</string>
+    <string name="cancel">Abbrechen</string>
+    
+    <!-- Dashboard -->
+    <string name="dashboard_title">Dashboard</string>
+    <string name="order_statistics">Bestellstatistik</string>
+    <string name="total_today">Gesamt heute</string>
+    <string name="pending_orders">Ausstehend</string>
+    <string name="in_progress_orders">In Bearbeitung</string>
+    <string name="completed_orders">Abgeschlossen</string>
+    <string name="system_status">Systemstatus</string>
+    <string name="printer_connection">Druckerverbindung</string>
+    <string name="printing_service">Druckdienst</string>
+    <string name="shop_connection">Shop-Verbindung</string>
+    <string name="connected">Verbunden</string>
+    <string name="not_connected">Nicht verbunden</string>
+    <string name="active">Aktiv</string>
+    <string name="inactive">Inaktiv</string>
+    <string name="quick_actions">Schnellaktionen</string>
+    <string name="view_orders">Bestellungen anzeigen</string>
+    <string name="reprint_orders">Bestellungen erneut drucken</string>
+    <string name="settings">Einstellungen</string>
+    <string name="test_print">Testdruck</string>
+    <string name="refresh_data">Daten aktualisieren</string>
+    <string name="auto_print">Auto Druck</string>
+    
+    <!-- Kitchen Display -->
+    <string name="kitchen_display_title">Küchenanzeige</string>
+    <string name="active_orders">Aktive Bestellungen</string>
+    <string name="dashboard">Dashboard</string>
+    
+    <!-- Settings & Configuration -->
+    <string name="settings_title">Einstellungen &amp; Konfiguration</string>
+    <string name="shop_information">Shop-Informationen</string>
+    <string name="printer_configuration">Druckerkonfiguration</string>
+    <string name="select_bluetooth_printer">Bluetooth-Drucker auswählen</string>
+    <string name="service_control">Dienststeuerung</string>
+    <string name="start_printing_service">Druckdienst starten</string>
+    <string name="stop_printing_service">Druckdienst stoppen</string>
+    <string name="print_type_selection">Drucktyp-Auswahl</string>
+    <string name="print_type_description">Wählen Sie, was automatisch gedruckt werden soll</string>
+    <string name="receipt">Beleg</string>
+    <string name="kitchen">Küche</string>
+    <string name="advanced_options">Erweiterte Optionen</string>
+    <string name="reset_print_history">Druckverlauf zurücksetzen</string>
+    <string name="check_for_updates">Auf Updates prüfen</string>
+    
+    <!-- Error Messages -->
+    <string name="shop_required">Bitte einen Shop auswählen</string>
+    <string name="no_shop_configuration">Keine Shop-Konfiguration gefunden. Bitte zuerst anmelden.</string>
+    <string name="no_reprintable_orders">Keine erneut druckbaren Bestellungen gefunden</string>
+    <string name="failed_to_fetch_data">Fehler beim Abrufen der Daten vom Webservice</string>
+    <string name="error_loading_orders">Fehler beim Laden der Bestellungen</string>
+    <string name="menu_data_not_available">Menü-Daten nicht verfügbar. Bitte aktualisieren und erneut versuchen.</string>
+    <string name="no_printer_selected">Kein Drucker ausgewählt. Bitte Drucker in der Haupt-App konfigurieren.</string>
+    <string name="print_failed">Druck fehlgeschlagen</string>
+    <string name="print_successful">Druck erfolgreich</string>
+    <string name="status_pending">Ausstehend</string>
+    
+    <!-- Accessibility -->
+    <string name="close_kitchen_display">Küchenanzeige schließen</string>
+    <string name="view_receipt">Beleg anzeigen</string>
+    <string name="back">Zurück</string>
+    <string name="refresh">Aktualisieren</string>
+    <string name="loading">Laden...</string>
+    
+    <!-- Dialog Messages -->
+    <string name="update_available">Update verfügbar</string>
+    <string name="update_available_message">Eine neue Version der App ist verfügbar. Klicken Sie auf die Update-Schaltfläche, um die neueste Version zu erhalten.</string>
+    <string name="update">Aktualisieren</string>
+    <string name="yes">Ja</string>
+    <string name="exit_confirmation">Sind Sie sicher, dass Sie die App beenden möchten? Dies stoppt alle laufenden Prozesse.</string>
+    <string name="bluetooth_error">Bluetooth-Fehler</string>
+    <string name="bluetooth_error_message">Bluetooth ist nicht aktiviert oder nicht verfügbar. Bitte aktivieren Sie Bluetooth und versuchen Sie es erneut.</string>
+    <string name="ok">OK</string>
+    <string name="no_bluetooth_printers_found">Keine Bluetooth-Drucker gefunden</string>
+    <string name="no_bluetooth_printers_message">Keine gepaarten Bluetooth-Drucker gefunden. Bitte koppeln Sie zuerst einen Drucker in den Bluetooth-Einstellungen.</string>
+    <string name="bluetooth_printer_selection">Bluetooth-Drucker-Auswahl</string>
+    <string name="update_available_button">Update verfügbar</string>
+    <string name="version">Version</string>
+    <string name="printer_active">Drucker ist aktiv</string>
+    <string name="printer_inactive">Drucker ist inaktiv</string>
+    
+    <!-- Printing Messages -->
+    <string name="printing_in_progress">Druck läuft...</string>
+    <string name="connecting_printer">Drucker wird verbunden...</string>
+    <string name="printer_connected">Drucker ist verbunden...</string>
+    <string name="printer_printing">Drucker druckt...</string>
+    <string name="printer_finished">Drucker ist fertig...</string>
+    <string name="no_printer_title">Kein Drucker</string>
+    <string name="no_printer_message">Die Anwendung kann keinen verbundenen Drucker finden.</string>
+    <string name="broken_connection_title">Unterbrochene Verbindung</string>
+    <string name="broken_connection_message">Verbindung zum Drucker konnte nicht hergestellt werden.</string>
+    <string name="invalid_format_title">Ungültiger formatierten Text</string>
+    <string name="invalid_format_message">Es scheint ein Syntaxproblem zu geben.</string>
+    <string name="encoding_error_title">Falsche Codierung ausgewählt</string>
+    <string name="encoding_error_message">Die ausgewählte Zeichencodierung gibt einen Fehler zurück.</string>
+    <string name="barcode_error_title">Ungültiger Barcode</string>
+    <string name="barcode_error_message">Die zum Barcode oder QR-Code zu konvertierenden Daten scheinen ungültig zu sein.</string>
+    
+    <!-- Receipt Preview -->
+    <string name="comment">Kommentar:</string>
+    <string name="option">Option:</string>
+    <string name="name">Name:</string>
+    <string name="phone">Telefon:</string>
+    <string name="address">Adresse:</string>
+    
+    <!-- Order Status Messages -->
+    <string name="error_updating_order_status">Fehler beim Aktualisieren des Bestellstatus</string>
+    <string name="invalid_status">Ungültiger Status: %1$s</string>
+    <string name="error_invalid_status">Ungültiger Status: %1$s</string>
+    <string name="order_status_updated">Bestellung #%1$s Status aktualisiert auf %2$s</string>
+    <string name="status_updated_successfully">Status aktualisiert auf %1$s</string>
+    <string name="failed_update_order_status">Fehler beim Aktualisieren des Status der Bestellung #%1$s</string>
+    <string name="error_updating_order_status_with_message">Fehler beim Aktualisieren des Bestellstatus: %1$s</string>
+    <string name="error_loading_orders_with_message">Fehler beim Laden der Bestellungen: %1$s</string>
+    <string name="failed_fetch_order_data">Fehler beim Abrufen der Bestelldaten</string>
+    <string name="error_message">Fehler: %1$s</string>
+    <string name="error_printing_order">Fehler beim Drucken der Bestellung: %1$s</string>
+    <string name="error_showing_receipt_preview">Fehler beim Anzeigen der Belegvorschau: %1$s</string>
+    <string name="no_printer_selected_main_app">Kein Drucker ausgewählt. Bitte Drucker in der Haupt-App konfigurieren.</string>
+    <string name="no_printer_selected_settings">Kein Drucker ausgewählt. Bitte Drucker in den Einstellungen konfigurieren.</string>
+    <string name="select_print_option">Bitte wählen Sie mindestens eine Druckoption aus (Beleg oder Küche)</string>
+    <string name="print_type_failed">%1$s Druck fehlgeschlagen</string>
+    <string name="print_type_successful">%1$s erfolgreich gedruckt</string>
+    <string name="error_loading_order_data">Fehler beim Laden der Bestelldaten</string>
+    
+    <!-- Payment Methods -->
+    <string name="payment_cod">Barzahlung</string>
+    <string name="payment_stripe">Kreditkarte</string>
+    <string name="payment_paypalexpress">PayPal</string>
+    
+    <!-- Order Display -->
+    <string name="order_id">Bestell-ID:</string>
+    <string name="asap">SOFORT</string>
+    <string name="move_delivery_time">Lieferzeit später verschieben</string>
+    <string name="collection">Abholung</string>
+    
+    <!-- Additional Strings -->
+    <string name="today_order_statistics">Heutige Bestellstatistik</string>
+    <string name="restaurant_name">Restaurant Name</string>
+    <string name="error_message_placeholder">Fehlermeldung</string>
+    <string name="domain_url_hint">Domain-URL (z.B. https://example.com)</string>
+    <string name="please_wait_orders">Bitte warten Sie, bis die Bestellungen geladen sind</string>
+    <string name="prep">Zubereitung</string>
+    <string name="done">Fertig</string>
+    <string name="print">Drucken</string>
+    <string name="delivery">LIEFERUNG</string>
+    <string name="cash">BAR</string>
+    <string name="scan_google_address">Google Adresse Scannen</string>
+    <string name="not_an_invoice">Dies ist keine Rechnung</string>
+    <string name="reset_print_title">Druck Zurücksetzen</string>
+    <string name="reset_print_description">Nach Zurücksetzen, können die &quot;Eingegangene&quot; Bestellungen nocheinmal ausgedruckt werden</string>
+    <string name="printer">Drucker</string>
+    <string name="monitoring">Überwachung</string>
+    <string name="zoom">Zoom</string>
+    <string name="close">Schließen</string>
+    <string name="view_receipt_content">Beleg anzeigen</string>
+    <string name="close_content">Schließen</string>
+    <string name="shop_name">Shop Name</string>
+    <string name="order_number">Bestellung #%1$s</string>
+    <string name="delivery_payment_total">Lieferung - Barzahlung - %1$s€</string>
+    <string name="asap_order_time">Sofort: am %1$s</string>
+    <string name="customer_information">Kundeninformation</string>
 
 </resources>

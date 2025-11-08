@@ -8,7 +8,7 @@
         android:id="@+id/popup_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Druck Zurücksetzen"
+        android:text="@string/reset_print_title"
         android:textStyle="bold"
         android:textSize="18sp"
         android:padding="16dp"/>
@@ -17,7 +17,7 @@
         android:id="@+id/popup_description"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text='Nach Zurücksetzen, können die "Eingegangene" Bestellungen nocheinmal ausgedruckt werden'
+        android:text="@string/reset_print_description"
         android:padding="16dp"/>
 
     <LinearLayout
@@ -30,14 +30,14 @@
             android:id="@+id/button_ok"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="OK"
+            android:text="@string/ok"
             android:layout_margin="8dp"/>
 
         <Button
             android:id="@+id/button_cancel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Cancel"
+            android:text="@string/cancel"
             android:layout_margin="8dp"/>
 
     </LinearLayout>

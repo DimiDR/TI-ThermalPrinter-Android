@@ -4,18 +4,26 @@ import android.app.Dialog;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.style.StyleSpan;
 import android.text.style.UnderlineSpan;
 import android.text.style.RelativeSizeSpan;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowInsets;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import java.util.List;
 
@@ -54,7 +62,7 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setStyle(DialogFragment.STYLE_NO_TITLE, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+        setStyle(DialogFragment.STYLE_NO_TITLE, android.R.style.Theme_Material_Light_NoActionBar);
         if (getArguments() != null) {
             try {
                 order = new JSONObject(getArguments().getString(ARG_ORDER));
@@ -71,9 +79,32 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
     @Override
     public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
         Dialog dialog = super.onCreateDialog(savedInstanceState);
-        dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        dialog.getWindow().setBackgroundDrawableResource(android.R.color.white);
-        dialog.getWindow().getAttributes().windowAnimations = android.R.style.Animation_Dialog;
+        Window window = dialog.getWindow();
+        
+        if (window != null) {
+            // Set dialog to fill the app window (not system window)
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            window.setBackgroundDrawableResource(android.R.color.white);
+            window.getAttributes().windowAnimations = android.R.style.Animation_Dialog;
+            
+            // Get window attributes and set flags to ensure dialog stays within app boundaries
+            WindowManager.LayoutParams params = window.getAttributes();
+            
+            // Position dialog to fill the app content area (respects system bars)
+            params.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
+            params.x = 0;
+            params.y = 0;
+            
+            // Ensure dialog respects system UI insets (status bar, navigation bar)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                // Don't draw behind system bars - keeps dialog within app window
+                window.clearFlags(WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN);
+                window.clearFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+            }
+            
+            window.setAttributes(params);
+        }
+        
         return dialog;
     }
     
@@ -82,6 +113,22 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, 
                            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.dialog_receipt_preview, container, false);
+        
+        // Apply window insets to respect system bars (status bar, navigation bar)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            ViewCompat.setOnApplyWindowInsetsListener(view, (v, insets) -> {
+                WindowInsetsCompat windowInsets = insets;
+                int statusBarHeight = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+                
+                // Apply padding to account for status bar
+                if (v.getPaddingTop() < statusBarHeight) {
+                    v.setPadding(v.getPaddingLeft(), statusBarHeight, 
+                               v.getPaddingRight(), v.getPaddingBottom());
+                }
+                
+                return insets;
+            });
+        }
         
         // Setup close button
         ImageView btnClose = view.findViewById(R.id.btnClose);
@@ -171,7 +218,7 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
             // Add comment if exists
             if (!"null".equals(item.comment) && !item.comment.isEmpty()) {
                 TextView commentText = new TextView(getContext());
-                commentText.setText("  Kommentar: " + item.comment);
+                commentText.setText("  " + getString(R.string.comment) + " " + item.comment);
                 commentText.setTextSize(12);
                 commentText.setPadding(0, 2, 0, 2);
                 container.addView(commentText);
@@ -180,7 +227,7 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
             // Add options
             for (ReceiptTextParser.OrderOption option : item.options) {
                 TextView optionText = new TextView(getContext());
-                optionText.setText("  Option: " + option.name + "  " + option.price + "€");
+                optionText.setText("  " + getString(R.string.option) + " " + option.name + "  " + option.price + "€");
                 optionText.setTextSize(12);
                 optionText.setPadding(0, 2, 0, 2);
                 container.addView(optionText);
@@ -205,28 +252,31 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
         container.removeAllViews();
         
         TextView nameText = new TextView(getContext());
-        nameText.setText("Name: " + customerInfo.name);
+        nameText.setText(getString(R.string.name) + " " + customerInfo.name);
         nameText.setTextSize(14);
         nameText.setPadding(0, 2, 0, 2);
         container.addView(nameText);
         
         TextView phoneText = new TextView(getContext());
-        phoneText.setText("Telefon: " + customerInfo.telephone);
+        phoneText.setText(getString(R.string.phone) + " " + customerInfo.telephone);
         phoneText.setTextSize(14);
         phoneText.setPadding(0, 2, 0, 2);
         container.addView(phoneText);
         
         TextView addressText = new TextView(getContext());
-        addressText.setText("Adresse: " + customerInfo.address);
+        addressText.setText(getString(R.string.address) + " " + customerInfo.address);
         addressText.setTextSize(14);
         addressText.setPadding(0, 2, 0, 2);
         container.addView(addressText);
         
-        TextView commentText = new TextView(getContext());
-        commentText.setText("Kommentar: " + customerInfo.comment);
-        commentText.setTextSize(14);
-        commentText.setPadding(0, 2, 0, 2);
-        container.addView(commentText);
+        // Only show overall order comment if it exists and is not "nicht angegeben"
+        if (customerInfo.comment != null && !customerInfo.comment.isEmpty() && !"nicht angegeben".equals(customerInfo.comment)) {
+            TextView commentText = new TextView(getContext());
+            commentText.setText(getString(R.string.comment) + " " + customerInfo.comment);
+            commentText.setTextSize(14);
+            commentText.setPadding(0, 2, 0, 2);
+            container.addView(commentText);
+        }
     }
     
     private void handleQRCode(View view, ReceiptTextParser.CustomerInfo customerInfo) {

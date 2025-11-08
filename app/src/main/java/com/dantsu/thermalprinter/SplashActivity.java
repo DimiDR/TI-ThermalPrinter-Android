@@ -124,11 +124,17 @@ public class SplashActivity extends AppCompatActivity {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-                Intent mainIntent = new Intent(SplashActivity.this, MainActivity.class);
-                mainIntent.putExtra("isUpdate", isUpdate);
-                mainIntent.putExtra("apkFile", apkFile);
-                mainIntent.putExtra("currentAppVersion", currentAppVersion);
-                startActivity(mainIntent);
+                Intent dashboardIntent = new Intent(SplashActivity.this, DashboardActivity.class);
+                // Pass update info to Dashboard, which can forward to MainActivity if needed
+                if (isUpdate) {
+                    Intent mainIntent = new Intent(SplashActivity.this, MainActivity.class);
+                    mainIntent.putExtra("isUpdate", isUpdate);
+                    mainIntent.putExtra("apkFile", apkFile);
+                    mainIntent.putExtra("currentAppVersion", currentAppVersion);
+                    startActivity(mainIntent);
+                } else {
+                    startActivity(dashboardIntent);
+                }
                 finish();
             }
         }, SPLASH_DISPLAY_LENGTH);

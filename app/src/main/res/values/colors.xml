@@ -1,17 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#CCCCCC</color>
-    <color name="colorPrimaryDark">#CCCCCC</color>
-    <color name="colorAccent">#D81B60</color>
-    <color name="colorError">#D81B60</color>
-    <color name="light_blue_600">#FF039BE5</color>
-    <color name="light_blue_900">#FF01579B</color>
-    <color name="light_blue_A200">#FF40C4FF</color>
-    <color name="light_blue_A400">#FF00B0FF</color>
-    <color name="black_overlay">#66000000</color>
+    <!-- jandiweb.de Color Scheme -->
+    <color name="colorPrimary">#1a3a52</color>
+    <color name="colorPrimaryDark">#0f2537</color>
+    <color name="colorAccent">#ff6b35</color>
+    
+    <!-- Semantic Colors -->
+    <color name="colorSuccess">#4CAF50</color>
+    <color name="colorWarning">#FFA726</color>
+    <color name="colorError">#E53935</color>
+    <color name="colorInfo">#2196F3</color>
+    
+    <!-- Background Colors -->
+    <color name="colorBackground">#F5F5F5</color>
+    <color name="colorSurface">#FFFFFF</color>
+    <color name="colorSurfaceVariant">#F8F9FA</color>
+    
+    <!-- Text Colors -->
+    <color name="colorTextPrimary">#212121</color>
+    <color name="colorTextSecondary">#757575</color>
+    <color name="colorTextHint">#BDBDBD</color>
+    <color name="colorTextOnPrimary">#FFFFFF</color>
+    <color name="colorTextOnAccent">#FFFFFF</color>
+    
+    <!-- Status Colors -->
+    <color name="statusPending">#ff6b35</color>
+    <color name="statusConfirmed">#2196F3</color>
+    <color name="statusPreparation">#FFA726</color>
+    <color name="statusDelivery">#4CAF50</color>
+    <color name="statusCompleted">#9E9E9E</color>
+    
+    <!-- Legacy Colors (for compatibility) -->
+    <color name="light_green">#4CAF50</color>
+    <color name="warning">#FFA726</color>
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
-    <color name="ic_launcher_background">#B1B1B1</color>
-    <color name="light_green">#4CAF50</color>
-    <color name="warning">#E16800</color>
+    <color name="black_overlay">#66000000</color>
+    <color name="ic_launcher_background">#1a3a52</color>
+    
+    <!-- Additional UI Colors -->
+    <color name="divider">#E0E0E0</color>
+    <color name="ripple">#1a3a52</color>
+    <color name="shadow">#1A000000</color>
+    
+    <!-- Missing Material Design Colors -->
+    <color name="light_blue_600">#0288D1</color>
+    <color name="light_blue_A200">#40C4FF</color>
+    <color name="light_blue_900">#01579B</color>
+    <color name="light_blue_A400">#00B0FF</color>
 </resources>

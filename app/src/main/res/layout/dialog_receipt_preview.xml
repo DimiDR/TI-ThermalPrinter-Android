@@ -17,7 +17,7 @@
         android:src="@android:drawable/ic_menu_close_clear_cancel"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:padding="12dp"
-        android:contentDescription="Close" />
+        android:contentDescription="@string/close_content" />
 
     <!-- Receipt Content -->
     <ScrollView
@@ -37,7 +37,7 @@
                 android:id="@+id/textShopName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Shop Name"
+                android:text="@string/shop_name"
                 android:textSize="24sp"
                 android:textStyle="bold"
                 android:gravity="center"
@@ -107,7 +107,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Kundeninformation"
+                android:text="@string/customer_information"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="4dp" />
@@ -131,7 +131,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Google Adresse Scannen"
+                    android:text="@string/scan_google_address"
                     android:textSize="12sp"
                     android:layout_marginBottom="4dp" />
 
@@ -148,7 +148,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Dies ist keine Rechnung"
+                android:text="@string/not_an_invoice"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:gravity="center"

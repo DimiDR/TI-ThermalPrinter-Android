@@ -1,6 +1,9 @@
 package com.dantsu.thermalprinter;
 
+import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 
 public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapter.OrderViewHolder> {
     
@@ -30,6 +34,8 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     private PrintButtonClickListener printListener;
     private StatusChangeClickListener statusChangeListener;
     private ReceiptPreviewClickListener receiptPreviewListener;
+    private DeliveryTimeChangeClickListener deliveryTimeChangeListener;
+    private boolean printerAvailable = true;
     
     public interface PrintButtonClickListener {
         void onPrintButtonClick(JSONObject order);
@@ -41,6 +47,10 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     
     public interface ReceiptPreviewClickListener {
         void onReceiptPreviewClick(JSONObject order);
+    }
+    
+    public interface DeliveryTimeChangeClickListener {
+        void onDeliveryTimeChangeClick(JSONObject order, int minutesOffset);
     }
     
     public KitchenOrderAdapter(List<JSONObject> orders) {
@@ -63,6 +73,28 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         this.printListener = printListener;
         this.statusChangeListener = statusChangeListener;
         this.receiptPreviewListener = receiptPreviewListener;
+    }
+    
+    public KitchenOrderAdapter(List<JSONObject> orders, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener, boolean printerAvailable) {
+        this.orders = orders != null ? orders : new ArrayList<>();
+        this.printListener = printListener;
+        this.statusChangeListener = statusChangeListener;
+        this.receiptPreviewListener = receiptPreviewListener;
+        this.printerAvailable = printerAvailable;
+    }
+    
+    public KitchenOrderAdapter(List<JSONObject> orders, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener, DeliveryTimeChangeClickListener deliveryTimeChangeListener, boolean printerAvailable) {
+        this.orders = orders != null ? orders : new ArrayList<>();
+        this.printListener = printListener;
+        this.statusChangeListener = statusChangeListener;
+        this.receiptPreviewListener = receiptPreviewListener;
+        this.deliveryTimeChangeListener = deliveryTimeChangeListener;
+        this.printerAvailable = printerAvailable;
+    }
+    
+    public void setPrinterAvailable(boolean available) {
+        this.printerAvailable = available;
+        notifyDataSetChanged();
     }
     
     public void updateOrders(List<JSONObject> newOrders, JSONObject menusData, JSONObject categoriesData) {
@@ -126,15 +158,15 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         return new OrderViewHolder(view);
     }
     
-    @Override
-    public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
-        JSONObject order = orders.get(position);
-        try {
-            holder.bind(order, menusData, categoriesData, printListener, statusChangeListener, receiptPreviewListener);
-        } catch (JSONException e) {
-            e.printStackTrace();
+        @Override
+        public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
+            JSONObject order = orders.get(position);
+            try {
+                holder.bind(order, menusData, categoriesData, printListener, statusChangeListener, receiptPreviewListener, deliveryTimeChangeListener, printerAvailable);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
-    }
     
     @Override
     public int getItemCount() {
@@ -155,10 +187,12 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
         private TextView textPaymentMethod;
         private View viewStatusIndicator;
         private Button buttonPrint;
-        private Button buttonStatusConfirmed;
         private Button buttonStatusPreparation;
         private Button buttonStatusDelivery;
         private Button buttonStatusCompleted;
+        private Button buttonMoveDeliveryTime15;
+        private Button buttonMoveDeliveryTime30;
+        private Button buttonMoveDeliveryTime45;
         private ImageView btnViewReceipt;
         
         public OrderViewHolder(@NonNull View itemView) {
@@ -176,14 +210,16 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             textPaymentMethod = itemView.findViewById(R.id.textPaymentMethod);
             viewStatusIndicator = itemView.findViewById(R.id.viewStatusIndicator);
             buttonPrint = itemView.findViewById(R.id.buttonPrint);
-            buttonStatusConfirmed = itemView.findViewById(R.id.buttonStatusConfirmed);
             buttonStatusPreparation = itemView.findViewById(R.id.buttonStatusPreparation);
             buttonStatusDelivery = itemView.findViewById(R.id.buttonStatusDelivery);
             buttonStatusCompleted = itemView.findViewById(R.id.buttonStatusCompleted);
+            buttonMoveDeliveryTime15 = itemView.findViewById(R.id.buttonMoveDeliveryTime15);
+            buttonMoveDeliveryTime30 = itemView.findViewById(R.id.buttonMoveDeliveryTime30);
+            buttonMoveDeliveryTime45 = itemView.findViewById(R.id.buttonMoveDeliveryTime45);
             btnViewReceipt = itemView.findViewById(R.id.btnViewReceipt);
         }
         
-        public void bind(JSONObject order, JSONObject menusData, JSONObject categoriesData, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener) throws JSONException {
+        public void bind(JSONObject order, JSONObject menusData, JSONObject categoriesData, PrintButtonClickListener printListener, StatusChangeClickListener statusChangeListener, ReceiptPreviewClickListener receiptPreviewListener, DeliveryTimeChangeClickListener deliveryTimeChangeListener, boolean printerAvailable) throws JSONException {
             // Check if order has attributes object (JSON:API format)
             JSONObject attributes = order.optJSONObject("attributes");
             JSONObject orderData = attributes != null ? attributes : order;
@@ -191,19 +227,56 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             // Order ID
             textOrderId.setText("#" + order.getString("id"));
             
-            // Order time
-            String orderTime = orderData.optString("order_time", "");
-            if (!orderTime.isEmpty()) {
+            // Order time - format similar to ReceiptTextParser
+            String orderTimeIsASAP = orderData.optString("order_time_is_asap", "false");
+            String orderDateTime = orderData.optString("order_date_time", "");
+            boolean isASAP = "true".equals(orderTimeIsASAP);
+            
+            if (!orderDateTime.isEmpty()) {
                 try {
-                    SimpleDateFormat inputFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
-                    SimpleDateFormat outputFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
-                    Date time = inputFormat.parse(orderTime);
-                    textOrderTime.setText(outputFormat.format(time));
+                    SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US);
+                    inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                    Date date = inputFormat.parse(orderDateTime);
+                    SimpleDateFormat outputFormat = new SimpleDateFormat("EEE, MMM d, yyyy HH:mm", Locale.getDefault());
+                    outputFormat.setTimeZone(TimeZone.getTimeZone("Europe/Berlin"));
+                    String formattedDateTime = outputFormat.format(date);
+                    
+                    if (isASAP) {
+                        textOrderTime.setText("Sofort: am " + formattedDateTime);
+                    } else {
+                        textOrderTime.setText("Gewünschte Zeit: am " + formattedDateTime);
+                    }
                 } catch (ParseException e) {
-                    textOrderTime.setText(orderTime);
+                    // Fallback to simple time format if date parsing fails
+                    String orderTime = orderData.optString("order_time", "");
+                    if (!orderTime.isEmpty()) {
+                        try {
+                            SimpleDateFormat inputFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+                            SimpleDateFormat outputFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                            Date time = inputFormat.parse(orderTime);
+                            textOrderTime.setText(outputFormat.format(time));
+                        } catch (ParseException e2) {
+                            textOrderTime.setText(orderTime);
+                        }
+                    } else {
+                        textOrderTime.setText(itemView.getContext().getString(R.string.asap));
+                    }
                 }
             } else {
-                textOrderTime.setText("ASAP");
+                // Fallback to simple time format if order_date_time is not available
+                String orderTime = orderData.optString("order_time", "");
+                if (!orderTime.isEmpty()) {
+                    try {
+                        SimpleDateFormat inputFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+                        SimpleDateFormat outputFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                        Date time = inputFormat.parse(orderTime);
+                        textOrderTime.setText(outputFormat.format(time));
+                    } catch (ParseException e) {
+                        textOrderTime.setText(orderTime);
+                    }
+                } else {
+                    textOrderTime.setText(itemView.getContext().getString(R.string.asap));
+                }
             }
             
             // Order value
@@ -220,17 +293,104 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             textOrderType.setText(orderType.toUpperCase());
             
             // Phone
-            textPhone.setText(orderData.optString("telephone", ""));
+            String phoneNumber = orderData.optString("telephone", "");
+            textPhone.setText(phoneNumber);
+            
+            // Set up phone click listener to open dialer
+            if (textPhone != null) {
+                if (!phoneNumber.isEmpty()) {
+                    textPhone.setOnClickListener(v -> {
+                        Intent intent = new Intent(Intent.ACTION_DIAL);
+                        intent.setData(Uri.parse("tel:" + phoneNumber));
+                        itemView.getContext().startActivity(intent);
+                    });
+                } else {
+                    // Clear click listener if phone number is empty
+                    textPhone.setOnClickListener(null);
+                }
+            }
             
             // Address
-            JSONObject address = orderData.optJSONObject("address");
-            if (address != null) {
-                String addressText = address.optString("address_1", "") + 
-                                   (address.optString("address_2", "").isEmpty() ? "" : ", " + address.optString("address_2", "")) +
-                                   ", " + address.optString("city", "");
-                textAddress.setText(addressText);
+            String addressText = "";
+            
+            // First try to get formatted_address from order data (if available)
+            String formattedAddress = orderData.optString("formatted_address", "").trim();
+            if (!formattedAddress.isEmpty() && !"null".equals(formattedAddress) && "delivery".equalsIgnoreCase(orderType)) {
+                addressText = formattedAddress.replaceAll("\\s+", " ").replaceAll(",\\s*,", ",");
             } else {
-                textAddress.setText("Collection");
+                // Fall back to building from address object components
+                JSONObject address = orderData.optJSONObject("address");
+                if (address != null && "delivery".equalsIgnoreCase(orderType)) {
+                    // Build address string from components
+                    StringBuilder addressBuilder = new StringBuilder();
+                    String address1 = address.optString("address_1", "").trim();
+                    String address2 = address.optString("address_2", "").trim();
+                    String city = address.optString("city", "").trim();
+                    
+                    if (!address1.isEmpty()) {
+                        addressBuilder.append(address1);
+                    }
+                    if (!address2.isEmpty()) {
+                        if (addressBuilder.length() > 0) {
+                            addressBuilder.append(", ");
+                        }
+                        addressBuilder.append(address2);
+                    }
+                    if (!city.isEmpty()) {
+                        if (addressBuilder.length() > 0) {
+                            addressBuilder.append(", ");
+                        }
+                        addressBuilder.append(city);
+                    }
+                    
+                    addressText = addressBuilder.toString().trim();
+                }
+            }
+            
+            // Only set click listener if address text is not empty and order is delivery
+            if (!addressText.isEmpty() && "delivery".equalsIgnoreCase(orderType)) {
+                textAddress.setText(addressText);
+                // Ensure TextView is clickable and has visual feedback
+                textAddress.setClickable(true);
+                textAddress.setFocusable(true);
+                textAddress.setFocusableInTouchMode(true);
+                
+                // Create final copy for lambda expression
+                final String finalAddressText = addressText;
+                
+                // Set up address click listener to open Google Maps and show location
+                textAddress.setOnClickListener(v -> {
+                    try {
+                        // Try to open in Google Maps app first
+                        Intent googleMapsIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(finalAddressText)));
+                        googleMapsIntent.setPackage("com.google.android.apps.maps");
+                        
+                        // If Google Maps is installed, use it
+                        if (googleMapsIntent.resolveActivity(itemView.getContext().getPackageManager()) != null) {
+                            itemView.getContext().startActivity(googleMapsIntent);
+                        } else {
+                            // Fallback to generic geo intent
+                            Intent geoIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(finalAddressText)));
+                            if (geoIntent.resolveActivity(itemView.getContext().getPackageManager()) != null) {
+                                itemView.getContext().startActivity(geoIntent);
+                            } else {
+                                // Last resort: open in browser
+                                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(finalAddressText)));
+                                itemView.getContext().startActivity(browserIntent);
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+            } else {
+                // No address or empty address (pickup order)
+                textAddress.setText(itemView.getContext().getString(R.string.collection));
+                // Clear click listener and make it non-clickable
+                textAddress.setOnClickListener(null);
+                textAddress.setClickable(false);
+                textAddress.setFocusable(false);
+                textAddress.setFocusableInTouchMode(false);
             }
             
             // Order items
@@ -241,7 +401,15 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                     JSONObject menuItem = orderMenus.getJSONObject(i);
                     int quantity = menuItem.optInt("qty", 1);
                     String name = menuItem.optString("name", "");
-                    itemsText.append(quantity).append("x ").append(name).append("\n");
+                    itemsText.append(quantity).append("x ").append(name);
+                    
+                    // Add menu item comment if exists
+                    String itemComment = menuItem.optString("comment", "");
+                    if (!"null".equals(itemComment) && !itemComment.isEmpty()) {
+                        itemsText.append(" (").append(itemView.getContext().getString(R.string.comment)).append(": ").append(itemComment).append(")");
+                    }
+                    
+                    itemsText.append("\n");
                 }
             }
             textOrderItems.setText(itemsText.toString().trim());
@@ -266,7 +434,8 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             
             // Payment method
             String paymentCode = orderData.optString("payment", "cod");
-            textPaymentMethod.setText(paymentCode.toUpperCase());
+            String paymentText = getPaymentMethodText(itemView.getContext(), paymentCode);
+            textPaymentMethod.setText(paymentText);
             
             // Set up print button click listener
             if (buttonPrint != null) {
@@ -275,17 +444,16 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                         printListener.onPrintButtonClick(order);
                     }
                 });
+                // Enable/disable print button based on printer availability
+                buttonPrint.setEnabled(printerAvailable);
+                if (!printerAvailable) {
+                    buttonPrint.setAlpha(0.5f); // Make button appear disabled
+                } else {
+                    buttonPrint.setAlpha(1.0f); // Make button appear enabled
+                }
             }
             
             // Set up status change button click listeners
-            if (buttonStatusConfirmed != null) {
-                buttonStatusConfirmed.setOnClickListener(v -> {
-                    if (statusChangeListener != null) {
-                        statusChangeListener.onStatusChangeClick(order, "confirmed");
-                    }
-                });
-            }
-            
             if (buttonStatusPreparation != null) {
                 buttonStatusPreparation.setOnClickListener(v -> {
                     if (statusChangeListener != null) {
@@ -315,6 +483,31 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                 btnViewReceipt.setOnClickListener(v -> {
                     if (receiptPreviewListener != null) {
                         receiptPreviewListener.onReceiptPreviewClick(order);
+                    }
+                });
+            }
+            
+            // Set up move delivery time button click listeners
+            if (buttonMoveDeliveryTime15 != null) {
+                buttonMoveDeliveryTime15.setOnClickListener(v -> {
+                    if (deliveryTimeChangeListener != null) {
+                        deliveryTimeChangeListener.onDeliveryTimeChangeClick(order, 15);
+                    }
+                });
+            }
+            
+            if (buttonMoveDeliveryTime30 != null) {
+                buttonMoveDeliveryTime30.setOnClickListener(v -> {
+                    if (deliveryTimeChangeListener != null) {
+                        deliveryTimeChangeListener.onDeliveryTimeChangeClick(order, 30);
+                    }
+                });
+            }
+            
+            if (buttonMoveDeliveryTime45 != null) {
+                buttonMoveDeliveryTime45.setOnClickListener(v -> {
+                    if (deliveryTimeChangeListener != null) {
+                        deliveryTimeChangeListener.onDeliveryTimeChangeClick(order, 45);
                     }
                 });
             }
@@ -351,6 +544,22 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                     return Color.parseColor("#9E9E9E"); // Gray for Completed
                 default:
                     return Color.parseColor("#FF0000"); // Red for Unknown
+            }
+        }
+        
+        private String getPaymentMethodText(Context context, String paymentCode) {
+            if (paymentCode == null) {
+                paymentCode = "cod";
+            }
+            
+            String resourceName = "payment_" + paymentCode.toLowerCase();
+            int resourceId = context.getResources().getIdentifier(resourceName, "string", context.getPackageName());
+            
+            if (resourceId != 0) {
+                return context.getString(resourceId);
+            } else {
+                // Fallback to uppercase payment code if translation not found
+                return paymentCode.toUpperCase();
             }
         }
     }

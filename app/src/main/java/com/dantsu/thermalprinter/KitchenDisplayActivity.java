@@ -1,13 +1,19 @@
 package com.dantsu.thermalprinter;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
+import android.view.WindowManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -21,6 +27,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
+import com.dantsu.thermalprinter.helpClasses.IdManager;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
 import com.dantsu.thermalprinter.async.AsyncBluetoothEscPosPrint;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrint;
@@ -38,12 +45,14 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class KitchenDisplayActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback, KitchenOrderAdapter.ReceiptPreviewClickListener {
+public class KitchenDisplayActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback, KitchenOrderAdapter.ReceiptPreviewClickListener, KitchenOrderAdapter.DeliveryTimeChangeClickListener {
     
     private RecyclerView recyclerViewOrders;
     private KitchenOrderAdapter orderAdapter;
     private SwipeRefreshLayout swipeRefreshLayout;
     private ProgressBar progressBar;
+    private ImageButton buttonCloseKitchen;
+    private TextView textOrderCount;
     private NetworkHelperViewModel networkHelperViewModel;
     private Timer refreshTimer;
     private Handler mainHandler;
@@ -57,7 +66,6 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     private Integer location_id;
     
     // Refresh settings
-    private long refreshInterval = 30000; // 30 seconds default
     private boolean isRefreshing = false;
     
     // Pagination settings
@@ -74,6 +82,12 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     // Chip selection from main screen
     private boolean chipReceiptChecked = true;  // default to receipt
     private boolean chipKitchenChecked = false; // default to not kitchen
+    
+    // Flag to track if we've done the initial load for this activity
+    private boolean isInitialLoad = true;
+    
+    // Flag to track printer connection issues
+    private boolean isLongerConnectionTime = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,15 +98,27 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         recyclerViewOrders = findViewById(R.id.recyclerViewOrders);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         progressBar = findViewById(R.id.progressBar);
+        buttonCloseKitchen = findViewById(R.id.button_close_kitchen);
+        textOrderCount = findViewById(R.id.textOrderCount);
         
         
-        // Get chip settings from main screen
+        // Get chip settings from main screen (fallback if not in SharedPreferences)
         chipReceiptChecked = getIntent().getBooleanExtra("chip_receipt_checked", true);
         chipKitchenChecked = getIntent().getBooleanExtra("chip_kitchen_checked", false);
+        
+        // Load chip preferences from SharedPreferences (will override Intent values if available)
+        loadChipPreferences();
         
         // Setup RecyclerView
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         recyclerViewOrders.setLayoutManager(layoutManager);
+        
+        // Load printer configuration first to determine printer availability
+        loadPrinterConfiguration();
+        
+        // Check if printer is selected
+        boolean printerAvailable = selectedDevice != null;
+        
         orderAdapter = new KitchenOrderAdapter(new ArrayList<>(), new KitchenOrderAdapter.PrintButtonClickListener() {
             @Override
             public void onPrintButtonClick(JSONObject order) {
@@ -103,7 +129,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             public void onStatusChangeClick(JSONObject order, String statusName) {
                 updateSingleOrderStatus(order, statusName);
             }
-        }, this);
+        }, this, this, printerAvailable);
         recyclerViewOrders.setAdapter(orderAdapter);
         
         // Add scroll listener for pagination
@@ -130,6 +156,30 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         // Setup SwipeRefreshLayout
         swipeRefreshLayout.setOnRefreshListener(this::refreshOrders);
         
+        // Setup toolbar
+        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowHomeEnabled(true);
+        }
+        
+        toolbar.setNavigationOnClickListener(v -> finish());
+        
+        // Setup dashboard button
+        Button buttonDashboard = findViewById(R.id.button_dashboard);
+        if (buttonDashboard != null) {
+            buttonDashboard.setOnClickListener(v -> {
+                Intent intent = new Intent(this, DashboardActivity.class);
+                startActivity(intent);
+            });
+        }
+        
+        // Setup close button
+        if (buttonCloseKitchen != null) {
+            buttonCloseKitchen.setOnClickListener(v -> finish());
+        }
+        
         // Initialize ViewModel
         networkHelperViewModel = new ViewModelProvider(this).get(NetworkHelperViewModel.class);
         mainHandler = new Handler();
@@ -141,14 +191,22 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         // Load shop configuration
         loadShopConfiguration();
         
-        // Load printer configuration
-        loadPrinterConfiguration();
+        // Printer configuration is already loaded above, before adapter initialization
         
         // Start initial data load
         refreshOrders();
         
-        // Start auto-refresh timer
-        startAutoRefresh();
+        // Set flag that KitchenDisplayActivity is open
+        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean("kitchen_display_open", true);
+        editor.apply();
+        
+        // Start foreground-based API refresh
+        startForegroundRefresh();
+        
+        // Keep screen awake while Kitchen Display is open
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     
     
@@ -158,7 +216,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         location_id = sharedPreferences.getInt("location_id", 1);
         
         if (domain_shop.isEmpty()) {
-            Toast.makeText(this, "No shop configuration found. Please login first.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.no_shop_configuration, Toast.LENGTH_LONG).show();
             finish();
             return;
         }
@@ -189,24 +247,102 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 selectedDevice = bluetoothDevicesList[storedPrinterIndex];
             }
         }
+        
+        // Update adapter with printer availability (if adapter has been initialized)
+        if (orderAdapter != null) {
+            orderAdapter.setPrinterAvailable(selectedDevice != null);
+        }
     }
     
+    private void loadChipPreferences() {
+        // Load chip preferences from SharedPreferences (set by MainActivity)
+        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
+        chipReceiptChecked = prefs.getBoolean("chip_receipt_checked", true);  // default to receipt
+        chipKitchenChecked = prefs.getBoolean("chip_kitchen_checked", false); // default to not kitchen
+    }
+    
+    
+    @Override
+    public void onDeliveryTimeChangeClick(JSONObject order, int minutesOffset) {
+        updateOrderDeliveryTime(order, minutesOffset);
+    }
+    
+    private void updateOrderDeliveryTime(JSONObject order, int minutesOffset) {
+        new Thread(() -> {
+            try {
+                String orderId = order.getString("id");
+                
+                // Get order attributes
+                JSONObject attributes = order.optJSONObject("attributes");
+                JSONObject orderData = attributes != null ? attributes : order;
+                
+                // Use current time (now) + specified minutes offset
+                java.util.Date currentTime = new java.util.Date();
+                long newTime = currentTime.getTime() + (minutesOffset * 60 * 1000); // Current time + minutesOffset in milliseconds
+                java.util.Date newDate = new java.util.Date(newTime);
+                
+                // Format as "yyyy-MM-dd HH:mm:ss" for API request (no timezone indicator)
+                // Use Europe/Berlin timezone to match local time in Germany
+                java.text.SimpleDateFormat outputFormat = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US);
+                outputFormat.setTimeZone(java.util.TimeZone.getTimeZone("Europe/Berlin"));
+                String newDateTime = outputFormat.format(newDate);
+                
+                // Format order_time as "HH:mm:ss" (time only)
+                java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US);
+                timeFormat.setTimeZone(java.util.TimeZone.getTimeZone("Europe/Berlin"));
+                String newTimeString = timeFormat.format(newDate);
+                
+                // Create the update payload
+                JSONObject updatePayload = new JSONObject();
+                updatePayload.put("order_date_time", newDateTime);
+                updatePayload.put("order_time", newTimeString);
+                
+                // Make the API call
+                String updateUrl = domain_shop + "/api/orders/" + orderId;
+                String result = makePatchRequest(updateUrl, updatePayload.toString());
+                
+                if (result != null) {
+                    Log.d("KitchenDisplay", "Order " + orderId + " delivery time updated to " + newDateTime + " (order_time: " + newTimeString + ")");
+                    final int minutes = minutesOffset;
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Delivery time moved " + minutes + " minutes later", Toast.LENGTH_SHORT).show();
+                    });
+                    
+                    // Refresh the list after a short delay to allow the API call to complete
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        refreshOrders();
+                    }, 1000);
+                } else {
+                    Log.e("KitchenDisplay", "Failed to update order " + orderId + " delivery time");
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Failed to update delivery time", Toast.LENGTH_SHORT).show();
+                    });
+                }
+                
+            } catch (Exception e) {
+                Log.e("KitchenDisplay", "Error updating order delivery time", e);
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Error updating delivery time: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
     
     private void updateSingleOrderStatus(JSONObject order, String statusName) {
         try {
             String orderId = order.getString("id");
             updateOrderStatus(orderId, statusName);
             
-            // If status is completed, refresh the list to filter out completed orders
-            if ("completed".equals(statusName)) {
-                // Delay the refresh to allow the API call to complete
-                new Handler().postDelayed(() -> {
-                    refreshOrders();
-                }, 1000);
-            }
+            // Refresh the list after a short delay to allow the API call to complete
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                refreshOrders();
+                // Order count will be updated in onSuccess callback after refresh
+            }, 1000);
         } catch (JSONException e) {
             Log.e("KitchenDisplay", "Error getting order ID", e);
-            Toast.makeText(this, "Error updating order status", Toast.LENGTH_SHORT).show();
+            runOnUiThread(() -> {
+                Toast.makeText(this, R.string.error_updating_order_status, Toast.LENGTH_SHORT).show();
+            });
         }
     }
     
@@ -217,8 +353,8 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 int statusId = getStatusIdByName(statusName);
                 if (statusId == -1) {
                     Log.e("KitchenDisplay", "Status not found: " + statusName);
-                    mainHandler.post(() -> {
-                        Toast.makeText(this, "Invalid status: " + statusName, Toast.LENGTH_SHORT).show();
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, getString(R.string.error_invalid_status, statusName), Toast.LENGTH_SHORT).show();
                     });
                     return;
                 }
@@ -232,21 +368,21 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 String result = makePatchRequest(updateUrl, updatePayload.toString());
                 
                 if (result != null) {
-                    Log.d("KitchenDisplay", "Order " + orderId + " status updated to " + statusName);
-                    mainHandler.post(() -> {
-                        Toast.makeText(this, "Order #" + orderId + " status updated to " + statusName, Toast.LENGTH_SHORT).show();
+                    Log.d("KitchenDisplay", "Order " + orderId + " status updated to " + statusName + " (ID: " + statusId + ")");
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, getString(R.string.status_updated_successfully, statusName), Toast.LENGTH_SHORT).show();
                     });
                 } else {
-                    Log.e("KitchenDisplay", "Failed to update order " + orderId);
-                    mainHandler.post(() -> {
-                        Toast.makeText(this, "Failed to update order #" + orderId + " status", Toast.LENGTH_SHORT).show();
+                    Log.e("KitchenDisplay", "Failed to update order " + orderId + " to status " + statusName);
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, R.string.error_updating_order_status, Toast.LENGTH_SHORT).show();
                     });
                 }
                 
             } catch (Exception e) {
                 Log.e("KitchenDisplay", "Error updating order status", e);
-                mainHandler.post(() -> {
-                    Toast.makeText(this, "Error updating order status: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                runOnUiThread(() -> {
+                    Toast.makeText(this, getString(R.string.error_updating_order_status_with_message, e.getMessage()), Toast.LENGTH_SHORT).show();
                 });
             }
         }).start();
@@ -271,11 +407,18 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     private String makePatchRequest(String url, String jsonPayload) {
         try {
             // Get the authentication token from SharedPreferences
+            // Try "api_token" first (used by NetworkHelper), then "loginPrefs" as fallback
             SharedPreferences tokenPrefs = getSharedPreferences("api_token", Context.MODE_PRIVATE);
             String token = tokenPrefs.getString("token", null);
             
+            // Fallback to loginPrefs if token not found in api_token
             if (token == null) {
-                Log.e("KitchenDisplay", "No authentication token found");
+                SharedPreferences loginPrefs = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+                token = loginPrefs.getString("token", null);
+            }
+            
+            if (token == null) {
+                Log.e("KitchenDisplay", "No authentication token found in api_token or loginPrefs");
                 return null;
             }
             
@@ -372,6 +515,11 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                         // Append new orders to existing list
                         orderAdapter.appendOrders(newOrders);
                         
+                        // Update order count after appending new orders
+                        runOnUiThread(() -> {
+                            updateOrderCount(orderAdapter.getItemCount());
+                        });
+                        
                         Log.d("KitchenDisplay", "Loaded " + newOrders.size() + " more orders (page " + currentPage + ")");
                         
                     } catch (JSONException e) {
@@ -394,21 +542,31 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, paginationCallback);
     }
     
-    private void startAutoRefresh() {
+    private void startForegroundRefresh() {
+        // Start API refresh timer when app is in foreground
+        if (refreshTimer != null) {
+            refreshTimer.cancel();
+        }
         refreshTimer = new Timer();
         refreshTimer.schedule(new TimerTask() {
             @Override
             public void run() {
                 mainHandler.post(() -> {
+                    SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+                    String savedToken = sharedPreferences.getString("token", "");
+                    if (savedToken.isEmpty()) {
+                        Log.d("KitchenDisplayActivity", "User not logged in, skipping refresh");
+                        return;
+                    }
                     if (!isRefreshing) {
                         refreshOrders();
                     }
                 });
             }
-        }, refreshInterval, refreshInterval);
+        }, 0, Constants.REFRESH_INTERVAL_KITCHEN_OPEN);
     }
     
-    private void stopAutoRefresh() {
+    private void stopForegroundRefresh() {
         if (refreshTimer != null) {
             refreshTimer.cancel();
             refreshTimer = null;
@@ -430,9 +588,91 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
                 List<JSONObject> ordersList = new ArrayList<>();
                 
+                // Get static sets from MainActivity for tracking printed orders and sound played orders
+                java.util.Set<String> printedOrders = MainActivity.getPrintedOrders();
+                java.util.Set<String> soundPlayedOrders = MainActivity.getSoundPlayedOrders();
+                
+                // Check for new unprinted orders and play sound
+                boolean hasNewUnprintedOrder = false;
+                List<String> newOrderIds = new ArrayList<>();
+                
+                // On initial load, populate soundPlayedOrders with all existing unprinted orders
+                // to avoid playing sound for orders that were already there when activity started
+                if (isInitialLoad) {
+                    Log.d("KitchenDisplay", "Initial load - marking all existing orders as 'sound played'");
+                    for (int i = 0; i < dataArrayOrders.length(); i++) {
+                        try {
+                            JSONObject order = dataArrayOrders.getJSONObject(i);
+                            String orderId = order.getString("id");
+                            if (!printedOrders.contains(orderId)) {
+                                soundPlayedOrders.add(orderId);
+                            }
+                        } catch (Exception e) {
+                            Log.e("KitchenDisplay", "Error processing order during initial load", e);
+                        }
+                    }
+                    isInitialLoad = false;
+                    Log.d("KitchenDisplay", "Initial load complete. Marked " + soundPlayedOrders.size() + " orders as 'sound played'");
+                }
+                
                 for (int i = 0; i < dataArrayOrders.length(); i++) {
                     JSONObject order = dataArrayOrders.getJSONObject(i);
                     ordersList.add(order);
+                    
+                    try {
+                        String orderId = order.getString("id");
+                        
+                        // Check if this is a new unprinted order that we haven't played sound for yet
+                        boolean isNotPrinted = !printedOrders.contains(orderId);
+                        boolean hasNotPlayedSound = !soundPlayedOrders.contains(orderId);
+                        
+                        if (isNotPrinted && hasNotPlayedSound) {
+                            hasNewUnprintedOrder = true;
+                            newOrderIds.add(orderId);
+                            soundPlayedOrders.add(orderId); // Mark that we've played sound for this order
+                            Log.d("KitchenDisplay", "New unprinted order detected: " + orderId);
+                        }
+                    } catch (Exception e) {
+                        Log.e("KitchenDisplay", "Error processing order for sound notification", e);
+                    }
+                }
+                
+                // Play sound for new unprinted orders
+                if (hasNewUnprintedOrder) {
+                    Log.d("KitchenDisplay", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
+                    playNewOrderSound();
+                }
+                
+                // Filter printable orders (not yet printed) for automatic printing
+                JSONArray filteredOrders = DocketStringModeler.filterPrintableOrders(dataArrayOrders, printedOrders);
+                
+                // Only print automatically if Auto Print service is active
+                if (Constants.isServiceActive) {
+                    // Reload printer configuration before printing to ensure we have a valid connection
+                    loadPrinterConfiguration();
+                    
+                    // Check if printer is available after reloading
+                    if (selectedDevice != null) {
+                        for (int i = 0; i < filteredOrders.length(); i++) {
+                            JSONObject dataObjectOrders = filteredOrders.getJSONObject(i);
+                            String orderID = dataObjectOrders.getString("id");
+
+                            //print receipt
+                            if (chipReceiptChecked) {
+                                TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                            }
+                            // print receipt for kitchen
+                            if (chipKitchenChecked) {
+                                TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
+                            }
+
+                            if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
+                                break;
+                            }
+                        }
+                    } else {
+                        Log.w("KitchenDisplay", "Auto print service is active but printer is not selected or available");
+                    }
                 }
                 
                 // Check if we have more data based on the number of orders returned
@@ -443,14 +683,65 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 // Update adapter with new data
                 orderAdapter.updateOrders(ordersList, jsonObjectMenus, jsonObjectCategories);
                 
+                // Update order count based on adapter's actual item count
+                updateOrderCount(orderAdapter.getItemCount());
+                
                 Log.d("KitchenDisplay", "Loaded " + ordersList.size() + " orders (page " + currentPage + ")");
                 
             } catch (JSONException e) {
                 Log.e("KitchenDisplay", "Error parsing JSON", e);
-                Toast.makeText(this, "Error loading orders: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.error_loading_orders_with_message, e.getMessage()), Toast.LENGTH_SHORT).show();
             }
         } else {
-            Toast.makeText(this, "Failed to fetch order data", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.failed_fetch_order_data, Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void playNewOrderSound() {
+        // Ensure MediaPlayer is initialized
+        if (mediaPlayer == null) {
+            Log.d("KitchenDisplay", "MediaPlayer is null, creating new instance");
+            mediaPlayer = MediaPlayer.create(this, R.raw.newordersound);
+        }
+        
+        if (mediaPlayer != null) {
+            try {
+                // Reset MediaPlayer to beginning to allow replaying
+                if (mediaPlayer.isPlaying()) {
+                    mediaPlayer.stop();
+                    mediaPlayer.reset();
+                } else {
+                    mediaPlayer.reset();
+                }
+                
+                // Recreate MediaPlayer to ensure it's in a fresh state
+                mediaPlayer.release();
+                mediaPlayer = MediaPlayer.create(this, R.raw.newordersound);
+                
+                if (mediaPlayer != null) {
+                    mediaPlayer.start();
+                    Log.d("KitchenDisplay", "Successfully played sound for new unprinted order(s)");
+                } else {
+                    Log.e("KitchenDisplay", "Failed to create MediaPlayer instance");
+                }
+            } catch (Exception e) {
+                Log.e("KitchenDisplay", "Error playing new order sound", e);
+                // If MediaPlayer fails, try recreating it
+                try {
+                    if (mediaPlayer != null) {
+                        mediaPlayer.release();
+                    }
+                    mediaPlayer = MediaPlayer.create(this, R.raw.newordersound);
+                    if (mediaPlayer != null) {
+                        mediaPlayer.start();
+                        Log.d("KitchenDisplay", "Successfully played sound after recreating MediaPlayer");
+                    }
+                } catch (Exception e2) {
+                    Log.e("KitchenDisplay", "Error recreating MediaPlayer for new order sound", e2);
+                }
+            }
+        } else {
+            Log.e("KitchenDisplay", "MediaPlayer is null and could not be created");
         }
     }
     
@@ -461,30 +752,55 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         swipeRefreshLayout.setRefreshing(false);
         
         Log.e("KitchenDisplay", "Error fetching orders", exception);
-        Toast.makeText(this, "Error: " + exception.getMessage(), Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.error_message, exception.getMessage()), Toast.LENGTH_SHORT).show();
     }
     
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopAutoRefresh();
+        stopForegroundRefresh();
+        
+        // Release MediaPlayer when activity is destroyed
+        if (mediaPlayer != null) {
+            try {
+                if (mediaPlayer.isPlaying()) {
+                    mediaPlayer.stop();
+                }
+                mediaPlayer.release();
+            } catch (Exception e) {
+                Log.e("KitchenDisplay", "Error releasing MediaPlayer", e);
+            }
+            mediaPlayer = null;
+        }
+        
+        // Clear flag that KitchenDisplayActivity is open
+        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean("kitchen_display_open", false);
+        editor.apply();
+        
+        // Remove screen awake flag when activity is destroyed
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     
     @Override
     protected void onPause() {
         super.onPause();
-        stopAutoRefresh();
+        stopForegroundRefresh();
     }
     
     @Override
     protected void onResume() {
         super.onResume();
-        startAutoRefresh();
+        // Reload chip preferences in case they were changed in MainActivity
+        loadChipPreferences();
+        // Reload printer configuration in case it was changed
+        loadPrinterConfiguration();
+        startForegroundRefresh();
     }
     
     private void printOrder(JSONObject order) {
         if (selectedDevice == null) {
-            Toast.makeText(this, "No printer selected. Please configure printer in main app.", Toast.LENGTH_LONG).show();
             return;
         }
         
@@ -494,34 +810,25 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             JSONObject categoriesData = orderAdapter.categoriesData;
             
             if (menusData == null || categoriesData == null) {
-                Toast.makeText(this, "Menu data not available. Please refresh and try again.", Toast.LENGTH_SHORT).show();
                 return;
             }
             
             String orderId = order.optString("id");
-            boolean hasPrinted = false;
             
             // Print receipt if chip is checked
             if (chipReceiptChecked) {
                 String receiptPrintInfo = docketStringModeler.startPrintingReceipt(order, menusData, categoriesData, mediaPlayer, shop_name);
                 executePrint(receiptPrintInfo, "Receipt");
-                hasPrinted = true;
             }
             
             // Print kitchen receipt if chip is checked
             if (chipKitchenChecked) {
                 String kitchenPrintInfo = docketStringModeler.startPrintingKitchen(order, menusData, categoriesData, mediaPlayer, shop_name);
                 executePrint(kitchenPrintInfo, "Kitchen");
-                hasPrinted = true;
-            }
-            
-            if (!hasPrinted) {
-                Toast.makeText(this, "Please select at least one print option (Receipt or Kitchen)", Toast.LENGTH_SHORT).show();
             }
             
         } catch (Exception e) {
             Log.e("KitchenDisplay", "Error printing order", e);
-            Toast.makeText(this, "Error printing order: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -533,16 +840,55 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 @Override
                 public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
                     Log.e("KitchenDisplay", "Print error for " + printType + ": " + codeException);
-                    Toast.makeText(KitchenDisplayActivity.this, printType + " print failed", Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
                 public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
                     Log.i("KitchenDisplay", printType + " print successful");
-                    Toast.makeText(KitchenDisplayActivity.this, printType + " printed successfully", Toast.LENGTH_SHORT).show();
                 }
             }
         ).execute(getAsyncEscPosPrinter(selectedDevice, printInfo));
+    }
+    
+    @SuppressLint("SimpleDateFormat")
+    public void TIJobPrintBluetooth(String print_info, String orderId) {
+        // Check if printer is available
+        if (selectedDevice == null) {
+            Log.e("KitchenDisplay", "Printer not selected");
+            return;
+        }
+        
+        // Create AsyncEscPosPrinter similar to MainActivity and DashboardActivity
+        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(selectedDevice, 203, 48f, 32);
+        printer.addTextToPrint(print_info);
+        printer.getPrinterConnection().disconnect(); // important so that the printer can reconnect
+        
+        new AsyncBluetoothEscPosPrint(
+                this,
+                new AsyncEscPosPrint.OnPrintFinished() {
+                    @Override
+                    public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                        Log.e("KitchenDisplay", "Print error occurred");
+                        isLongerConnectionTime = true;
+                    }
+
+                    @Override
+                    public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
+                        Log.i("KitchenDisplay", "Print finished successfully");
+                        if (isLongerConnectionTime) {
+                            isLongerConnectionTime = false;
+                        }
+                        
+                        // Mark order as printed
+                        java.util.Set<String> printedOrders = MainActivity.getPrintedOrders();
+                        printedOrders.add(orderId);
+                        // Remove from soundPlayedOrders since it's now printed (optional cleanup)
+                        MainActivity.getSoundPlayedOrders().remove(orderId);
+                        IdManager.clearIds(KitchenDisplayActivity.this);
+                        IdManager.saveIds(KitchenDisplayActivity.this, printedOrders);
+                    }
+                }
+        ).execute(printer);
     }
     
     private AsyncEscPosPrinter getAsyncEscPosPrinter(BluetoothConnection printerConnection, String print_info) {
@@ -557,6 +903,12 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         showReceiptPreview(order);
     }
     
+    private void updateOrderCount(int count) {
+        if (textOrderCount != null) {
+            textOrderCount.setText(String.valueOf(count));
+        }
+    }
+    
     private void showReceiptPreview(JSONObject order) {
         try {
             // Get the current menus and categories data from the adapter
@@ -564,7 +916,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             JSONObject categoriesData = orderAdapter.categoriesData;
             
             if (menusData == null || categoriesData == null) {
-                Toast.makeText(this, "Menu data not available. Please refresh and try again.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.menu_data_not_available, Toast.LENGTH_SHORT).show();
                 return;
             }
             
@@ -575,7 +927,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             
         } catch (Exception e) {
             Log.e("KitchenDisplay", "Error showing receipt preview", e);
-            Toast.makeText(this, "Error showing receipt preview: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.error_showing_receipt_preview, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 }
