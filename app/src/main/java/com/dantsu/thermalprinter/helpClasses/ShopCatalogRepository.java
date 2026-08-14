@@ -2,18 +2,29 @@ package com.dantsu.thermalprinter.helpClasses;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Shared fetch for orders/menus/categories plus optional statuses.
- * Short TTL cache avoids three Activities hitting the API at the same time.
+ * Single in-flight fetch for orders/menus/categories. Open screens observe the
+ * latest snapshot instead of each calling the API.
  */
 public final class ShopCatalogRepository {
-    private static final long CACHE_TTL_MS = 8000;
+    static final long CACHE_TTL_MS = 30000;
     private static final AtomicReference<Catalog> CACHE = new AtomicReference<>();
     private static final AtomicLong CACHE_AT = new AtomicLong(0);
+    private static final AtomicBoolean IN_FLIGHT = new AtomicBoolean(false);
+    private static final List<CatalogCallback> PENDING = new ArrayList<>();
+    private static final CopyOnWriteArrayList<CatalogCallback> OBSERVERS = new CopyOnWriteArrayList<>();
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
+    private static final Object LOCK = new Object();
 
     private ShopCatalogRepository() {}
 
@@ -62,6 +73,23 @@ public final class ShopCatalogRepository {
         return domain + "/api/statuses?pageLimit=100";
     }
 
+    public static Catalog latest() {
+        return CACHE.get();
+    }
+
+    public static void observe(CatalogCallback observer) {
+        if (observer == null) {
+            return;
+        }
+        if (!OBSERVERS.contains(observer)) {
+            OBSERVERS.add(observer);
+        }
+    }
+
+    public static void unobserve(CatalogCallback observer) {
+        OBSERVERS.remove(observer);
+    }
+
     public static void fetchAsCallback(NetworkHelper helper, String domain, int locationId, boolean force, NetworkHelper.NetworkCallback callback) {
         fetch(helper, domain, locationId, force, new CatalogCallback() {
             @Override
@@ -77,9 +105,25 @@ public final class ShopCatalogRepository {
     }
 
     public static void fetch(NetworkHelper helper, String domain, int locationId, boolean force, CatalogCallback callback) {
-        Catalog cached = CACHE.get();
-        long age = System.currentTimeMillis() - CACHE_AT.get();
-        if (!force && cached != null && domain.equals(cached.domain) && age < CACHE_TTL_MS) {
+        Catalog cached;
+        boolean startFetch;
+        synchronized (LOCK) {
+            cached = CACHE.get();
+            long age = System.currentTimeMillis() - CACHE_AT.get();
+            boolean cacheOk = !force && cached != null && domain.equals(cached.domain) && age < CACHE_TTL_MS;
+            if (cacheOk) {
+                startFetch = false;
+            } else if (IN_FLIGHT.get()) {
+                enqueuePending(callback);
+                return;
+            } else {
+                IN_FLIGHT.set(true);
+                enqueuePending(callback);
+                startFetch = true;
+                cached = null;
+            }
+        }
+        if (!startFetch) {
             callback.onSuccess(cached);
             return;
         }
@@ -87,7 +131,7 @@ public final class ShopCatalogRepository {
             @Override
             public void onSuccess(String[] results) {
                 if (results == null || results.length < 3 || results[0] == null || results[1] == null || results[2] == null) {
-                    callback.onError(new Exception("Incomplete catalog response"));
+                    complete(null, new Exception("Incomplete catalog response"));
                     return;
                 }
                 Catalog withoutStatuses = new Catalog(domain, results[0], results[1], results[2], null);
@@ -96,26 +140,28 @@ public final class ShopCatalogRepository {
                     public void onSuccess(String[] statusResults) {
                         String statuses = statusResults != null && statusResults.length > 0 ? statusResults[0] : null;
                         OrderStatusMapper.loadFromStatusesJson(statuses);
-                        putCache(new Catalog(domain, results[0], results[1], results[2], statuses), callback);
+                        complete(new Catalog(domain, results[0], results[1], results[2], statuses), null);
                     }
 
                     @Override
                     public void onError(Exception exception) {
-                        putCache(withoutStatuses, callback);
+                        complete(withoutStatuses, null);
                     }
                 });
             }
 
             @Override
             public void onError(Exception exception) {
-                callback.onError(exception);
+                complete(null, exception);
             }
         });
     }
 
     public static void invalidate() {
-        CACHE.set(null);
-        CACHE_AT.set(0);
+        synchronized (LOCK) {
+            CACHE.set(null);
+            CACHE_AT.set(0);
+        }
     }
 
     public static int locationId(Context context) {
@@ -127,9 +173,45 @@ public final class ShopCatalogRepository {
         return context.getSharedPreferences("loginPrefs", Context.MODE_PRIVATE).getString("domain_shop", "");
     }
 
-    private static void putCache(Catalog catalog, CatalogCallback callback) {
-        CACHE.set(catalog);
-        CACHE_AT.set(System.currentTimeMillis());
-        callback.onSuccess(catalog);
+    private static void enqueuePending(CatalogCallback callback) {
+        if (callback != null && !PENDING.contains(callback)) {
+            PENDING.add(callback);
+        }
+    }
+
+    static void replaceCacheForTest(Catalog catalog) {
+        synchronized (LOCK) {
+            CACHE.set(catalog);
+            CACHE_AT.set(catalog == null ? 0 : System.currentTimeMillis());
+        }
+    }
+
+    private static void complete(Catalog catalog, Exception error) {
+        List<CatalogCallback> oneShot;
+        synchronized (LOCK) {
+            IN_FLIGHT.set(false);
+            oneShot = new ArrayList<>(PENDING);
+            PENDING.clear();
+            if (catalog != null) {
+                CACHE.set(catalog);
+                CACHE_AT.set(System.currentTimeMillis());
+            }
+        }
+        MAIN.post(() -> {
+            if (error != null) {
+                for (CatalogCallback callback : oneShot) {
+                    callback.onError(error);
+                }
+                return;
+            }
+            for (CatalogCallback callback : oneShot) {
+                callback.onSuccess(catalog);
+            }
+            for (CatalogCallback observer : OBSERVERS) {
+                if (!oneShot.contains(observer)) {
+                    observer.onSuccess(catalog);
+                }
+            }
+        });
     }
 }

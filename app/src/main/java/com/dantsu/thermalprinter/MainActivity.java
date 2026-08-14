@@ -1,45 +1,23 @@
 package com.dantsu.thermalprinter;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.Dialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
-import android.hardware.usb.UsbDevice;
 import android.media.MediaPlayer;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
-import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.ListView;
-import android.widget.PopupWindow;
-
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-import android.widget.Spinner;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -58,9 +36,6 @@ import androidx.fragment.app.FragmentManager;
 import com.google.android.material.appbar.MaterialToolbar;
 
 import com.dantsu.escposprinter.connection.DeviceConnection;
-import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
-import com.dantsu.escposprinter.connection.usb.UsbConnection;
-import com.dantsu.escposprinter.connection.usb.UsbPrintersConnections;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrint;
 import com.dantsu.thermalprinter.helpClasses.ApkUpdateInstaller;
 import com.dantsu.thermalprinter.helpClasses.AuthStore;
@@ -71,12 +46,12 @@ import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 import com.dantsu.thermalprinter.helpClasses.OrderHookConfig;
 import com.dantsu.thermalprinter.helpClasses.OrderStatusMapper;
 import com.dantsu.thermalprinter.helpClasses.PrintDispatcher;
+import com.dantsu.thermalprinter.helpClasses.PrinterConfigController;
 import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
 import com.dantsu.thermalprinter.helpClasses.PrinterSettings;
 import com.dantsu.thermalprinter.helpClasses.ShopCatalogRepository;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
 import com.dantsu.thermalprinter.helpClasses.UpdateVerifier;
-import com.dantsu.thermalprinter.helpClasses.UsbPrinterPermission;
 import com.dantsu.thermalprinter.helpClasses.WebViewDialogFragment;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
 import com.google.android.material.chip.Chip;
@@ -88,7 +63,7 @@ import org.json.JSONObject;
 
 import javax.net.ssl.SSLException;
 
-public class MainActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback, LoginUserDialogFragment.Host  {
+public class MainActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback, LoginUserDialogFragment.Host, PrinterConfigController.Listener, ReprintOrdersHelper.Host  {
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
     //set of orders IDs for which we've already played the new order sound
@@ -105,8 +80,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         return soundPlayedOrders;
     }
     private static Context context;
-    private static Button button_bluetooth_browse;
-
     private static Button button_ti_print;
     private static Button button_ti_clear_ids;
     private static Button button_ti_updates;
@@ -146,16 +119,19 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private Boolean isServiceStarted = false;
     private FragmentManager fragmentManager = getSupportFragmentManager();
     private DeviceConnection selectedDevice;
-    private PrinterSettings printerSettings;
-    private UsbPrinterPermission usbPrinterPermission;
-    private boolean ignorePrinterSpinnerEvents = false;
-    private Spinner spinnerPrinterConnection;
-    private Spinner spinnerPrinterPaper;
-    private Spinner spinnerPrinterCharset;
-    private LinearLayout layoutTcpSettings;
-    private EditText editPrinterIp;
-    private EditText editPrinterPort;
-    private Button buttonSaveTcpPrinter;
+    private PrinterConfigController printerConfig;
+    private final ShopCatalogRepository.CatalogCallback catalogObserver = new ShopCatalogRepository.CatalogCallback() {
+        @Override
+        public void onSuccess(ShopCatalogRepository.Catalog catalog) {
+            MainActivity.this.onSuccess(catalog.asResults());
+        }
+
+        @Override
+        public void onError(Exception exception) {
+            MainActivity.this.onError(exception);
+        }
+    };
+
     // Store orders data for reprint functionality
     private List<JSONObject> cachedOrdersList = new ArrayList<>();
     private JSONObject cachedJsonObjectMenus;
@@ -202,9 +178,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             }
         }
 
-        printerSettings = new PrinterSettings(this);
-        usbPrinterPermission = new UsbPrinterPermission(this);
-        setupPrinterUi();
+        printerConfig = new PrinterConfigController(this, this);
+        printerConfig.bind();
+        selectedDevice = printerConfig.getSelectedDevice();
+        isPrinterSelected = printerConfig.isPrinterSelected();
         progressBar = findViewById(R.id.progressBar);
         button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
         if (button_ti_print != null) {
@@ -312,13 +289,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         // Handle reprint intent from DashboardActivity - show popup after fetching orders
         if ("reprint".equals(getIntent().getStringExtra("action"))) {
             shouldShowReprintPopup = true;
-            // Trigger fetching orders if URLs are already initialized
-            if (tiOrdersEndpointURL != null && !tiOrdersEndpointURL.isEmpty() && 
-                tiMenusEndpointURL != null && !tiMenusEndpointURL.isEmpty() &&
-                tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
-                // Fetch orders data to show popup - NetworkHelper will use token from SharedPreferences
-                fetchCatalog(true);
-            }
         }
 
     }
@@ -332,10 +302,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             savedToken = "";
         }
 
-        //apply automatic printer selection of last selected device
-        restorePrinterSelection();
-        
-        // Update test print button state after printer selection attempt
+        printerConfig.restore();
+        selectedDevice = printerConfig.getSelectedDevice();
+        isPrinterSelected = printerConfig.isPrinterSelected();
         updateTestPrintButtonState();
 
         if (savedDomain.isEmpty() || savedToken.isEmpty()) {
@@ -368,11 +337,12 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     tiMenusEndpointURL = urls[1];
                     tiCategoriesEndpointURL = urls[2];
                     enableAllButtons();
-                    
-                    fetchCatalog(false);
-                    
                     if (shouldShowReprintPopup) {
-                        // Already fetching above, shouldShowReprintPopup flag will be handled in onSuccess
+                        fetchCatalog(true);
+                    } else if (ShopCatalogRepository.latest() == null) {
+                        fetchCatalog(false);
+                    } else {
+                        catalogObserver.onSuccess(ShopCatalogRepository.latest());
                     }
                     
                     new Handler().postDelayed(() -> {
@@ -475,11 +445,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     }
 
     private void enableAllButtons() {
-        if (button_bluetooth_browse != null) button_bluetooth_browse.setEnabled(true);
-        if (spinnerPrinterConnection != null) spinnerPrinterConnection.setEnabled(true);
-        if (spinnerPrinterPaper != null) spinnerPrinterPaper.setEnabled(true);
-        if (spinnerPrinterCharset != null) spinnerPrinterCharset.setEnabled(true);
-        if (buttonSaveTcpPrinter != null) buttonSaveTcpPrinter.setEnabled(true);
+        printerConfig.setEnabled(true);
         if (button_ti_print != null) button_ti_print.setEnabled(true);
         if (button_ti_clear_ids != null) button_ti_clear_ids.setEnabled(true);
         updateTestPrintButtonState();
@@ -557,120 +523,62 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     }
 
     private void showOrdersPopup(List<JSONObject> ordersList, JSONObject jsonObjectMenus, JSONObject jsonObjectCategories) {
-        // Check if Activity is still valid before showing popup
-        if (isFinishing() || isDestroyed()) {
-            Log.w("MainActivity", "Cannot show popup - Activity is finishing or destroyed");
-            return;
-        }
-        
-        // Check if window is still valid
-        if (getWindow() == null || getWindow().getDecorView() == null || getWindow().getDecorView().getWindowToken() == null) {
-            Log.w("MainActivity", "Cannot show popup - Window token is not valid");
-            return;
-        }
-        
-        // reprint functionality
-        // Log the total number of orders received
-        Log.d("ReprintOrders", "Total orders received: " + ordersList.size());
-        
-        // Limit to last 50 orders without filtering
-        int startIndex = Math.max(0, ordersList.size() - 50);
-        List<JSONObject> displayOrdersList = new ArrayList<>(ordersList.subList(startIndex, ordersList.size()));
-        
-        Log.d("ReprintOrders", "Displaying orders: " + displayOrdersList.size() + " (from index " + startIndex + " to " + ordersList.size() + ")");
-        
-        // Inflate the popup layout
-        View popupView = getLayoutInflater().inflate(R.layout.popup_orders, null);
-
-        // Create the popup window
-        int width = LinearLayout.LayoutParams.MATCH_PARENT; // Set width to match_parent
-        int height = LinearLayout.LayoutParams.MATCH_PARENT; // Use match_parent so ListView can scroll properly
-        boolean focusable = true; // lets taps outside the popup also dismiss it
-        final PopupWindow popupWindow = new PopupWindow(popupView, width, height, focusable);
-
-        // Set background drawable for the popup window
-        popupWindow.setBackgroundDrawable(new ColorDrawable(Color.WHITE));
-        popupWindow.setElevation(10.0f); // Adds shadow effect
-
-        // Setup toolbar navigation click listener
-        MaterialToolbar toolbar = popupView.findViewById(R.id.toolbar);
-        if (toolbar != null) {
-            toolbar.setNavigationOnClickListener(v -> {
-                popupWindow.dismiss();
-                // If opened from reprint action, finish activity and return to Dashboard
-                String action = getIntent().getStringExtra("action");
-                if ("reprint".equals(action)) {
-                    finish();
-                }
-            });
-        }
-        
-        // Also handle popup dismissal when clicking outside or back button
-        popupWindow.setOnDismissListener(() -> {
-            // If opened from reprint action, finish activity and return to Dashboard
-            String action = getIntent().getStringExtra("action");
-            if ("reprint".equals(action)) {
-                finish();
-            }
-        });
-        
-        // Check if printer is selected
-        boolean printerAvailable = isPrinterSelected && selectedDevice != null;
-        
-        // Set up the ListView
-        ListView listViewOrders = popupView.findViewById(R.id.listViewOrders);
-        
-        // Store references to menu and category data for receipt preview
-        final JSONObject finalJsonObjectMenus = jsonObjectMenus;
-        final JSONObject finalJsonObjectCategories = jsonObjectCategories;
-        
-        OrdersAdapter adapter = new OrdersAdapter(this, displayOrdersList, new OrdersAdapter.PrintButtonClickListener() {
-            @Override
-            public void onPrintButtonClick(int position, String orderId) {
-                if (!printerAvailable) {
-                    Toast.makeText(context, R.string.select_printer_text, Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                //print receipt
-                if (chipReceipt.isChecked()) {
-                    TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(displayOrdersList.get(position), finalJsonObjectMenus, finalJsonObjectCategories, mediaPlayer, shop_name), orderId);
-                }
-                // print receipt for kitchen
-                if (chipKitchen.isChecked()) {
-                    TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(displayOrdersList.get(position), finalJsonObjectMenus, finalJsonObjectCategories, mediaPlayer, shop_name), orderId);
-                }
-            }
-        }, new OrdersAdapter.ReceiptPreviewClickListener() {
-            @Override
-            public void onReceiptPreviewClick(JSONObject order) {
-                showReceiptPreview(order, finalJsonObjectMenus, finalJsonObjectCategories);
-            }
-        }, printerAvailable);
-        listViewOrders.setAdapter(adapter);
-
-        // Show the popup window
-        popupWindow.showAtLocation(findViewById(R.id.mainLayout), Gravity.CENTER, 0, 0);
-    }
-    
-    private void showReceiptPreview(JSONObject order, JSONObject menusData, JSONObject categoriesData) {
-        try {
-            if (menusData == null || categoriesData == null) {
-                Toast.makeText(this, R.string.menu_data_not_available, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            // Create and show the receipt preview dialog
-            ReceiptPreviewDialogFragment dialog = ReceiptPreviewDialogFragment.newInstance(
-                order, menusData, categoriesData, shop_name);
-            dialog.show(getSupportFragmentManager(), "ReceiptPreviewDialog");
-            
-        } catch (Exception e) {
-            Log.e("MainActivity", "Error showing receipt preview", e);
-            Toast.makeText(this, getString(R.string.error_showing_receipt_preview, e.getMessage()), Toast.LENGTH_SHORT).show();
-        }
+        ReprintOrdersHelper.show(
+                this,
+                this,
+                ordersList,
+                jsonObjectMenus,
+                jsonObjectCategories,
+                "reprint".equals(getIntent().getStringExtra("action"))
+        );
     }
 
+    @Override
+    public boolean isPrinterAvailable() {
+        return Boolean.TRUE.equals(isPrinterSelected) && selectedDevice != null;
+    }
 
+    @Override
+    public Chip chipReceipt() {
+        return chipReceipt;
+    }
+
+    @Override
+    public Chip chipKitchen() {
+        return chipKitchen;
+    }
+
+    @Override
+    public String shopName() {
+        return shop_name;
+    }
+
+    @Override
+    public DocketStringModeler docketStringModeler() {
+        return docketStringModeler;
+    }
+
+    @Override
+    public android.media.MediaPlayer mediaPlayer() {
+        return mediaPlayer;
+    }
+
+    @Override
+    public void printOrder(String printInfo, String orderId) {
+        TIJobPrintBluetooth(printInfo, orderId);
+    }
+
+    @Override
+    public FragmentManager fragmentManager() {
+        return getSupportFragmentManager();
+    }
+
+    @Override
+    public void onPrinterChanged(DeviceConnection device, boolean selected) {
+        selectedDevice = device;
+        isPrinterSelected = selected;
+        updateTestPrintButtonState();
+    }
 
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
@@ -694,12 +602,18 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }
         
         // Check if URLs are initialized and user is logged in
-        if (!savedToken.isEmpty() && 
-            tiOrdersEndpointURL != null && !tiOrdersEndpointURL.isEmpty() && 
-            tiMenusEndpointURL != null && !tiMenusEndpointURL.isEmpty() &&
-            tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
-            fetchCatalog(false);
-            
+        ShopCatalogRepository.observe(catalogObserver);
+        if (!savedToken.isEmpty() && domain_shop != null && !domain_shop.isEmpty() && location_id != null) {
+            ShopCatalogRepository.Catalog latest = ShopCatalogRepository.latest();
+            if (latest != null && !domain_shop.equals(latest.domain)) {
+                ShopCatalogRepository.invalidate();
+                latest = null;
+            }
+            if (shouldShowReprintPopup || latest == null) {
+                fetchCatalog(shouldShowReprintPopup);
+            } else {
+                catalogObserver.onSuccess(latest);
+            }
             if (PrintMonitorService.isEnabled(this)) {
                 startPrintMonitor();
             }
@@ -712,6 +626,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     protected void onPause() {
         super.onPause();
         // Save chip preferences when activity is paused
+        ShopCatalogRepository.unobserve(catalogObserver);
         if (chipReceipt != null && chipKitchen != null) {
             SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
             SharedPreferences.Editor editor = prefs.edit();
@@ -725,12 +640,12 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (domain_shop == null || domain_shop.isEmpty() || location_id == null) {
             return;
         }
-        ShopCatalogRepository.fetchAsCallback(
+        ShopCatalogRepository.fetch(
                 networkHelperViewModel.getNetworkHelper(),
                 domain_shop,
                 location_id,
                 force,
-                this
+                catalogObserver
         );
     }
 
@@ -905,286 +820,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         BluetoothPrinterHelper.checkPermissions(this, onBluetoothPermissionsGranted);
     }
 
-    private void setupPrinterUi() {
-        button_bluetooth_browse = findViewById(R.id.button_bluetooth_browse);
-        spinnerPrinterConnection = findViewById(R.id.spinner_printer_connection);
-        spinnerPrinterPaper = findViewById(R.id.spinner_printer_paper);
-        spinnerPrinterCharset = findViewById(R.id.spinner_printer_charset);
-        layoutTcpSettings = findViewById(R.id.layout_tcp_settings);
-        editPrinterIp = findViewById(R.id.edit_printer_ip);
-        editPrinterPort = findViewById(R.id.edit_printer_port);
-        buttonSaveTcpPrinter = findViewById(R.id.button_save_tcp_printer);
-
-        bindSpinner(spinnerPrinterConnection, R.array.printer_connection_types);
-        bindSpinner(spinnerPrinterPaper, R.array.printer_paper_sizes);
-        bindSpinner(spinnerPrinterCharset, R.array.printer_charsets);
-
-        if (button_bluetooth_browse != null) {
-            button_bluetooth_browse.setOnClickListener(view -> onSelectPrinterClicked());
-        }
-        if (buttonSaveTcpPrinter != null) {
-            buttonSaveTcpPrinter.setOnClickListener(view -> saveTcpPrinter());
-        }
-
-        ignorePrinterSpinnerEvents = true;
-        if (spinnerPrinterConnection != null) {
-            spinnerPrinterConnection.setSelection(connectionTypeIndex(printerSettings.getConnectionType()), false);
-            spinnerPrinterConnection.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    if (ignorePrinterSpinnerEvents) {
-                        return;
-                    }
-                    printerSettings.setConnectionType(connectionTypeFromIndex(position));
-                    selectedDevice = null;
-                    isPrinterSelected = false;
-                    applyConnectionTypeUi();
-                    restorePrinterSelection();
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
-        }
-        if (spinnerPrinterPaper != null) {
-            spinnerPrinterPaper.setSelection(printerSettings.getPaperSize() == PrinterSettings.PaperSize.MM_80 ? 1 : 0, false);
-            spinnerPrinterPaper.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    if (ignorePrinterSpinnerEvents) {
-                        return;
-                    }
-                    printerSettings.setPaperSize(position == 1 ? PrinterSettings.PaperSize.MM_80 : PrinterSettings.PaperSize.MM_58);
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
-        }
-        if (spinnerPrinterCharset != null) {
-            spinnerPrinterCharset.setSelection(charsetIndex(printerSettings.getCharset()), false);
-            spinnerPrinterCharset.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    if (ignorePrinterSpinnerEvents) {
-                        return;
-                    }
-                    printerSettings.setCharset(charsetFromIndex(position));
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
-        }
-        ignorePrinterSpinnerEvents = false;
-        applyConnectionTypeUi();
-    }
-
-    private void bindSpinner(Spinner spinner, int arrayRes) {
-        if (spinner == null) {
-            return;
-        }
-        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, arrayRes, android.R.layout.simple_spinner_item);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-    }
-
-    private int connectionTypeIndex(PrinterSettings.ConnectionType type) {
-        switch (type) {
-            case USB:
-                return 1;
-            case TCP:
-                return 2;
-            case BLUETOOTH:
-            default:
-                return 0;
-        }
-    }
-
-    private PrinterSettings.ConnectionType connectionTypeFromIndex(int index) {
-        if (index == 1) {
-            return PrinterSettings.ConnectionType.USB;
-        }
-        if (index == 2) {
-            return PrinterSettings.ConnectionType.TCP;
-        }
-        return PrinterSettings.ConnectionType.BLUETOOTH;
-    }
-
-    private int charsetIndex(PrinterSettings.Charset charset) {
-        switch (charset) {
-            case CP437:
-                return 1;
-            case W1252:
-                return 2;
-            case GBK:
-                return 3;
-            case PC850:
-            default:
-                return 0;
-        }
-    }
-
-    private PrinterSettings.Charset charsetFromIndex(int index) {
-        switch (index) {
-            case 1:
-                return PrinterSettings.Charset.CP437;
-            case 2:
-                return PrinterSettings.Charset.W1252;
-            case 3:
-                return PrinterSettings.Charset.GBK;
-            default:
-                return PrinterSettings.Charset.PC850;
-        }
-    }
-
-    private void applyConnectionTypeUi() {
-        PrinterSettings.ConnectionType type = printerSettings.getConnectionType();
-        boolean tcp = type == PrinterSettings.ConnectionType.TCP;
-        if (layoutTcpSettings != null) {
-            layoutTcpSettings.setVisibility(tcp ? View.VISIBLE : View.GONE);
-        }
-        if (button_bluetooth_browse != null) {
-            button_bluetooth_browse.setVisibility(tcp ? View.GONE : View.VISIBLE);
-            if (type == PrinterSettings.ConnectionType.USB) {
-                button_bluetooth_browse.setText(R.string.select_usb_printer);
-            } else if (!isPrinterSelected) {
-                button_bluetooth_browse.setText(R.string.select_bluetooth_printer);
-            }
-        }
-        if (editPrinterIp != null) {
-            editPrinterIp.setText(printerSettings.getTcpHost());
-        }
-        if (editPrinterPort != null) {
-            editPrinterPort.setText(String.valueOf(printerSettings.getTcpPort()));
-        }
-    }
-
-    private void restorePrinterSelection() {
-        PrintDispatcher.migrateLegacyBluetoothIndex(this, printerSettings);
-        selectedDevice = PrintDispatcher.resolve(this);
-        isPrinterSelected = selectedDevice != null || (printerSettings.getConnectionType() == PrinterSettings.ConnectionType.TCP && !printerSettings.getTcpHost().isEmpty());
-        if (isPrinterSelected && selectedDevice == null && printerSettings.getConnectionType() == PrinterSettings.ConnectionType.TCP) {
-            selectedDevice = PrintDispatcher.resolve(this);
-            isPrinterSelected = selectedDevice != null;
-        }
-        updateSelectedPrinterButton();
-        updateTestPrintButtonState();
-    }
-
-    private void updateSelectedPrinterButton() {
-        if (button_bluetooth_browse == null) {
-            return;
-        }
-        if (isPrinterSelected) {
-            int buttonColor = ContextCompat.getColor(this, R.color.light_green);
-            setButtonBackgroundWithRoundedCorners(button_bluetooth_browse, buttonColor);
-            String name = printerSettings.getDisplayName();
-            if (!name.isEmpty()) {
-                button_bluetooth_browse.setText(name);
-            }
-            if (buttonSaveTcpPrinter != null && printerSettings.getConnectionType() == PrinterSettings.ConnectionType.TCP) {
-                setButtonBackgroundWithRoundedCorners(buttonSaveTcpPrinter, buttonColor);
-            }
-        }
-    }
-
-    private void onSelectPrinterClicked() {
-        if (printerSettings.getConnectionType() == PrinterSettings.ConnectionType.USB) {
-            browseUsbPrinter();
-        } else {
-            browseBluetoothDevice(true);
-        }
-    }
-
-    private void saveTcpPrinter() {
-        String host = editPrinterIp != null && editPrinterIp.getText() != null ? editPrinterIp.getText().toString().trim() : "";
-        String portText = editPrinterPort != null && editPrinterPort.getText() != null ? editPrinterPort.getText().toString().trim() : "9100";
-        if (host.isEmpty()) {
-            Toast.makeText(this, R.string.network_printer_invalid, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        int port = 9100;
-        try {
-            port = Integer.parseInt(portText);
-        } catch (NumberFormatException ignored) {
-        }
-        printerSettings.setTcpPrinter(host, port);
-        selectedDevice = PrintDispatcher.resolve(this);
-        isPrinterSelected = selectedDevice != null;
-        updateSelectedPrinterButton();
-        updateTestPrintButtonState();
-        Toast.makeText(this, R.string.network_printer_saved, Toast.LENGTH_SHORT).show();
-    }
-
-    @SuppressLint("MissingPermission")
-    public void browseBluetoothDevice(boolean manualOpen) {
-        BluetoothPrinterHelper.browse(this, -1, manualOpen, (device, index, name) -> {
-            android.bluetooth.BluetoothDevice btDevice = device.getDevice();
-            String address = btDevice != null ? btDevice.getAddress() : "";
-            printerSettings.setBluetoothPrinter(address, name);
-            selectedDevice = device;
-            isPrinterSelected = true;
-            updateSelectedPrinterButton();
-            updateTestPrintButtonState();
-        });
-    }
-
-    private void browseUsbPrinter() {
-        UsbConnection[] usbPrinters = new UsbPrintersConnections(this).getList();
-        if (usbPrinters == null || usbPrinters.length == 0) {
-            new AlertDialog.Builder(this)
-                    .setTitle(R.string.no_usb_printers_found)
-                    .setMessage(R.string.no_usb_printers_message)
-                    .setPositiveButton(R.string.ok, null)
-                    .show();
-            return;
-        }
-        final String[] items = new String[usbPrinters.length];
-        for (int i = 0; i < usbPrinters.length; i++) {
-            UsbDevice device = usbPrinters[i].getDevice();
-            String name = device != null ? device.getProductName() : null;
-            if (name == null || name.isEmpty()) {
-                name = device != null
-                        ? ("USB " + Integer.toHexString(device.getVendorId()) + ":" + Integer.toHexString(device.getProductId()))
-                        : "USB";
-            }
-            items[i] = name;
-        }
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.select_usb_printer)
-                .setItems(items, (dialog, which) -> {
-                    UsbConnection connection = usbPrinters[which];
-                    UsbDevice device = connection.getDevice();
-                    if (device == null) {
-                        return;
-                    }
-                    usbPrinterPermission.request(device, (grantedDevice, granted) -> runOnUiThread(() -> {
-                        if (!granted) {
-                            Toast.makeText(MainActivity.this, R.string.usb_permission_denied, Toast.LENGTH_LONG).show();
-                            return;
-                        }
-                        printerSettings.setUsbPrinter(grantedDevice.getVendorId(), grantedDevice.getProductId(), items[which]);
-                        selectedDevice = new UsbConnection(
-                                (android.hardware.usb.UsbManager) getSystemService(USB_SERVICE),
-                                grantedDevice
-                        );
-                        isPrinterSelected = true;
-                        updateSelectedPrinterButton();
-                        updateTestPrintButtonState();
-                    }));
-                })
-                .show();
-    }
-
-
-//    /*==============================================================================================
-//    ===================================Tasty Igniter Part=========================================
-//    ==============================================================================================*/
-
     public void tiPrintMonitoring() {
         if (!PrintMonitorService.isEnabled(this)) {
             if (selectedDevice == null) {
@@ -1342,7 +977,7 @@ private void restartWebservice(int buttonColor){
             Toast.makeText(context, R.string.select_printer_text, Toast.LENGTH_SHORT).show();
             return;
         }
-        if (printerSettings.getConnectionType() == PrinterSettings.ConnectionType.BLUETOOTH) {
+        if (printerConfig.settings().getConnectionType() == PrinterSettings.ConnectionType.BLUETOOTH) {
             this.checkBluetoothPermissions(() -> PrintDispatcher.print(this, selectedDevice, print_info, callback));
         } else {
             PrintDispatcher.print(this, selectedDevice, print_info, callback);
@@ -1437,7 +1072,7 @@ private void restartWebservice(int buttonColor){
         if (button_ti_logout != null) button_ti_logout.setVisibility(View.GONE);
         
         // Disable all buttons
-        if (button_bluetooth_browse != null) button_bluetooth_browse.setEnabled(false);
+        printerConfig.setEnabled(false);
         if (button_ti_print != null) button_ti_print.setEnabled(false);
         if (button_ti_clear_ids != null) button_ti_clear_ids.setEnabled(false);
         if (button_ti_testprint != null) button_ti_testprint.setEnabled(false);
@@ -1499,8 +1134,9 @@ private void restartWebservice(int buttonColor){
 
     @Override
     protected void onDestroy() {
-        if (usbPrinterPermission != null) {
-            usbPrinterPermission.unregister();
+        ShopCatalogRepository.unobserve(catalogObserver);
+        if (printerConfig != null) {
+            printerConfig.unregister();
         }
         super.onDestroy();
     }

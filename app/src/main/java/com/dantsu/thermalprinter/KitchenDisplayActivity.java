@@ -47,7 +47,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class KitchenDisplayActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback, KitchenOrderAdapter.ReceiptPreviewClickListener, KitchenOrderAdapter.DeliveryTimeChangeClickListener {
+public class KitchenDisplayActivity extends AppCompatActivity implements ShopCatalogRepository.CatalogCallback, KitchenOrderAdapter.ReceiptPreviewClickListener, KitchenOrderAdapter.DeliveryTimeChangeClickListener {
     
     private RecyclerView recyclerViewOrders;
     private KitchenOrderAdapter orderAdapter;
@@ -156,7 +156,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         });
         
         // Setup SwipeRefreshLayout
-        swipeRefreshLayout.setOnRefreshListener(this::refreshOrders);
+        swipeRefreshLayout.setOnRefreshListener(() -> refreshOrders(true));
         
         // Setup toolbar
         androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
@@ -193,17 +193,8 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         loadShopConfiguration();
         
         // Printer configuration is already loaded above, before adapter initialization
-        
-        // Start initial data load
-        refreshOrders();
-        
-        // Set flag that KitchenDisplayActivity is open
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putBoolean("kitchen_display_open", true);
-        editor.apply();
-        
-        // Keep screen awake while Kitchen Display is open
+        sharedPreferences.edit().putBoolean("kitchen_display_open", true).apply();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     
@@ -297,7 +288,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                     
                     // Refresh the list after a short delay to allow the API call to complete
                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                        refreshOrders();
+                        refreshOrders(true);
                     }, 1000);
                 } else {
                     Log.e("KitchenDisplay", "Failed to update order " + orderId + " delivery time");
@@ -322,7 +313,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             
             // Refresh the list after a short delay to allow the API call to complete
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                refreshOrders();
+                refreshOrders(true);
                 // Order count will be updated in onSuccess callback after refresh
             }, 1000);
         } catch (JSONException e) {
@@ -377,6 +368,10 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     }
     
     private void refreshOrders() {
+        refreshOrders(false);
+    }
+
+    private void refreshOrders(boolean force) {
         if (isRefreshing) return;
         
         isRefreshing = true;
@@ -384,11 +379,11 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         hasMoreData = true;
         progressBar.setVisibility(View.VISIBLE);
         
-        ShopCatalogRepository.fetchAsCallback(
+        ShopCatalogRepository.fetch(
                 networkHelperViewModel.getNetworkHelper(),
                 domain_shop,
                 location_id == null ? 1 : location_id,
-                true,
+                force,
                 this
         );
     }
@@ -518,8 +513,12 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         orderHookReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (!isRefreshing) {
-                    refreshOrders();
+                if (isRefreshing) {
+                    return;
+                }
+                ShopCatalogRepository.Catalog cached = ShopCatalogRepository.latest();
+                if (cached != null && domain_shop != null && domain_shop.equals(cached.domain)) {
+                    onSuccess(cached);
                 }
             }
         };
@@ -541,7 +540,11 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     }
     
     @Override
-    public void onSuccess(String[] results) {
+    public void onSuccess(ShopCatalogRepository.Catalog catalog) {
+        onSuccess(catalog.asResults());
+    }
+
+    private void onSuccess(String[] results) {
         isRefreshing = false;
         progressBar.setVisibility(View.GONE);
         swipeRefreshLayout.setRefreshing(false);
@@ -692,6 +695,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        ShopCatalogRepository.unobserve(this);
         unregisterOrderHookReceiver();
         
         // Release MediaPlayer when activity is destroyed
@@ -720,17 +724,27 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
     @Override
     protected void onPause() {
         super.onPause();
+        ShopCatalogRepository.unobserve(this);
         unregisterOrderHookReceiver();
     }
     
     @Override
     protected void onResume() {
         super.onResume();
-        // Reload chip preferences in case they were changed in MainActivity
         loadChipPreferences();
-        // Reload printer configuration in case it was changed
         loadPrinterConfiguration();
         registerOrderHookReceiver();
+        ShopCatalogRepository.Catalog latest = ShopCatalogRepository.latest();
+        if (latest != null && domain_shop != null && !domain_shop.equals(latest.domain)) {
+            ShopCatalogRepository.invalidate();
+            latest = null;
+        }
+        ShopCatalogRepository.observe(this);
+        if (latest == null) {
+            refreshOrders(false);
+        } else {
+            onSuccess(latest);
+        }
     }
     
     private void printOrder(JSONObject order) {

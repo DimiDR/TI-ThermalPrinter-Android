@@ -21,7 +21,6 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.dantsu.thermalprinter.helpClasses.AuthStore;
-import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 import com.dantsu.thermalprinter.helpClasses.OrderStatusMapper;
 import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
 import com.dantsu.thermalprinter.helpClasses.ShopCatalogRepository;
@@ -48,7 +47,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-public class DashboardActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback {
+public class DashboardActivity extends AppCompatActivity implements ShopCatalogRepository.CatalogCallback {
     
     private MaterialToolbar toolbar;
     private TextView textTotalOrders;
@@ -132,9 +131,6 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         
         PrintMonitorService.requestNotificationPermissionIfNeeded(this);
         PrintMonitorService.restoreIfLoggedIn(this);
-        
-        // Load initial data
-        refreshData();
     }
     
     private void initializeViews() {
@@ -259,9 +255,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     
     private void setupPullToRefresh() {
         if (swipeRefreshLayout != null) {
-            swipeRefreshLayout.setOnRefreshListener(() -> {
-                refreshData();
-            });
+            swipeRefreshLayout.setOnRefreshListener(() -> refreshData(true));
         }
     }
     
@@ -342,15 +336,18 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     
     
     private void refreshData() {
+        refreshData(false);
+    }
+
+    private void refreshData(boolean force) {
         if (domain_shop == null || domain_shop.isEmpty()) {
             return;
         }
-        
-        ShopCatalogRepository.fetchAsCallback(
+        ShopCatalogRepository.fetch(
                 networkHelperViewModel.getNetworkHelper(),
                 domain_shop,
                 location_id == null ? 1 : location_id,
-                false,
+                force,
                 this
         );
     }
@@ -362,7 +359,10 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         orderHookReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                refreshData();
+                ShopCatalogRepository.Catalog cached = ShopCatalogRepository.latest();
+                if (cached != null && domain_shop != null && domain_shop.equals(cached.domain)) {
+                    onSuccess(cached);
+                }
             }
         };
         IntentFilter filter = new IntentFilter(Constants.ACTION_ORDERS_CHANGED);
@@ -489,7 +489,11 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     }
     
     @Override
-    public void onSuccess(String[] results) {
+    public void onSuccess(ShopCatalogRepository.Catalog catalog) {
+        onSuccess(catalog.asResults());
+    }
+
+    private void onSuccess(String[] results) {
         // Stop refresh indicator if it's showing
         if (swipeRefreshLayout != null) {
             swipeRefreshLayout.setRefreshing(false);
@@ -676,6 +680,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        ShopCatalogRepository.unobserve(this);
         unregisterOrderHookReceiver();
         
         // Release MediaPlayer when activity is destroyed
@@ -695,23 +700,30 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     @Override
     protected void onPause() {
         super.onPause();
+        ShopCatalogRepository.unobserve(this);
         unregisterOrderHookReceiver();
     }
     
     @Override
     protected void onResume() {
         super.onResume();
-        // Reload shop configuration to detect shop changes
         loadShopConfiguration();
-        // Reload chip preferences in case they were changed in MainActivity
         loadChipPreferences();
-        // Reload printer configuration in case it was changed
         loadPrinterConfiguration();
         registerOrderHookReceiver();
         updateSystemStatus();
         updateButtonStates();
         updateAutoPrintButtonAppearance();
-        // Refresh data to get new shop's orders
-        refreshData();
+        ShopCatalogRepository.Catalog latest = ShopCatalogRepository.latest();
+        if (latest != null && domain_shop != null && !domain_shop.equals(latest.domain)) {
+            ShopCatalogRepository.invalidate();
+            latest = null;
+        }
+        ShopCatalogRepository.observe(this);
+        if (latest == null) {
+            refreshData(false);
+        } else {
+            onSuccess(latest);
+        }
     }
 }
