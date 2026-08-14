@@ -30,7 +30,8 @@ public class AsyncBluetoothEscPosPrint extends AsyncEscPosPrint {
                     BluetoothPrintersConnections.selectFirstPaired(),
                     printerData.getPrinterDpi(),
                     printerData.getPrinterWidthMM(),
-                    printerData.getPrinterNbrCharactersPerLine()
+                    printerData.getPrinterNbrCharactersPerLine(),
+                    printerData.getCharsetEncoding()
             );
             printersData[0].setTextsToPrint(printerData.getTextsToPrint());
         } else {

@@ -9,7 +9,7 @@ import androidx.security.crypto.MasterKeys;
 
 /**
  * Stores the API bearer token. Never persists the shop password.
- * Migrates leftover plaintext tokens and scrubs passwords from legacy prefs.
+ * If the Android Keystore is unavailable, the token is not stored and the user must log in again.
  */
 public final class AuthStore {
     private static final String TAG = "AuthStore";
@@ -25,6 +25,7 @@ public final class AuthStore {
     public AuthStore(Context context) {
         this.appContext = context.getApplicationContext();
         this.securePrefs = createSecurePrefs();
+        appContext.getSharedPreferences(FALLBACK_PREFS, Context.MODE_PRIVATE).edit().clear().apply();
         migrateAndScrub();
     }
 
@@ -39,23 +40,36 @@ public final class AuthStore {
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             );
         } catch (Exception e) {
-            Log.e(TAG, "EncryptedSharedPreferences unavailable, using private fallback", e);
-            return appContext.getSharedPreferences(FALLBACK_PREFS, Context.MODE_PRIVATE);
+            Log.e(TAG, "EncryptedSharedPreferences unavailable; token will not be persisted", e);
+            return null;
         }
     }
 
+    public boolean isAvailable() {
+        return securePrefs != null;
+    }
+
     public synchronized String getToken() {
+        if (securePrefs == null) {
+            return null;
+        }
         String token = securePrefs.getString(KEY_TOKEN, null);
         return token == null || token.isEmpty() ? null : token;
     }
 
     public synchronized void setToken(String token) {
+        if (securePrefs == null) {
+            Log.e(TAG, "Refusing to store token without encryption");
+            return;
+        }
         securePrefs.edit().putString(KEY_TOKEN, token).apply();
         scrubLegacySecrets();
     }
 
     public synchronized void clearToken() {
-        securePrefs.edit().remove(KEY_TOKEN).apply();
+        if (securePrefs != null) {
+            securePrefs.edit().remove(KEY_TOKEN).apply();
+        }
         scrubLegacySecrets();
     }
 
@@ -67,7 +81,7 @@ public final class AuthStore {
         SharedPreferences loginPrefs = appContext.getSharedPreferences(LEGACY_LOGIN, Context.MODE_PRIVATE);
         SharedPreferences apiTokenPrefs = appContext.getSharedPreferences(LEGACY_TOKEN, Context.MODE_PRIVATE);
 
-        if (getToken() == null) {
+        if (securePrefs != null && getToken() == null) {
             String legacy = loginPrefs.getString(KEY_TOKEN, null);
             if (legacy == null || legacy.isEmpty()) {
                 legacy = apiTokenPrefs.getString(KEY_TOKEN, null);

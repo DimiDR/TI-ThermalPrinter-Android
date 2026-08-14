@@ -10,5 +10,6 @@ public class Constants {
     };
     public static String currentAppVersion = "1.1.0";
 
-    public static final long REFRESH_INTERVAL_KITCHEN_OPEN = 60000;
+    /** Broadcast when a shop webhook arrives so open screens can refresh. */
+    public static final String ACTION_ORDERS_CHANGED = "com.dantsu.thermalprinter.ACTION_ORDERS_CHANGED";
 }

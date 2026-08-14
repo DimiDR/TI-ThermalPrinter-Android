@@ -4,18 +4,17 @@ import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.os.ParcelUuid;
 
 import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.escposprinter.exceptions.EscPosConnectionException;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.lang.reflect.Method;
 import java.util.UUID;
 
 public class BluetoothConnection extends DeviceConnection {
 
-    private static final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
+    private static final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     private BluetoothDevice device;
     private BluetoothSocket socket = null;
@@ -51,6 +50,8 @@ public class BluetoothConnection extends DeviceConnection {
 
     /**
      * Start socket connection with the bluetooth device.
+     * Cheap ESC/POS modules often reject a secure SPP socket, so this tries
+     * insecure SPP, then secure SPP, then RFCOMM channel 1.
      */
     @SuppressLint("MissingPermission")
     public BluetoothConnection connect() throws EscPosConnectionException {
@@ -63,60 +64,72 @@ public class BluetoothConnection extends DeviceConnection {
         }
 
         BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-
-        UUID uuid = this.getDeviceUUID();
-
-        try {
-            this.socket = this.device.createRfcommSocketToServiceRecord(uuid);
+        if (bluetoothAdapter != null) {
             bluetoothAdapter.cancelDiscovery();
+        }
+
+        UUID uuid = BluetoothConnection.SPP_UUID;
+
+        if (this.tryConnect(() -> this.device.createInsecureRfcommSocketToServiceRecord(uuid))) {
+            return this;
+        }
+        if (this.tryConnect(() -> this.device.createRfcommSocketToServiceRecord(uuid))) {
+            return this;
+        }
+        if (this.tryConnect(this::createChannelOneSocket)) {
+            return this;
+        }
+
+        this.disconnect();
+        throw new EscPosConnectionException("Unable to connect to bluetooth device.");
+    }
+
+    private boolean tryConnect(SocketFactory factory) {
+        this.closeSocketQuietly();
+        try {
+            this.socket = factory.create();
             this.socket.connect();
             this.outputStream = this.socket.getOutputStream();
             this.data = new byte[0];
-        } catch (IOException e) {
-            e.printStackTrace();
-            this.disconnect();
-            throw new EscPosConnectionException("Unable to connect to bluetooth device.");
-        }
-        return this;
-    }
-
-    /**
-     * Get bluetooth device UUID
-     */
-    protected UUID getDeviceUUID() {
-        ParcelUuid[] uuids = device.getUuids();
-        if (uuids != null && uuids.length > 0) {
-            if (Arrays.asList(uuids).contains(new ParcelUuid(BluetoothConnection.SPP_UUID))) {
-                return BluetoothConnection.SPP_UUID;
-            }
-            return uuids[0].getUuid();
-        } else {
-            return BluetoothConnection.SPP_UUID;
+            return true;
+        } catch (Exception e) {
+            this.closeSocketQuietly();
+            return false;
         }
     }
 
-    /**
-     * Close the socket connection with the bluetooth device.
-     */
-    public BluetoothConnection disconnect() {
-        this.data = new byte[0];
+    private BluetoothSocket createChannelOneSocket() throws Exception {
+        Method method = this.device.getClass().getMethod("createRfcommSocket", int.class);
+        return (BluetoothSocket) method.invoke(this.device, 1);
+    }
+
+    private void closeSocketQuietly() {
         if (this.outputStream != null) {
             try {
                 this.outputStream.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (IOException ignored) {
             }
             this.outputStream = null;
         }
         if (this.socket != null) {
             try {
                 this.socket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (IOException ignored) {
             }
             this.socket = null;
         }
+        this.data = new byte[0];
+    }
+
+    /**
+     * Close the socket connection with the bluetooth device.
+     */
+    public BluetoothConnection disconnect() {
+        this.closeSocketQuietly();
         return this;
     }
 
+    private interface SocketFactory {
+        BluetoothSocket create() throws Exception;
+    }
 }

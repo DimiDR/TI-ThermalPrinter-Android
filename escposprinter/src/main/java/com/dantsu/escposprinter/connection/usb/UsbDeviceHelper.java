@@ -26,6 +26,13 @@ public class UsbDeviceHelper {
                 return usbInterface;
             }
         }
+        // Cheap USB-serial POS modules often use vendor class with a bulk OUT endpoint.
+        for (int i = 0; i < interfacesCount; i++) {
+            UsbInterface usbInterface = usbDevice.getInterface(i);
+            if (findEndpointIn(usbInterface) != null) {
+                return usbInterface;
+            }
+        }
         return null;
     }
 

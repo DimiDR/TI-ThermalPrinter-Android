@@ -18,13 +18,11 @@ import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
-import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
-import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections;
+import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.thermalprinter.Constants;
 import com.dantsu.thermalprinter.DashboardActivity;
 import com.dantsu.thermalprinter.MainActivity;
 import com.dantsu.thermalprinter.R;
-import com.dantsu.thermalprinter.async.AsyncBluetoothEscPosPrint;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrint;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrinter;
 
@@ -32,14 +30,12 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Foreground service that polls TastyIgniter and prints new orders.
- * Survives the activity going to the background; does not survive reboot.
+ * Foreground service that waits for a TastyIgniter webhook (via ntfy or LAN HTTP)
+ * and then plays a sound / prints new orders. Survives the activity going to
+ * the background; does not survive reboot.
  */
 public class PrintMonitorService extends Service implements NetworkHelper.NetworkCallback {
     private static final String TAG = "PrintMonitorService";
@@ -49,8 +45,10 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
     private static final String PREFS = "MyPrefs";
 
     private NetworkHelper networkHelper;
-    private ScheduledExecutorService scheduler;
+    private NtfySubscriber ntfySubscriber;
+    private LocalHookServer localHookServer;
     private final AtomicBoolean pollInFlight = new AtomicBoolean(false);
+    private final AtomicBoolean hookWhileBusy = new AtomicBoolean(false);
     private volatile boolean printerError;
     private DocketStringModeler docketStringModeler;
     private boolean initialLoad = true;
@@ -69,19 +67,39 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
 
     public static void start(Context context) {
         setEnabled(context, true);
-        Intent intent = new Intent(context, PrintMonitorService.class);
-        ContextCompat.startForegroundService(context, intent);
+        startListening(context);
     }
 
     public static void stop(Context context) {
         setEnabled(context, false);
+        Intent intent = new Intent(context, PrintMonitorService.class);
+        if (new AuthStore(context).hasToken()) {
+            ContextCompat.startForegroundService(context, intent);
+        } else {
+            context.stopService(intent);
+        }
+    }
+
+    public static void startListening(Context context) {
+        if (!new AuthStore(context).hasToken()) {
+            return;
+        }
+        Intent intent = new Intent(context, PrintMonitorService.class);
+        ContextCompat.startForegroundService(context, intent);
+    }
+
+    public static void stopListening(Context context) {
         context.stopService(new Intent(context, PrintMonitorService.class));
     }
 
     public static void restoreIfEnabled(Context context) {
+        restoreIfLoggedIn(context);
+    }
+
+    public static void restoreIfLoggedIn(Context context) {
         Constants.isServiceActive = isEnabled(context);
-        if (Constants.isServiceActive) {
-            start(context);
+        if (new AuthStore(context).hasToken()) {
+            startListening(context);
         }
     }
 
@@ -104,17 +122,22 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
         createChannel();
         networkHelper = new NetworkHelper(this);
         docketStringModeler = new DocketStringModeler();
+        ntfySubscriber = new NtfySubscriber();
+        localHookServer = new LocalHookServer();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         startForegroundInternal();
-        if (!isEnabled(this)) {
+        if (!new AuthStore(this).hasToken()) {
             stopSelf();
             return START_NOT_STICKY;
         }
-        Constants.isServiceActive = true;
-        startPolling();
+        Constants.isServiceActive = isEnabled(this);
+        startHookListeners();
+        if (initialLoad && pollInFlight.compareAndSet(false, true)) {
+            fetchOrders();
+        }
         return START_STICKY;
     }
 
@@ -126,50 +149,64 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
 
     @Override
     public void onDestroy() {
-        stopPolling();
+        stopHookListeners();
         if (networkHelper != null) {
             networkHelper.shutdown();
         }
-        if (!isEnabled(this)) {
-            Constants.isServiceActive = false;
-        }
+        Constants.isServiceActive = isEnabled(this);
         super.onDestroy();
     }
 
-    private void startPolling() {
-        if (scheduler != null && !scheduler.isShutdown()) {
-            return;
-        }
-        scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduler.scheduleWithFixedDelay(this::pollOnce, 0, Constants.REFRESH_INTERVAL_KITCHEN_OPEN, TimeUnit.MILLISECONDS);
+    private void startHookListeners() {
+        ntfySubscriber.start(OrderHookConfig.subscribeUrl(this), this::onHook);
+        localHookServer.start(this::onHook);
     }
 
-    private void stopPolling() {
-        if (scheduler != null) {
-            scheduler.shutdownNow();
-            scheduler = null;
+    private void stopHookListeners() {
+        if (ntfySubscriber != null) {
+            ntfySubscriber.stop();
+        }
+        if (localHookServer != null) {
+            localHookServer.stop();
         }
         if (networkHelper != null) {
             networkHelper.cancelNetworkTask();
         }
     }
 
-    private void pollOnce() {
+    private void onHook() {
+        Log.d(TAG, "Order hook received");
         if (!pollInFlight.compareAndSet(false, true)) {
+            hookWhileBusy.set(true);
             return;
         }
+        fetchOrders();
+    }
+
+    private void fetchOrders() {
         SharedPreferences loginPrefs = getSharedPreferences("loginPrefs", MODE_PRIVATE);
         String domain = loginPrefs.getString("domain_shop", "");
         int locationId = loginPrefs.getInt("location_id", 1);
         if (domain.isEmpty() || !new AuthStore(this).hasToken()) {
-            pollInFlight.set(false);
-            Log.w(TAG, "Skipping poll: missing shop domain or token");
+            Log.w(TAG, "Skipping fetch: missing shop domain or token");
+            finishFetch();
             return;
         }
-        String orders = domain + "/api/orders?sort=order_id desc&pageLimit=50&location=" + locationId;
-        String menus = domain + "/api/menus?include=categories&pageLimit=5000&location=" + locationId;
-        String categories = domain + "/api/categories?location=" + locationId;
-        networkHelper.fetchData(new String[]{orders, menus, categories}, domain, this);
+        ShopCatalogRepository.fetchAsCallback(networkHelper, domain, locationId, true, this);
+    }
+
+    private void finishFetch() {
+        pollInFlight.set(false);
+        sendOrdersChanged();
+        if (hookWhileBusy.compareAndSet(true, false)) {
+            onHook();
+        }
+    }
+
+    private void sendOrdersChanged() {
+        Intent intent = new Intent(Constants.ACTION_ORDERS_CHANGED);
+        intent.setPackage(getPackageName());
+        sendBroadcast(intent);
     }
 
     @Override
@@ -209,8 +246,12 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
                 playNewOrderSound();
             }
 
+            if (!isEnabled(this)) {
+                return;
+            }
+
             JSONArray printable = DocketStringModeler.filterPrintableOrders(data, printedOrders);
-            BluetoothConnection printer = resolvePrinter();
+            DeviceConnection printer = PrintDispatcher.resolve(this);
             if (printer == null) {
                 Log.w(TAG, "Auto-print running but no printer is selected");
                 return;
@@ -238,23 +279,18 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
         } catch (Exception e) {
             Log.e(TAG, "Failed to process orders", e);
         } finally {
-            pollInFlight.set(false);
+            finishFetch();
         }
     }
 
     @Override
     public void onError(Exception exception) {
-        pollInFlight.set(false);
-        Log.e(TAG, "Order poll failed", exception);
+        Log.e(TAG, "Order fetch after hook failed", exception);
+        finishFetch();
     }
 
-    private void printOrder(BluetoothConnection device, String printInfo, String orderId) {
-        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(device, 203, 48f, 32);
-        printer.addTextToPrint(printInfo);
-        if (printer.getPrinterConnection() != null) {
-            printer.getPrinterConnection().disconnect();
-        }
-        new AsyncBluetoothEscPosPrint(getApplicationContext(), new AsyncEscPosPrint.OnPrintFinished() {
+    private void printOrder(DeviceConnection device, String printInfo, String orderId) {
+        PrintDispatcher.print(this, device, printInfo, new AsyncEscPosPrint.OnPrintFinished() {
             @Override
             public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
                 printerError = true;
@@ -266,20 +302,7 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
                 IdManager.addId(PrintMonitorService.this, orderId);
                 MainActivity.getPrintedOrders().add(orderId);
             }
-        }).execute(printer);
-    }
-
-    private BluetoothConnection resolvePrinter() {
-        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        int index = prefs.getInt("stored_index_printer", -1);
-        if (index < 0) {
-            return null;
-        }
-        BluetoothConnection[] devices = (new BluetoothPrintersConnections()).getList();
-        if (devices == null || index >= devices.length) {
-            return null;
-        }
-        return devices[index];
+        });
     }
 
     private String resolveShopName() {
@@ -310,9 +333,14 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
                 launch,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
+        boolean autoPrint = isEnabled(this);
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle(getString(R.string.notification_print_monitor_title))
-                .setContentText(getString(R.string.notification_print_monitor_text))
+                .setContentTitle(getString(autoPrint
+                        ? R.string.notification_print_monitor_title
+                        : R.string.notification_order_hook_title))
+                .setContentText(getString(autoPrint
+                        ? R.string.notification_print_monitor_text
+                        : R.string.notification_order_hook_text))
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentIntent(pending)
                 .setOngoing(true)

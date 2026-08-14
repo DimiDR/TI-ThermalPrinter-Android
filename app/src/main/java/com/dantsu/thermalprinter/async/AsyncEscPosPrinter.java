@@ -1,19 +1,30 @@
 package com.dantsu.thermalprinter.async;
 
+import com.dantsu.escposprinter.EscPosCharsetEncoding;
 import com.dantsu.escposprinter.EscPosPrinterSize;
 import com.dantsu.escposprinter.connection.DeviceConnection;
 
 public class AsyncEscPosPrinter extends EscPosPrinterSize {
     private DeviceConnection printerConnection;
     private String[] textsToPrint = new String[0];
+    private EscPosCharsetEncoding charsetEncoding;
 
     public AsyncEscPosPrinter(DeviceConnection printerConnection, int printerDpi, float printerWidthMM, int printerNbrCharactersPerLine) {
+        this(printerConnection, printerDpi, printerWidthMM, printerNbrCharactersPerLine, new EscPosCharsetEncoding("IBM850", 2));
+    }
+
+    public AsyncEscPosPrinter(DeviceConnection printerConnection, int printerDpi, float printerWidthMM, int printerNbrCharactersPerLine, EscPosCharsetEncoding charsetEncoding) {
         super(printerDpi, printerWidthMM, printerNbrCharactersPerLine);
         this.printerConnection = printerConnection;
+        this.charsetEncoding = charsetEncoding;
     }
 
     public DeviceConnection getPrinterConnection() {
         return this.printerConnection;
+    }
+
+    public EscPosCharsetEncoding getCharsetEncoding() {
+        return this.charsetEncoding;
     }
 
     public AsyncEscPosPrinter setTextsToPrint(String[] textsToPrint) {

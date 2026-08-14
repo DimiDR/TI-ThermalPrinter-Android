@@ -5,7 +5,7 @@ import android.content.Context;
 import android.media.MediaPlayer;
 import android.util.DisplayMetrics;
 
-import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
+import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.escposprinter.textparser.PrinterTextParserImg;
 import com.dantsu.thermalprinter.R;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrinter;
@@ -394,39 +394,8 @@ public JSONObject addInformation(){
         return output;
     }
 
-    public static JSONArray filterPrintableOrders(JSONArray dataArray, Set<String>  printedOrders) throws JSONException {
-        //checks for initial status of the order. Only orders with status initial will be printed.
-        JSONArray printableOrders = new JSONArray();
-
-        for (int i = 0; i < dataArray.length(); i++) {
-            JSONObject order = dataArray.getJSONObject(i);
-            String orderId = order.getString("id");
-
-            //TODO add a call to get the categories of order item and add to json
-            // this can be used to order the orders by category on the print
-            // add only the first category to the json to prevent ordering in two different categories
-            // add to order_menus[i].category
-            // make a call to get the categories
-
-////        print special order ID for testing TODO deactivate
-//            if (orderId.equals("70")) {
-//                printableOrders.put(order);
-////                return printableOrders;
-//            }
-
-//TODO: activate
-            if (!printedOrders.contains(orderId)) { //TODO printedOrders is null
-                JSONObject attributes = order.getJSONObject("attributes");
-                JSONObject status = attributes.getJSONObject("status");
-                int statusId = status.getInt("status_id"); // initial order
-
-                if (statusId == 1) {
-                    printableOrders.put(order);
-                }
-            }
-
-        }
-        return printableOrders;
+    public static JSONArray filterPrintableOrders(JSONArray dataArray, Set<String> printedOrders) throws JSONException {
+        return OrderStatusMapper.filterPrintable(dataArray, printedOrders);
     }
 
     private String FormatDate(String inputDateString) {
@@ -445,13 +414,16 @@ public JSONObject addInformation(){
     }
 
     @SuppressLint("SimpleDateFormat")
-    public static String TITestPrinter(boolean normal_click, BluetoothConnection selectedDevice, Context context) {
+    public static String TITestPrinter(boolean normal_click, DeviceConnection selectedDevice, Context context) {
         SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
-        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(selectedDevice, 203, 48f, 32);
+        PrinterSettings settings = new PrinterSettings(context);
+        PrinterSettings.PaperSize paper = settings.getPaperSize();
+        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(selectedDevice, paper.dpi, paper.widthMm, paper.charsPerLine);
         String print_info;
         if (normal_click) {
-            print_info = "[C] Test \n" +
-                    "[C] Ausdruck \n" +
+            print_info = "[C]Test\n" +
+                    "[C]Ausdruck ae: ä ö ü ß Ä Ö Ü\n" +
+                    "[C]Preis: 9,99€\n" +
                     "[C]<u><font size='big'>DRUCKER TEST ERFOLGREICH</font></u>";
         } else {
             print_info = "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(printer, context.getApplicationContext().getResources().getDrawableForDensity(R.drawable.logo, DisplayMetrics.DENSITY_MEDIUM)) + "</img>\n" +

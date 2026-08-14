@@ -141,31 +141,7 @@
                         android:textColor="@color/colorTextPrimary"
                         android:layout_marginBottom="16dp" />
 
-                    <Button
-                        android:id="@+id/button_bluetooth_browse"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/select_bluetooth_printer"
-                        android:textSize="16sp"
-                        android:background="@drawable/button_secondary"
-                        android:textColor="@color/colorTextOnPrimary"
-                        android:textAllCaps="false"
-                        android:drawablePadding="8dp"
-                        android:layout_marginBottom="12dp"
-                        android:enabled="false" />
-
-                    <Button
-                        android:id="@+id/button_ti_testprint"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/test_print_button"
-                        android:textSize="16sp"
-                        android:background="@drawable/button_secondary"
-                        android:textColor="@color/colorTextOnPrimary"
-                        android:textAllCaps="false"
-                        android:drawableStart="@drawable/ic_receipt"
-                        android:drawablePadding="8dp"
-                        android:enabled="false" />
+                    <include layout="@layout/printer_config_fields" />
 
                 </LinearLayout>
 
@@ -288,6 +264,72 @@
                             app:chipStrokeColor="@color/colorPrimary" />
 
                     </com.google.android.material.chip.ChipGroup>
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Order webhook card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/colorSurface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/order_hook_title"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/colorTextPrimary"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/order_hook_description"
+                        android:textSize="14sp"
+                        android:textColor="@color/colorTextSecondary"
+                        android:layout_marginBottom="12dp" />
+
+                    <TextView
+                        android:id="@+id/text_order_hook_url"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textIsSelectable="true"
+                        android:textSize="13sp"
+                        android:textColor="@color/colorPrimary"
+                        android:layout_marginBottom="12dp" />
+
+                    <Button
+                        android:id="@+id/button_copy_hook_url"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/order_hook_copy"
+                        android:textSize="16sp"
+                        android:background="@drawable/button_secondary"
+                        android:textColor="@color/colorPrimary"
+                        android:textAllCaps="false"
+                        android:layout_marginBottom="12dp" />
+
+                    <Button
+                        android:id="@+id/button_test_hook"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/order_hook_test"
+                        android:textSize="16sp"
+                        android:background="@drawable/button_primary"
+                        android:textColor="@color/colorTextOnPrimary"
+                        android:textAllCaps="false" />
 
                 </LinearLayout>
 

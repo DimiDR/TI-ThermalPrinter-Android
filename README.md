@@ -1,18 +1,13 @@
 # Tasty Igniter Printer App
 This app is used by restaurant owners to monitor and print food orders.
 It is connected to a thermal printing device like this one https://www.amazon.de/Epson-TM-M30III-152-Bluetooth-Modell-schwarz/dp/B0BXH1QM42.
-There is a job running every 60 seconds checking the API if new order came in.
-If it is there, it will be sent to the printer device.
-
-The app will run in the background. It gets the last 50 requests from your shop.
-The printed IDs will be saved in an array and checked to see if they were already printed to prevent double prints.
-The job runs every minute.
+New orders are detected via a shop webhook (ntfy or a local HTTP hook) and then printed. The printed IDs are stored so the same order is not printed twice.
 
 This app is a fork of https://github.com/DantSu/ESCPOS-ThermalPrinter-Android. Thank you for the great implementation.
 It was modified to comply with https://tastyigniter.com/ shop software and its Orders API https://tastyigniter.com/marketplace/item/igniter-api.
 
 # Restrictions
-It's a native Android app, so no IoS support is in place.
+It's a native Android app, so no iOS support is in place.
 I tried the React Native EXPO implementation, but it is not working properly.
 
 Libraries I tried:
@@ -30,79 +25,87 @@ However, the web would call the App on the device, and the App would not switch 
 The implementation of this kind of solution would be difficult and require a lot of maintenance.
 
 The API Orders implementation provided by Tasty Igniter is fast, but lacks extensive filter settings.
-This is why I'm getting the last 50 Orders. If you know better ways to filter the request, please open an issue.
+This is why the app loads the last 50 orders. If you know better ways to filter the request, please open an issue.
 
-Promissing Library: https://github.com/tr3v3r/react-native-esc-pos-printer
+Promising Library: https://github.com/tr3v3r/react-native-esc-pos-printer
 
-# CORS Problems
-In cases of cross-origin errors, I added the following lines at the top of the file ".htaccess"
+# API access
+Install the TastyIgniter API addon and allow **List all resources (GET)** for:
+- `/api/orders`
+- `/api/menus`
+- `/api/categories`
+- `/api/statuses` (used to map status names to IDs)
 
-Header set Access-Control-Allow-Origin "*"
-Header set Access-Control-Allow-Headers "origin, x-requested-with, content-type"
-Header set Access-Control-Allow-Methods "GET"
+Do **not** open CORS with `Access-Control-Allow-Origin: *`. This is a native Android app; it talks to the shop API directly with a bearer token. A wildcard CORS header is unnecessary and unsafe.
 
-Also set the API for Order in admin dashboard API/Orders - All Resources Get to all and not employee.
+Set the Orders API in the admin dashboard to the staff/employee scope that matches your shop policy. Do not publish test shop passwords in this repository.
 
-# Test Shop Credentials
-- URL: https://dimitrir14.sg-host.com
-- User: admin
-- PW: XXX
+# Order webhook (sound in the store)
+The tablet no longer asks the shop every minute. TastyIgniter must send a hook when an order is created.
 
-# Steps to make the app operational 
-## 1. Open API communication
-The app is getting information from 3 APIs. Please install the API addon for TI and set the following 3 API to ALL for "List all resources (GET)"
-- /api/orders
-- /api/menus
-- /api/categories
+1. Log in to the app, open **Settings**.
+2. Copy the webhook URL from **Order signal** (it looks like `https://ntfy.sh/jwprinter_…`).
+3. Install [Webhooks](https://tastyigniter.com/marketplace/item/igniterlabs-webhook) in TastyIgniter.
+4. Create a webhook:
+   - Event: **Orders**
+   - Payload URL: the copied URL
+   - Method: POST
+5. Place a test order, or tap **Send test signal** in the app. A sound should play on the tablet.
+6. Turn on **Auto Print** if tickets should print automatically.
 
-## 1. Users File
-The file app\src\main\assets\users.json has the user information. It is part of gitignore to not expose the user information.
-Here is the structure of the file
+You can also POST to `http://TABLET-IP:8765/hook` if the shop server can reach the tablet on the LAN.
 
-```
-"users": [
-    {
-      "shop_id": 1,
-      "username": "ts",
-      "password": "pw2",
-      "shop_name": "testshop",
-      "domain_shop": "https://dimitrir14.sg-host.com",
-      "domain_website": "https://dimitrir14.sg-host.com",
-      "kitchen_view": "https://dimitrir14.sg-host.com/admin/thoughtco/kitchendisplay/summary/view/1",
-      "location_id": "10"
-    }, ... ]
-```
+# Shop catalog
+Shop display names and domains live in `app/src/main/assets/users.json` (gitignored when it contains live shops). The file has a `shops` array and **must not contain passwords**. Staff log in with their TastyIgniter username and password; the app exchanges them for a token and never stores the password.
 
-- shop_id - id for the shop. Only app interany. Should be unique in the users file.
-- username - Login name. Should be unique in users file. 
-- password - password to login to the app
-- shop_name - Display name in the app
-- domain_shop - URL of the shop
-- domain_website - URL of the restaurant website
-- kitchen_view - URL of kitchen view
-- location_id - location id of the shop from TI.
-
-
-
-## 2. Version Updater (optional)
-The app has an integrated update function outsite the playstore. With this updates can come much faster.
-There is hardcoded link to version updates in "Constants.java" file for APP_DETAILS_URL. Where creating a new APK change the variable "currentAppVersion" to a higher number.
-
-This is the structure for the update JSON file. 
-The app will compare the version in JSON and in the coding and download the latest version from the link storen in JSON for "apk_file".
-
-Structure of the JSON:
 ```
 {
-    "app_version": "1.0.6",
-    "update_title": "Jandiweb Installer",
-    "update_description": "Improvement in Bluetooth communication",
-    "date": "2027-27-27T18:25:43.511Z",
-    "apk_file": "https://[PAGE URL]/jandiweb_printer_1.0.6.apk"
+  "shops": [
+    {
+      "shop_id": 1,
+      "shop_name": "Example Shop",
+      "domain_shop": "https://shop.example.com",
+      "domain_website": "https://www.example.com",
+      "kitchen_view": "https://shop.example.com/admin/thoughtco/kitchendisplay/summary/view/1",
+      "location_id": 1
+    }
+  ]
 }
 ```
 
-Put the JSON into the location URL of APP_DETAILS_URL and the file location for "apk_file". Then the app will notify the owner that there was an update.
+- `shop_id` – unique ID used only inside the app
+- `shop_name` – display name
+- `domain_shop` – TastyIgniter shop URL
+- `domain_website` – public restaurant website
+- `kitchen_view` – kitchen display URL
+- `location_id` – TastyIgniter location id
 
-## 3. Create APK
+# Version updater (optional)
+The app can install sideloaded updates from a JSON file at `APP_DETAILS_URL` in `Constants.java`. Bump `currentAppVersion` when you ship a new APK.
+
+Updates are offered only when all of the following are true:
+- `app_version` is newer than the installed version
+- `apk_file` is HTTPS on `app-version.jandiweb.de` or `jandiweb.de`
+- `apk_sha256` is present (64 hex characters)
+
+The APK is downloaded to app cache, hashed with SHA-256, and installed via FileProvider only if the hash matches. If `apk_sha256` is missing, the update is ignored.
+
+```
+{
+    "app_version": "1.1.1",
+    "update_title": "Jandiweb Installer",
+    "update_description": "Improvement in Bluetooth communication",
+    "date": "2027-27-27T18:25:43.511Z",
+    "apk_file": "https://app-version.jandiweb.de/printer-app/jandiweb_printer_1.1.1.apk",
+    "apk_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+}
+```
+
+Generate the hash with:
+
+```
+certutil -hashfile jandiweb_printer_1.1.1.apk SHA256
+```
+
+# Create APK
 Download Android Studio and install it. In "Build" --> "Build App Bundle(s)/APK(s)" create the APK.

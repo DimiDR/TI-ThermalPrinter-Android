@@ -1,11 +1,13 @@
 package com.dantsu.thermalprinter;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -20,19 +22,19 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.dantsu.thermalprinter.helpClasses.AuthStore;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
+import com.dantsu.thermalprinter.helpClasses.OrderStatusMapper;
 import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
+import com.dantsu.thermalprinter.helpClasses.ShopCatalogRepository;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
 import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
 import com.google.android.material.appbar.MaterialToolbar;
 import android.media.MediaPlayer;
-import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
-import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections;
-import com.dantsu.thermalprinter.async.AsyncBluetoothEscPosPrint;
+import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrint;
-import com.dantsu.thermalprinter.async.AsyncEscPosPrinter;
 import com.dantsu.thermalprinter.helpClasses.IdManager;
-import android.annotation.SuppressLint;
+import com.dantsu.thermalprinter.helpClasses.PrintDispatcher;
+import com.dantsu.thermalprinter.helpClasses.PrinterSettings;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -45,8 +47,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class DashboardActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback {
     
@@ -66,8 +66,8 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     private SwipeRefreshLayout swipeRefreshLayout;
     
     private NetworkHelperViewModel networkHelperViewModel;
-    private Timer refreshTimer;
-    private Handler mainHandler;
+    private BroadcastReceiver orderHookReceiver;
+    private boolean orderHookReceiverRegistered;
     
     // Shop configuration
     private String domain_shop;
@@ -90,7 +90,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     private String currentShopDomain = "";
     
     // Printing functionality
-    private BluetoothConnection selectedDevice;
+    private DeviceConnection selectedDevice;
     private DocketStringModeler docketStringModeler;
     private boolean chipReceiptChecked = true;  // default to receipt
     private boolean chipKitchenChecked = false; // default to not kitchen
@@ -109,7 +109,6 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         
         // Initialize ViewModel
         networkHelperViewModel = new ViewModelProvider(this).get(NetworkHelperViewModel.class);
-        mainHandler = new Handler();
         
         // Load shop configuration (this will also initialize currentShopDomain)
         loadShopConfiguration();
@@ -131,13 +130,11 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         loadPrinterConfiguration();
         loadChipPreferences();
         
-        PrintMonitorService.restoreIfEnabled(this);
+        PrintMonitorService.requestNotificationPermissionIfNeeded(this);
+        PrintMonitorService.restoreIfLoggedIn(this);
         
         // Load initial data
         refreshData();
-        
-        // Start foreground-based API refresh
-        startForegroundRefresh();
     }
     
     private void initializeViews() {
@@ -229,16 +226,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     }
     
     private void loadPrinterConfiguration() {
-        // Load printer configuration from SharedPreferences
-        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
-        int storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
-        
-        if (storedPrinterIndex >= 0) {
-            BluetoothConnection[] bluetoothDevicesList = (new BluetoothPrintersConnections()).getList();
-            if (bluetoothDevicesList != null && storedPrinterIndex < bluetoothDevicesList.length) {
-                selectedDevice = bluetoothDevicesList[storedPrinterIndex];
-            }
-        }
+        selectedDevice = PrintDispatcher.resolve(this);
     }
     
     private void loadChipPreferences() {
@@ -279,9 +267,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     
     private void updateButtonStates() {
         // Update Auto Print button state based on printer availability and service status
-        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
-        int storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
-        boolean printerAvailable = storedPrinterIndex >= 0;
+        boolean printerAvailable = new PrinterSettings(this).isConfigured();
         
         if (buttonAutoPrint != null) {
             buttonAutoPrint.setEnabled(printerAvailable);
@@ -290,10 +276,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     }
     
     private void toggleAutoPrint() {
-        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
-        int storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
-        
-        if (storedPrinterIndex < 0) {
+        if (!new PrinterSettings(this).isConfigured()) {
             Toast.makeText(this, R.string.select_printer_text, Toast.LENGTH_SHORT).show();
             return;
         }
@@ -363,37 +346,40 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
             return;
         }
         
-        String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-        networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, this);
+        ShopCatalogRepository.fetchAsCallback(
+                networkHelperViewModel.getNetworkHelper(),
+                domain_shop,
+                location_id == null ? 1 : location_id,
+                false,
+                this
+        );
     }
-    
-    private void startForegroundRefresh() {
-        // Start API refresh timer when app is in foreground
-        if (refreshTimer != null) {
-            refreshTimer.cancel();
+
+    private void registerOrderHookReceiver() {
+        if (orderHookReceiverRegistered) {
+            return;
         }
-        refreshTimer = new Timer();
-        refreshTimer.schedule(new TimerTask() {
+        orderHookReceiver = new BroadcastReceiver() {
             @Override
-            public void run() {
-                mainHandler.post(() -> {
-                    SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-                    String savedToken = new AuthStore(DashboardActivity.this).getToken();
-                    if (savedToken == null || savedToken.isEmpty()) {
-                        Log.d("DashboardActivity", "User not logged in, skipping refresh");
-                        return;
-                    }
-                    refreshData();
-                });
+            public void onReceive(Context context, Intent intent) {
+                refreshData();
             }
-        }, 0, Constants.REFRESH_INTERVAL_KITCHEN_OPEN);
-    }
-    
-    private void stopForegroundRefresh() {
-        if (refreshTimer != null) {
-            refreshTimer.cancel();
-            refreshTimer = null;
+        };
+        IntentFilter filter = new IntentFilter(Constants.ACTION_ORDERS_CHANGED);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(orderHookReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(orderHookReceiver, filter);
         }
+        orderHookReceiverRegistered = true;
+    }
+
+    private void unregisterOrderHookReceiver() {
+        if (!orderHookReceiverRegistered) {
+            return;
+        }
+        unregisterReceiver(orderHookReceiver);
+        orderHookReceiverRegistered = false;
     }
     
     private void updateStatistics(List<JSONObject> orders) {
@@ -418,8 +404,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 JSONObject attributes = order.optJSONObject("attributes");
                 JSONObject orderData = attributes != null ? attributes : order;
                 
-                // Get status_id first to determine how to filter
-                int statusId = orderData.optInt("status_id", -1);
+                boolean completed = OrderStatusMapper.isCompleted(order);
                 
                 // Parse the created_at date (needed for today filter on Total/Completed)
                 String createdAtStr = orderData.optString("created_at", "");
@@ -447,7 +432,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 
                 // Count In Progress orders from all available data (no date filter)
                 // In Progress = all orders that are NOT Completed (status_id != 5)
-                if (statusId != 5) { // Not Completed
+                if (!completed) {
                     inProgressOrders++;
                 }
                 
@@ -462,7 +447,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 totalOrders++;
                 
                 // Count Completed orders (today only)
-                if (statusId == 5) { // Completed
+                if (completed) {
                     completedOrders++;
                 }
             } catch (Exception e) {
@@ -478,9 +463,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     
     private void updateSystemStatus() {
         // Update printer status
-        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
-        int storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
-        boolean printerConnected = storedPrinterIndex >= 0;
+        boolean printerConnected = new PrinterSettings(this).isConfigured();
         
         if (printerConnected) {
             viewPrinterStatus.setBackground(ContextCompat.getDrawable(this, R.drawable.circle_green));
@@ -571,9 +554,8 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 }
                 
                 // Play sound for new unprinted orders
-                if (hasNewUnprintedOrder && !PrintMonitorService.isEnabled(this)) {
+                if (hasNewUnprintedOrder) {
                     Log.d("Dashboard", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
-                    playNewOrderSound();
                 }
                 
                 updateStatistics(ordersList);
@@ -604,41 +586,32 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         }
     }
     
-    @SuppressLint("SimpleDateFormat")
     public void TIJobPrintBluetooth(String print_info, String orderId) {
-        // Check if printer is available
+        if (selectedDevice == null) {
+            selectedDevice = PrintDispatcher.resolve(this);
+        }
         if (selectedDevice == null) {
             Log.e("Dashboard", "Printer not selected");
             return;
         }
-        
-        // Create AsyncEscPosPrinter similar to MainActivity
-        com.dantsu.thermalprinter.async.AsyncEscPosPrinter printer = new com.dantsu.thermalprinter.async.AsyncEscPosPrinter(selectedDevice, 203, 48f, 32);
-        printer.addTextToPrint(print_info);
-        printer.getPrinterConnection().disconnect(); // important so that the printer can reconnect
-        
-        new AsyncBluetoothEscPosPrint(
-                this,
-                new AsyncEscPosPrint.OnPrintFinished() {
-                    @Override
-                    public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
-                        Log.e("Dashboard", "Print error occurred");
-                        isLongerConnectionTime = true;
-                    }
 
-                    @Override
-                    public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
-                        Log.i("Dashboard", "Print finished successfully");
-                        if (isLongerConnectionTime) {
-                            isLongerConnectionTime = false;
-                        }
-                        
-                        // Mark order as printed
-                        MainActivity.getPrintedOrders().add(orderId);
-                        IdManager.addId(DashboardActivity.this, orderId);
-                    }
+        PrintDispatcher.print(this, selectedDevice, print_info, new AsyncEscPosPrint.OnPrintFinished() {
+            @Override
+            public void onError(com.dantsu.thermalprinter.async.AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                Log.e("Dashboard", "Print error occurred");
+                isLongerConnectionTime = true;
+            }
+
+            @Override
+            public void onSuccess(com.dantsu.thermalprinter.async.AsyncEscPosPrinter asyncEscPosPrinter) {
+                Log.i("Dashboard", "Print finished successfully");
+                if (isLongerConnectionTime) {
+                    isLongerConnectionTime = false;
                 }
-        ).execute(printer);
+                MainActivity.getPrintedOrders().add(orderId);
+                IdManager.addId(DashboardActivity.this, orderId);
+            }
+        });
     }
     
     private void playNewOrderSound() {
@@ -703,7 +676,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopForegroundRefresh();
+        unregisterOrderHookReceiver();
         
         // Release MediaPlayer when activity is destroyed
         if (mediaPlayer != null) {
@@ -722,7 +695,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
     @Override
     protected void onPause() {
         super.onPause();
-        stopForegroundRefresh();
+        unregisterOrderHookReceiver();
     }
     
     @Override
@@ -734,7 +707,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         loadChipPreferences();
         // Reload printer configuration in case it was changed
         loadPrinterConfiguration();
-        startForegroundRefresh();
+        registerOrderHookReceiver();
         updateSystemStatus();
         updateButtonStates();
         updateAutoPrintButtonAppearance();

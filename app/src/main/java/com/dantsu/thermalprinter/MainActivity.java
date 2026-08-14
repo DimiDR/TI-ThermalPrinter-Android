@@ -5,6 +5,8 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -14,6 +16,7 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
+import android.hardware.usb.UsbDevice;
 import android.media.MediaPlayer;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -25,6 +28,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -43,52 +47,48 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.widget.NestedScrollView;
-import androidx.fragment.app.DialogFragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.fragment.app.FragmentManager;
 import com.google.android.material.appbar.MaterialToolbar;
 
 import com.dantsu.escposprinter.connection.DeviceConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
-import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections;
-import com.dantsu.thermalprinter.async.AsyncBluetoothEscPosPrint;
+import com.dantsu.escposprinter.connection.usb.UsbConnection;
+import com.dantsu.escposprinter.connection.usb.UsbPrintersConnections;
 import com.dantsu.thermalprinter.async.AsyncEscPosPrint;
-import com.dantsu.thermalprinter.async.AsyncEscPosPrinter;
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.Objects;
-import java.util.HashSet;
-import java.util.Set;
-
+import com.dantsu.thermalprinter.helpClasses.ApkUpdateInstaller;
 import com.dantsu.thermalprinter.helpClasses.AuthStore;
+import com.dantsu.thermalprinter.helpClasses.BluetoothPrinterHelper;
 import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.helpClasses.IdManager;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
+import com.dantsu.thermalprinter.helpClasses.OrderHookConfig;
+import com.dantsu.thermalprinter.helpClasses.OrderStatusMapper;
+import com.dantsu.thermalprinter.helpClasses.PrintDispatcher;
 import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
+import com.dantsu.thermalprinter.helpClasses.PrinterSettings;
+import com.dantsu.thermalprinter.helpClasses.ShopCatalogRepository;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
 import com.dantsu.thermalprinter.helpClasses.UpdateVerifier;
+import com.dantsu.thermalprinter.helpClasses.UsbPrinterPermission;
 import com.dantsu.thermalprinter.helpClasses.WebViewDialogFragment;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 
-import android.net.Uri;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import javax.net.ssl.SSLException;
 
-public class MainActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback  {
+public class MainActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback, LoginUserDialogFragment.Host  {
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
     //set of orders IDs for which we've already played the new order sound
@@ -140,11 +140,22 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     DocketStringModeler docketStringModeler;
     private NetworkHelperViewModel networkHelperViewModel;
     private String apkFile;
+    private String apkSha256;
     private ProgressBar progressBar;
     private Boolean isPrinterSelected = false;
     private Boolean isServiceStarted = false;
     private FragmentManager fragmentManager = getSupportFragmentManager();
-    private int storedPrinterIndex = -1; // Initialize the printer selection from dropdown
+    private DeviceConnection selectedDevice;
+    private PrinterSettings printerSettings;
+    private UsbPrinterPermission usbPrinterPermission;
+    private boolean ignorePrinterSpinnerEvents = false;
+    private Spinner spinnerPrinterConnection;
+    private Spinner spinnerPrinterPaper;
+    private Spinner spinnerPrinterCharset;
+    private LinearLayout layoutTcpSettings;
+    private EditText editPrinterIp;
+    private EditText editPrinterPort;
+    private Button buttonSaveTcpPrinter;
     // Store orders data for reprint functionality
     private List<JSONObject> cachedOrdersList = new ArrayList<>();
     private JSONObject cachedJsonObjectMenus;
@@ -191,12 +202,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             }
         }
 
-        button_bluetooth_browse = this.findViewById(R.id.button_bluetooth_browse);
+        printerSettings = new PrinterSettings(this);
+        usbPrinterPermission = new UsbPrinterPermission(this);
+        setupPrinterUi();
         progressBar = findViewById(R.id.progressBar);
-
-        if (button_bluetooth_browse != null) {
-            button_bluetooth_browse.setOnClickListener(view -> browseBluetoothDevice(-1, true));
-        }
         button_ti_print = this.findViewById(R.id.button_ti_print_monitoring);
         if (button_ti_print != null) {
             button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
@@ -230,6 +239,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (button_ti_logout != null) {
             button_ti_logout.setOnClickListener(view -> LogoutUser());
         }
+        bindOrderHookCard();
         orderCountBadge = this.findViewById(R.id.order_count_badge);
         // Initialize the ChipGroup and Chips
         chipGroupPrinters = findViewById(R.id.chipGroup_printers);
@@ -274,8 +284,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         //enable update button, if updates available
         if (getIntent().getBooleanExtra("isUpdate", false)){
             apkFile = getIntent().getStringExtra("apkFile");
-            if (!UpdateVerifier.isAllowedApkUrl(apkFile)) {
+            apkSha256 = getIntent().getStringExtra("apkSha256");
+            if (!UpdateVerifier.isAllowedApkUrl(apkFile) || !UpdateVerifier.isValidSha256(apkSha256)) {
                 apkFile = null;
+                apkSha256 = null;
                 button_ti_updates.setEnabled(false);
                 button_ti_updates.setText(getString(R.string.version) + " " + Constants.currentAppVersion);
             } else {
@@ -305,8 +317,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 tiMenusEndpointURL != null && !tiMenusEndpointURL.isEmpty() &&
                 tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
                 // Fetch orders data to show popup - NetworkHelper will use token from SharedPreferences
-                String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-                networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, this);
+                fetchCatalog(true);
             }
         }
 
@@ -322,9 +333,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }
 
         //apply automatic printer selection of last selected device
-        SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
-        storedPrinterIndex = prefs.getInt("stored_index_printer", -1);
-        browseBluetoothDevice(storedPrinterIndex, false);
+        restorePrinterSelection();
         
         // Update test print button state after printer selection attempt
         updateTestPrintButtonState();
@@ -354,20 +363,21 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                         shop_name = savedDomain; // fallback to domain
                     }
                     if (textview_ti_header != null) textview_ti_header.setText(shop_name);
-                    tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
-                    tiMenusEndpointURL = domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
-                    tiCategoriesEndpointURL = domain_shop + "/api/categories?location=" + location_id;
+                    String[] urls = ShopCatalogRepository.catalogUrls(domain_shop, location_id);
+                    tiOrdersEndpointURL = urls[0];
+                    tiMenusEndpointURL = urls[1];
+                    tiCategoriesEndpointURL = urls[2];
                     enableAllButtons();
                     
-                    // Fetch data immediately when app starts and URLs are initialized
-                    String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-                    networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, MainActivity.this);
+                    fetchCatalog(false);
                     
                     if (shouldShowReprintPopup) {
                         // Already fetching above, shouldShowReprintPopup flag will be handled in onSuccess
                     }
                     
                     new Handler().postDelayed(() -> {
+                        PrintMonitorService.requestNotificationPermissionIfNeeded(MainActivity.this);
+                        PrintMonitorService.startListening(MainActivity.this);
                         if (PrintMonitorService.isEnabled(MainActivity.this)) {
                             startPrintMonitor();
                         }
@@ -414,8 +424,62 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         return null;
     }
 
+    private void bindOrderHookCard() {
+        TextView urlView = findViewById(R.id.text_order_hook_url);
+        Button copyButton = findViewById(R.id.button_copy_hook_url);
+        Button testButton = findViewById(R.id.button_test_hook);
+        if (urlView == null) {
+            return;
+        }
+        final String webhookUrl = OrderHookConfig.webhookUrl(this);
+        urlView.setText(webhookUrl);
+        if (copyButton != null) {
+            copyButton.setOnClickListener(v -> {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(ClipData.newPlainText("webhook", webhookUrl));
+                    Toast.makeText(this, R.string.order_hook_copied, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        if (testButton != null) {
+            testButton.setOnClickListener(v -> sendTestOrderHook(webhookUrl));
+        }
+    }
+
+    private void sendTestOrderHook(String webhookUrl) {
+        Toast.makeText(this, R.string.order_hook_test_sent, Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            java.net.HttpURLConnection connection = null;
+            try {
+                java.net.URL url = new java.net.URL(webhookUrl);
+                connection = (java.net.HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("POST");
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(10000);
+                connection.setDoOutput(true);
+                connection.setRequestProperty("Content-Type", "text/plain; charset=UTF-8");
+                byte[] body = "new_order".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                connection.getOutputStream().write(body);
+                connection.getOutputStream().close();
+                int code = connection.getResponseCode();
+                Log.d("MainActivity", "Test order hook HTTP " + code);
+            } catch (Exception e) {
+                Log.e("MainActivity", "Test order hook failed", e);
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
+            }
+        }, "TestOrderHook").start();
+    }
+
     private void enableAllButtons() {
         if (button_bluetooth_browse != null) button_bluetooth_browse.setEnabled(true);
+        if (spinnerPrinterConnection != null) spinnerPrinterConnection.setEnabled(true);
+        if (spinnerPrinterPaper != null) spinnerPrinterPaper.setEnabled(true);
+        if (spinnerPrinterCharset != null) spinnerPrinterCharset.setEnabled(true);
+        if (buttonSaveTcpPrinter != null) buttonSaveTcpPrinter.setEnabled(true);
         if (button_ti_print != null) button_ti_print.setEnabled(true);
         if (button_ti_clear_ids != null) button_ti_clear_ids.setEnabled(true);
         updateTestPrintButtonState();
@@ -454,7 +518,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static void clearShopSpecificData() {
         printedOrders.clear();
         soundPlayedOrders.clear();
-        isInitialLoad = true; // Reset initial load flag so we don't play sound for all orders again
+        isInitialLoad = true;
+        ShopCatalogRepository.invalidate();
         
         // Clear persisted order IDs from storage
         if (context != null) {
@@ -473,15 +538,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }
     }
 
-    @SuppressLint("SimpleDateFormat")
-    public AsyncEscPosPrinter TIgetAsyncEscPosPrinter(DeviceConnection printerConnection, String print_info) {
-//        SimpleDateFormat format = new SimpleDateFormat("'on' yyyy-MM-dd 'at' HH:mm:ss");
-        AsyncEscPosPrinter printer = new AsyncEscPosPrinter(printerConnection, 203, 48f, 32);
-        printer.addTextToPrint(print_info);
-        printer.getPrinterConnection().disconnect(); // important so that the printer can recconect
-        return printer;
-    }
-
     private void handleReprintOrders() {
         // Always fetch fresh orders for reprint to ensure we get the last 50 orders
         if (tiOrdersEndpointURL != null && !tiOrdersEndpointURL.isEmpty() && 
@@ -489,9 +545,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
             shouldShowReprintPopup = true;
             // Ensure we request last 50 orders for reprint
-            String reprintOrdersURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
-            String[] urls = {reprintOrdersURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-            networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, this);
+            fetchCatalog(true);
         } else {
             // Fallback to cached data if URLs not ready
             if (!cachedOrdersList.isEmpty() && cachedJsonObjectMenus != null && cachedJsonObjectCategories != null) {
@@ -644,8 +698,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             tiOrdersEndpointURL != null && !tiOrdersEndpointURL.isEmpty() && 
             tiMenusEndpointURL != null && !tiMenusEndpointURL.isEmpty() &&
             tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
-            String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-            networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, this);
+            fetchCatalog(false);
             
             if (PrintMonitorService.isEnabled(this)) {
                 startPrintMonitor();
@@ -668,18 +721,25 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }
     }
     
+    private void fetchCatalog(boolean force) {
+        if (domain_shop == null || domain_shop.isEmpty() || location_id == null) {
+            return;
+        }
+        ShopCatalogRepository.fetchAsCallback(
+                networkHelperViewModel.getNetworkHelper(),
+                domain_shop,
+                location_id,
+                force,
+                this
+        );
+    }
+
     private void showUpdatePopup() {
         new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle(R.string.update_available)
                 .setMessage(R.string.update_available_message)
                 .setPositiveButton(R.string.update, (dialog, which) -> {
-                    if (!UpdateVerifier.isAllowedApkUrl(apkFile)) {
-                        Toast.makeText(this, R.string.update_url_rejected, Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setData(Uri.parse(apkFile));
-                    startActivity(intent);
+                    ApkUpdateInstaller.downloadVerifyAndInstall(this, apkFile, apkSha256);
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
@@ -756,36 +816,18 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     
                     try {
                         String orderId = dataObjectOrders.getString("id");
-                        JSONObject attributes = dataObjectOrders.optJSONObject("attributes");
-                        JSONObject orderData = attributes != null ? attributes : dataObjectOrders;
-                        
-                        // Try to get status_id from nested structure (status.status_id)
-                        int statusId = -1;
-                        if (attributes != null) {
-                            JSONObject status = attributes.optJSONObject("status");
-                            if (status != null) {
-                                statusId = status.optInt("status_id", -1);
-                            } else {
-                                statusId = attributes.optInt("status_id", -1);
-                            }
-                        } else {
-                            statusId = orderData.optInt("status_id", -1);
-                        }
-                        
-                        // Check if order is not completed
-                        if (statusId != 5) { // Not completed
+                        if (!OrderStatusMapper.isCompleted(dataObjectOrders)) {
                             openOrderCount++;
                         }
                         
-                        // Check if this is a new unprinted order that we haven't played sound for yet
                         boolean isNotPrinted = !printedOrders.contains(orderId);
                         boolean hasNotPlayedSound = !soundPlayedOrders.contains(orderId);
                         
                         if (isNotPrinted && hasNotPlayedSound) {
                             hasNewUnprintedOrder = true;
                             newOrderIds.add(orderId);
-                            soundPlayedOrders.add(orderId); // Mark that we've played sound for this order
-                            Log.d("MainActivity", "New unprinted order detected: " + orderId + " (status_id: " + statusId + ")");
+                            soundPlayedOrders.add(orderId);
+                            Log.d("MainActivity", "New unprinted order detected: " + orderId);
                         }
                     } catch (Exception e) {
                         // If there's an error checking status, include the order
@@ -794,55 +836,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     }
                 }
                 
-                // Play sound for new unprinted orders when auto-print service is not already handling it
-                if (hasNewUnprintedOrder && !PrintMonitorService.isEnabled(this)) {
+                if (hasNewUnprintedOrder) {
                     Log.d("MainActivity", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
-                    
-                    // Ensure MediaPlayer is initialized
-                    if (mediaPlayer == null) {
-                        Log.d("MainActivity", "MediaPlayer is null, creating new instance");
-                        mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
-                    }
-                    
-                    if (mediaPlayer != null) {
-                        try {
-                            // Reset MediaPlayer to beginning to allow replaying
-                            if (mediaPlayer.isPlaying()) {
-                                mediaPlayer.stop();
-                                mediaPlayer.reset();
-                            } else {
-                                mediaPlayer.reset();
-                            }
-                            
-                            // Recreate MediaPlayer to ensure it's in a fresh state
-                            mediaPlayer.release();
-                            mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
-                            
-                            if (mediaPlayer != null) {
-                                mediaPlayer.start();
-                                Log.d("MainActivity", "Successfully played sound for new unprinted order(s)");
-                            } else {
-                                Log.e("MainActivity", "Failed to create MediaPlayer instance");
-                            }
-                        } catch (Exception e) {
-                            Log.e("MainActivity", "Error playing new order sound", e);
-                            // If MediaPlayer fails, try recreating it
-                            try {
-                                if (mediaPlayer != null) {
-                                    mediaPlayer.release();
-                                }
-                                mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
-                                if (mediaPlayer != null) {
-                                    mediaPlayer.start();
-                                    Log.d("MainActivity", "Successfully played sound after recreating MediaPlayer");
-                                }
-                            } catch (Exception e2) {
-                                Log.e("MainActivity", "Error recreating MediaPlayer for new order sound", e2);
-                            }
-                        }
-                    } else {
-                        Log.e("MainActivity", "MediaPlayer is null and could not be created");
-                    }
                 } else {
                     Log.d("MainActivity", "No new unprinted orders found. Printed orders: " + printedOrders.size() + ", Sound played: " + soundPlayedOrders.size());
                 }
@@ -897,151 +892,292 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     ======================================BLUETOOTH PART============================================
     ==============================================================================================*/
 
-    public interface OnBluetoothPermissionsGranted {
-        void onPermissionsGranted();
-    }
-
-    public static final int PERMISSION_BLUETOOTH = 1;
-    public static final int PERMISSION_BLUETOOTH_ADMIN = 2;
-    public static final int PERMISSION_BLUETOOTH_CONNECT = 3;
-    public static final int PERMISSION_BLUETOOTH_SCAN = 4;
-
-    public OnBluetoothPermissionsGranted onBluetoothPermissionsGranted;
+    public BluetoothPrinterHelper.OnBluetoothPermissionsGranted onBluetoothPermissionsGranted;
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            switch (requestCode) {
-                case MainActivity.PERMISSION_BLUETOOTH:
-                case MainActivity.PERMISSION_BLUETOOTH_ADMIN:
-                case MainActivity.PERMISSION_BLUETOOTH_CONNECT:
-                case MainActivity.PERMISSION_BLUETOOTH_SCAN:
-                    this.checkBluetoothPermissions(this.onBluetoothPermissionsGranted);
-                    break;
-            }
-        }
+        BluetoothPrinterHelper.handlePermissionResult(requestCode, grantResults, this, onBluetoothPermissionsGranted);
     }
 
-    public void checkBluetoothPermissions(OnBluetoothPermissionsGranted onBluetoothPermissionsGranted) {
+    public void checkBluetoothPermissions(BluetoothPrinterHelper.OnBluetoothPermissionsGranted onBluetoothPermissionsGranted) {
         this.onBluetoothPermissionsGranted = onBluetoothPermissionsGranted;
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH}, MainActivity.PERMISSION_BLUETOOTH);
-        } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_ADMIN}, MainActivity.PERMISSION_BLUETOOTH_ADMIN);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT}, MainActivity.PERMISSION_BLUETOOTH_CONNECT);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_SCAN}, MainActivity.PERMISSION_BLUETOOTH_SCAN);
-        } else {
-            this.onBluetoothPermissionsGranted.onPermissionsGranted();
+        BluetoothPrinterHelper.checkPermissions(this, onBluetoothPermissionsGranted);
+    }
+
+    private void setupPrinterUi() {
+        button_bluetooth_browse = findViewById(R.id.button_bluetooth_browse);
+        spinnerPrinterConnection = findViewById(R.id.spinner_printer_connection);
+        spinnerPrinterPaper = findViewById(R.id.spinner_printer_paper);
+        spinnerPrinterCharset = findViewById(R.id.spinner_printer_charset);
+        layoutTcpSettings = findViewById(R.id.layout_tcp_settings);
+        editPrinterIp = findViewById(R.id.edit_printer_ip);
+        editPrinterPort = findViewById(R.id.edit_printer_port);
+        buttonSaveTcpPrinter = findViewById(R.id.button_save_tcp_printer);
+
+        bindSpinner(spinnerPrinterConnection, R.array.printer_connection_types);
+        bindSpinner(spinnerPrinterPaper, R.array.printer_paper_sizes);
+        bindSpinner(spinnerPrinterCharset, R.array.printer_charsets);
+
+        if (button_bluetooth_browse != null) {
+            button_bluetooth_browse.setOnClickListener(view -> onSelectPrinterClicked());
+        }
+        if (buttonSaveTcpPrinter != null) {
+            buttonSaveTcpPrinter.setOnClickListener(view -> saveTcpPrinter());
+        }
+
+        ignorePrinterSpinnerEvents = true;
+        if (spinnerPrinterConnection != null) {
+            spinnerPrinterConnection.setSelection(connectionTypeIndex(printerSettings.getConnectionType()), false);
+            spinnerPrinterConnection.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    if (ignorePrinterSpinnerEvents) {
+                        return;
+                    }
+                    printerSettings.setConnectionType(connectionTypeFromIndex(position));
+                    selectedDevice = null;
+                    isPrinterSelected = false;
+                    applyConnectionTypeUi();
+                    restorePrinterSelection();
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+        }
+        if (spinnerPrinterPaper != null) {
+            spinnerPrinterPaper.setSelection(printerSettings.getPaperSize() == PrinterSettings.PaperSize.MM_80 ? 1 : 0, false);
+            spinnerPrinterPaper.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    if (ignorePrinterSpinnerEvents) {
+                        return;
+                    }
+                    printerSettings.setPaperSize(position == 1 ? PrinterSettings.PaperSize.MM_80 : PrinterSettings.PaperSize.MM_58);
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+        }
+        if (spinnerPrinterCharset != null) {
+            spinnerPrinterCharset.setSelection(charsetIndex(printerSettings.getCharset()), false);
+            spinnerPrinterCharset.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    if (ignorePrinterSpinnerEvents) {
+                        return;
+                    }
+                    printerSettings.setCharset(charsetFromIndex(position));
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+        }
+        ignorePrinterSpinnerEvents = false;
+        applyConnectionTypeUi();
+    }
+
+    private void bindSpinner(Spinner spinner, int arrayRes) {
+        if (spinner == null) {
+            return;
+        }
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, arrayRes, android.R.layout.simple_spinner_item);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+    }
+
+    private int connectionTypeIndex(PrinterSettings.ConnectionType type) {
+        switch (type) {
+            case USB:
+                return 1;
+            case TCP:
+                return 2;
+            case BLUETOOTH:
+            default:
+                return 0;
         }
     }
 
-    private BluetoothConnection selectedDevice;
+    private PrinterSettings.ConnectionType connectionTypeFromIndex(int index) {
+        if (index == 1) {
+            return PrinterSettings.ConnectionType.USB;
+        }
+        if (index == 2) {
+            return PrinterSettings.ConnectionType.TCP;
+        }
+        return PrinterSettings.ConnectionType.BLUETOOTH;
+    }
 
-    public void browseBluetoothDevice(int selectedIndex, boolean manualOpen) {
+    private int charsetIndex(PrinterSettings.Charset charset) {
+        switch (charset) {
+            case CP437:
+                return 1;
+            case W1252:
+                return 2;
+            case GBK:
+                return 3;
+            case PC850:
+            default:
+                return 0;
+        }
+    }
 
-        this.checkBluetoothPermissions(() -> {
-            final BluetoothConnection[] bluetoothDevicesList = (new BluetoothPrintersConnections()).getList();
+    private PrinterSettings.Charset charsetFromIndex(int index) {
+        switch (index) {
+            case 1:
+                return PrinterSettings.Charset.CP437;
+            case 2:
+                return PrinterSettings.Charset.W1252;
+            case 3:
+                return PrinterSettings.Charset.GBK;
+            default:
+                return PrinterSettings.Charset.PC850;
+        }
+    }
 
-            // Handle null case (Bluetooth disabled or not available)
-            if (bluetoothDevicesList == null) {
-                if (manualOpen) {
-                    runOnUiThread(() -> {
-                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                        alertDialog.setTitle(R.string.bluetooth_error);
-                        alertDialog.setMessage(R.string.bluetooth_error_message);
-                        alertDialog.setPositiveButton(R.string.ok, null);
-                        alertDialog.show();
-                    });
-                }
-                return;
+    private void applyConnectionTypeUi() {
+        PrinterSettings.ConnectionType type = printerSettings.getConnectionType();
+        boolean tcp = type == PrinterSettings.ConnectionType.TCP;
+        if (layoutTcpSettings != null) {
+            layoutTcpSettings.setVisibility(tcp ? View.VISIBLE : View.GONE);
+        }
+        if (button_bluetooth_browse != null) {
+            button_bluetooth_browse.setVisibility(tcp ? View.GONE : View.VISIBLE);
+            if (type == PrinterSettings.ConnectionType.USB) {
+                button_bluetooth_browse.setText(R.string.select_usb_printer);
+            } else if (!isPrinterSelected) {
+                button_bluetooth_browse.setText(R.string.select_bluetooth_printer);
             }
+        }
+        if (editPrinterIp != null) {
+            editPrinterIp.setText(printerSettings.getTcpHost());
+        }
+        if (editPrinterPort != null) {
+            editPrinterPort.setText(String.valueOf(printerSettings.getTcpPort()));
+        }
+    }
 
-            // Handle empty array case (no printers found)
-            if (bluetoothDevicesList.length == 0) {
-                if (manualOpen) {
-                    runOnUiThread(() -> {
-                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                        alertDialog.setTitle(R.string.no_bluetooth_printers_found);
-                        alertDialog.setMessage(R.string.no_bluetooth_printers_message);
-                        alertDialog.setPositiveButton(R.string.ok, null);
-                        alertDialog.show();
-                    });
-                }
-                return;
+    private void restorePrinterSelection() {
+        PrintDispatcher.migrateLegacyBluetoothIndex(this, printerSettings);
+        selectedDevice = PrintDispatcher.resolve(this);
+        isPrinterSelected = selectedDevice != null || (printerSettings.getConnectionType() == PrinterSettings.ConnectionType.TCP && !printerSettings.getTcpHost().isEmpty());
+        if (isPrinterSelected && selectedDevice == null && printerSettings.getConnectionType() == PrinterSettings.ConnectionType.TCP) {
+            selectedDevice = PrintDispatcher.resolve(this);
+            isPrinterSelected = selectedDevice != null;
+        }
+        updateSelectedPrinterButton();
+        updateTestPrintButtonState();
+    }
+
+    private void updateSelectedPrinterButton() {
+        if (button_bluetooth_browse == null) {
+            return;
+        }
+        if (isPrinterSelected) {
+            int buttonColor = ContextCompat.getColor(this, R.color.light_green);
+            setButtonBackgroundWithRoundedCorners(button_bluetooth_browse, buttonColor);
+            String name = printerSettings.getDisplayName();
+            if (!name.isEmpty()) {
+                button_bluetooth_browse.setText(name);
             }
-
-            final String[] items = new String[bluetoothDevicesList.length];
-            int i = 0;
-            for (BluetoothConnection device : bluetoothDevicesList) {
-                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                    return;
-                }
-                items[i] = device.getDevice().getName();
-                i++;
+            if (buttonSaveTcpPrinter != null && printerSettings.getConnectionType() == PrinterSettings.ConnectionType.TCP) {
+                setButtonBackgroundWithRoundedCorners(buttonSaveTcpPrinter, buttonColor);
             }
+        }
+    }
 
-            // Auto-select the device based on selectedIndex if it's within range
-            if (selectedIndex >= 0 && selectedIndex < bluetoothDevicesList.length) {
-                selectedDevice = bluetoothDevicesList[selectedIndex];
-                isPrinterSelected = true;
+    private void onSelectPrinterClicked() {
+        if (printerSettings.getConnectionType() == PrinterSettings.ConnectionType.USB) {
+            browseUsbPrinter();
+        } else {
+            browseBluetoothDevice(true);
+        }
+    }
 
-                // Update button appearance and store the selected index
-                int buttonColor = ContextCompat.getColor(this, R.color.light_green);
-                setButtonBackgroundWithRoundedCorners(button_bluetooth_browse, buttonColor);
+    private void saveTcpPrinter() {
+        String host = editPrinterIp != null && editPrinterIp.getText() != null ? editPrinterIp.getText().toString().trim() : "";
+        String portText = editPrinterPort != null && editPrinterPort.getText() != null ? editPrinterPort.getText().toString().trim() : "9100";
+        if (host.isEmpty()) {
+            Toast.makeText(this, R.string.network_printer_invalid, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        int port = 9100;
+        try {
+            port = Integer.parseInt(portText);
+        } catch (NumberFormatException ignored) {
+        }
+        printerSettings.setTcpPrinter(host, port);
+        selectedDevice = PrintDispatcher.resolve(this);
+        isPrinterSelected = selectedDevice != null;
+        updateSelectedPrinterButton();
+        updateTestPrintButtonState();
+        Toast.makeText(this, R.string.network_printer_saved, Toast.LENGTH_SHORT).show();
+    }
 
-                // Save the selected index in SharedPreferences
-                SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
-                SharedPreferences.Editor editor = prefs.edit();
-                editor.putInt("stored_index_printer", selectedIndex);
-                editor.apply();  // Save the index asynchronously
-
-                // Set button text to the selected device's name
-                Button button = findViewById(R.id.button_bluetooth_browse);
-                button.setText(items[selectedIndex]);
-
-                // Update test print button state
-                updateTestPrintButtonState();
-
-                return; // Return after auto-selection to skip showing the dialog
-            }
-            if (!manualOpen){ // prevents opening of dialog onInit
-                return;
-            }
-            // Show dialog if selectedIndex is invalid (manual selection)
-            runOnUiThread(() -> {
-                AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                alertDialog.setTitle(R.string.bluetooth_printer_selection);
-                alertDialog.setItems(
-                        items,
-                        (dialogInterface, i1) -> {
-                            selectedDevice = bluetoothDevicesList[i1];
-                            isPrinterSelected = true;
-
-                            // Update button appearance and store the selected index
-                            int buttonColor = ContextCompat.getColor(this, R.color.light_green);
-                            setButtonBackgroundWithRoundedCorners(button_bluetooth_browse, buttonColor);
-
-                            SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
-                            SharedPreferences.Editor editor = prefs.edit();
-                            editor.putInt("stored_index_printer", i1);
-                            editor.apply();
-
-                            // Update button text to the selected device name
-                            Button button = findViewById(R.id.button_bluetooth_browse);
-                            button.setText(items[i1]);
-
-                            // Update test print button state
-                            updateTestPrintButtonState();
-                        }
-                );
-
-                AlertDialog alert = alertDialog.create();
-                alert.show();
-            });
+    @SuppressLint("MissingPermission")
+    public void browseBluetoothDevice(boolean manualOpen) {
+        BluetoothPrinterHelper.browse(this, -1, manualOpen, (device, index, name) -> {
+            android.bluetooth.BluetoothDevice btDevice = device.getDevice();
+            String address = btDevice != null ? btDevice.getAddress() : "";
+            printerSettings.setBluetoothPrinter(address, name);
+            selectedDevice = device;
+            isPrinterSelected = true;
+            updateSelectedPrinterButton();
+            updateTestPrintButtonState();
         });
+    }
+
+    private void browseUsbPrinter() {
+        UsbConnection[] usbPrinters = new UsbPrintersConnections(this).getList();
+        if (usbPrinters == null || usbPrinters.length == 0) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.no_usb_printers_found)
+                    .setMessage(R.string.no_usb_printers_message)
+                    .setPositiveButton(R.string.ok, null)
+                    .show();
+            return;
+        }
+        final String[] items = new String[usbPrinters.length];
+        for (int i = 0; i < usbPrinters.length; i++) {
+            UsbDevice device = usbPrinters[i].getDevice();
+            String name = device != null ? device.getProductName() : null;
+            if (name == null || name.isEmpty()) {
+                name = device != null
+                        ? ("USB " + Integer.toHexString(device.getVendorId()) + ":" + Integer.toHexString(device.getProductId()))
+                        : "USB";
+            }
+            items[i] = name;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.select_usb_printer)
+                .setItems(items, (dialog, which) -> {
+                    UsbConnection connection = usbPrinters[which];
+                    UsbDevice device = connection.getDevice();
+                    if (device == null) {
+                        return;
+                    }
+                    usbPrinterPermission.request(device, (grantedDevice, granted) -> runOnUiThread(() -> {
+                        if (!granted) {
+                            Toast.makeText(MainActivity.this, R.string.usb_permission_denied, Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        printerSettings.setUsbPrinter(grantedDevice.getVendorId(), grantedDevice.getProductId(), items[which]);
+                        selectedDevice = new UsbConnection(
+                                (android.hardware.usb.UsbManager) getSystemService(USB_SERVICE),
+                                grantedDevice
+                        );
+                        isPrinterSelected = true;
+                        updateSelectedPrinterButton();
+                        updateTestPrintButtonState();
+                    }));
+                })
+                .show();
     }
 
 
@@ -1162,48 +1298,55 @@ private void restartWebservice(int buttonColor){
         openOrdersCount = count;
     }
     public void TIJobPrintBluetooth(String print_info, String orderId) {
-        this.checkBluetoothPermissions(() -> {
-            new AsyncBluetoothEscPosPrint(
-                    this,
-                    new AsyncEscPosPrint.OnPrintFinished() {
-                        @Override
-                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
-                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
-                            WebViewDialogFragment webViewDialogFragment =
-                                    (WebViewDialogFragment) fragmentManager.findFragmentByTag("dialog_webview");
-                            if (webViewDialogFragment != null) {
-                                webViewDialogFragment.dismiss(); // need to close the dialog to update the communication on main thread
-                            }
-                                changeColorOfButton(R.color.warning, button_ti_print);
-                                Toast.makeText(context, R.string.printer_connection_lost_text, Toast.LENGTH_LONG).show();
-                                isLongerConnectionTime = true; //swiched to 5 minutes
-                                button_ti_print.setText(R.string.printer_connection_disrupted_text);
-                        }
+        printWithSelectedPrinter(print_info, new AsyncEscPosPrint.OnPrintFinished() {
+            @Override
+            public void onError(com.dantsu.thermalprinter.async.AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
+                WebViewDialogFragment webViewDialogFragment =
+                        (WebViewDialogFragment) fragmentManager.findFragmentByTag("dialog_webview");
+                if (webViewDialogFragment != null) {
+                    webViewDialogFragment.dismiss();
+                }
+                changeColorOfButton(R.color.warning, button_ti_print);
+                Toast.makeText(context, R.string.printer_connection_lost_text, Toast.LENGTH_LONG).show();
+                isLongerConnectionTime = true;
+                button_ti_print.setText(R.string.printer_connection_disrupted_text);
+            }
 
-                        @Override
-                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
-                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
-                            if (isLongerConnectionTime) { // connection to printer working
-                                changeColorOfButton(R.color.light_green, button_ti_print);
-                                Toast.makeText(context, R.string.printer_connection_reactivated_text, Toast.LENGTH_SHORT).show();
-                                isLongerConnectionTime = false; // stop restarting the service
-                                button_ti_print.setText(R.string.printer_active);
-                                //change button color
-                                WebViewDialogFragment webViewDialogFragment =
-                                        (WebViewDialogFragment) fragmentManager.findFragmentByTag("dialog_webview");
-                                if (webViewDialogFragment != null) {
-                                    // Update the colors dynamically
-                                    webViewDialogFragment.setPrinterCircleColor(R.color.light_green);
-                                }
-                            }
-                            printedOrders.add(orderId);
-                            soundPlayedOrders.remove(orderId);
-                            IdManager.addId(context, orderId);
-                        }
+            @Override
+            public void onSuccess(com.dantsu.thermalprinter.async.AsyncEscPosPrinter asyncEscPosPrinter) {
+                Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+                if (isLongerConnectionTime) {
+                    changeColorOfButton(R.color.light_green, button_ti_print);
+                    Toast.makeText(context, R.string.printer_connection_reactivated_text, Toast.LENGTH_SHORT).show();
+                    isLongerConnectionTime = false;
+                    button_ti_print.setText(R.string.printer_active);
+                    WebViewDialogFragment webViewDialogFragment =
+                            (WebViewDialogFragment) fragmentManager.findFragmentByTag("dialog_webview");
+                    if (webViewDialogFragment != null) {
+                        webViewDialogFragment.setPrinterCircleColor(R.color.light_green);
                     }
-            )
-                    .execute(this.TIgetAsyncEscPosPrinter(selectedDevice, print_info));
+                }
+                printedOrders.add(orderId);
+                soundPlayedOrders.remove(orderId);
+                IdManager.addId(context, orderId);
+            }
         });
+    }
+
+    private void printWithSelectedPrinter(String print_info, AsyncEscPosPrint.OnPrintFinished callback) {
+        if (selectedDevice == null) {
+            selectedDevice = PrintDispatcher.resolve(this);
+        }
+        if (selectedDevice == null) {
+            Toast.makeText(context, R.string.select_printer_text, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (printerSettings.getConnectionType() == PrinterSettings.ConnectionType.BLUETOOTH) {
+            this.checkBluetoothPermissions(() -> PrintDispatcher.print(this, selectedDevice, print_info, callback));
+        } else {
+            PrintDispatcher.print(this, selectedDevice, print_info, callback);
+        }
     }
 
     private void openWebpage(String action) {
@@ -1281,8 +1424,9 @@ private void restartWebservice(int buttonColor){
         // Clear stored login data
         clearStoredLogin();
         
-        // Stop any running services
-        stopService();
+        // Stop order-hook listener
+        PrintMonitorService.stopListening(this);
+        isServiceStarted = false;
             
         // Clear web view cookies and logout from website
         clearWebViewCookies();
@@ -1303,329 +1447,101 @@ private void restartWebservice(int buttonColor){
         LoginUser();
     }
 
-    public static class ResetPrintFragment extends DialogFragment {
-
-        @NonNull
-        @Override
-        public Dialog onCreateDialog(Bundle savedInstanceState) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-            LayoutInflater inflater = requireActivity().getLayoutInflater();
-            View view = inflater.inflate(R.layout.popup_reset_print, null);
-
-            Button okButton = view.findViewById(R.id.button_ok);
-            okButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    //clear the id, so that the printing of open orders can be restarted
-                    IdManager.clearIds(context);
-                    printedOrders.clear();
-                    soundPlayedOrders.clear(); // Also clear sound tracking when resetting print IDs
-                    isInitialLoad = true; // Reset initial load flag so we don't play sound for all orders again
-//                    AsyncTask tast = new WebServiceTask().execute(tiOrdersEndpointURL); //TODO test printing initial requests immediately
-                    dismiss();
-                }
-            });
-
-            Button cancelButton = view.findViewById(R.id.button_cancel);
-            cancelButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    dismiss(); // Close the dialog when Cancel button is clicked
-                }
-            });
-            builder.setView(view);
-            return builder.create();
+    public static void resetPrintHistory(Context ctx) {
+        if (ctx != null) {
+            IdManager.clearIds(ctx);
         }
+        printedOrders.clear();
+        soundPlayedOrders.clear();
+        isInitialLoad = true;
+        ShopCatalogRepository.invalidate();
     }
 
-    public static class LoginUserDialogFragment extends DialogFragment {
-        private Button okButton;
-        private TextView etError;
-        private EditText etDomain;
-        private EditText etUsername;
-        private EditText etPassword;
-        
-        /**
-         * Check if internet connectivity is available
-         */
-        private boolean isInternetAvailable() {
-            try {
-                ConnectivityManager connectivityManager = (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
-                if (connectivityManager != null) {
-                    NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-                    return activeNetworkInfo != null && activeNetworkInfo.isConnected();
-                }
-            } catch (Exception e) {
-                Log.e("LoginUserDialogFragment", "Error checking internet connectivity", e);
-            }
-            return false;
-        }
-        
-        @NonNull
-        @Override
-        public Dialog onCreateDialog(Bundle savedInstanceState) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-            LayoutInflater inflater = requireActivity().getLayoutInflater();
-            View view = inflater.inflate(R.layout.popup_login_user, null);
-
-            okButton = view.findViewById(R.id.button_ok);
-            Button cancelButton = view.findViewById(R.id.button_cancel);
-            etDomain = view.findViewById(R.id.etDomain);
-            etUsername = view.findViewById(R.id.etUsername);
-            etPassword = view.findViewById(R.id.etPassword);
-            etError = view.findViewById(R.id.popup_error);
-            
-            // Prefill last domain if available
-            SharedPreferences sharedPreferences = getActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-            String lastDomain = sharedPreferences.getString("domain_shop", "");
-            if (!lastDomain.isEmpty()) {
-                etDomain.setText(lastDomain);
-            }
-            
-            // Check internet connectivity when dialog opens
-            if (!isInternetAvailable()) {
-                etError.setVisibility(View.VISIBLE);
-                etError.setText(getString(R.string.no_internet_warning));
-            }
-
-            okButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    String domainInput = etDomain.getText().toString();
-                    String username = etUsername.getText().toString();
-                    String password = etPassword.getText().toString();
-                    authenticate(domainInput, username, password);
-                }
-            });
-
-            cancelButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    dismiss(); // Close the dialog when Cancel button is clicked
-                }
-            });
-            
-            // Ensure Settings view is visible when dialog is dismissed (user cancelled)
-            Dialog dialog = builder.setView(view).create();
-            dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                @Override
-                public void onDismiss(DialogInterface dialogInterface) {
-                    // When dialog is dismissed (cancelled), ensure Settings view is visible
-                    // The activity should already be showing the Settings screen with login button
-                    if (getActivity() instanceof MainActivity) {
-                        MainActivity activity = (MainActivity) getActivity();
-                        // Ensure nestedScrollView (Settings view) is visible
-                        androidx.core.widget.NestedScrollView nestedScrollView = 
-                            activity.findViewById(R.id.nestedScrollView);
-                        if (nestedScrollView != null) {
-                            nestedScrollView.setVisibility(View.VISIBLE);
-                        }
-                        // Ensure login button is visible
-                        Button loginButton = activity.findViewById(R.id.button_ti_login);
-                        if (loginButton != null) {
-                            loginButton.setVisibility(View.VISIBLE);
-                        }
-                    }
-                }
-            });
-            return dialog;
+    @Override
+    public void onLoginSuccess(String domain, String username) {
+        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+        String previousDomain = sharedPreferences.getString("domain_shop", "");
+        if (!previousDomain.equals(domain) && !previousDomain.isEmpty()) {
+            Log.d("MainActivity", "Shop changed from " + previousDomain + " to " + domain + ". Clearing shop-specific data.");
+            clearShopSpecificData();
         }
 
-        private void authenticate(String domainInput, String username, String password) {
-            // Show loading state
-            etError.setVisibility(View.GONE);
-            okButton.setEnabled(false);
-            okButton.setText(getString(R.string.authenticating));
-            
-            // Check internet connectivity first
-            if (!isInternetAvailable()) {
-                etError.setVisibility(View.VISIBLE);
-                etError.setText(getString(R.string.no_internet_error));
-                okButton.setEnabled(true);
-                okButton.setText(getString(R.string.login_button));
-                return;
-            }
-            
-            // Validate domain input
-            if (domainInput == null || domainInput.trim().isEmpty()) {
-                etError.setVisibility(View.VISIBLE);
-                etError.setText(getString(R.string.domain_required));
-                okButton.setEnabled(true);
-                okButton.setText(getString(R.string.login_button));
-                return;
-            }
-            // Normalize domain: remove all whitespace, trailing slashes, and ensure proper format
-            String domainNormalized = domainInput.trim().replaceAll("\\s+", ""); // remove all whitespace
-            domainNormalized = domainNormalized.replaceAll("/+$", ""); // remove trailing slashes
-            
-            // Validate URL format
-            if (domainNormalized.isEmpty()) {
-                etError.setVisibility(View.VISIBLE);
-                etError.setText(getString(R.string.invalid_domain));
-                okButton.setEnabled(true);
-                okButton.setText(getString(R.string.login_button));
-                return;
-            }
-            
-            if (!domainNormalized.startsWith("http://") && !domainNormalized.startsWith("https://")) {
-                domainNormalized = "https://" + domainNormalized;
-            }
-            final String finalDomain = domainNormalized;
-
-            // Authenticate with TastyIgniter API
-            NetworkHelper networkHelper = new NetworkHelper(getActivity());
-            networkHelper.generateTokenAsync(username, password, finalDomain, new NetworkHelper.TokenCallback() {
-                @Override
-                public void onTokenGenerated(String token) {
-                    // Authentication successful
-                    getActivity().runOnUiThread(() -> {
-                        // Check if this is a different shop than the one currently logged in
-                        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-                        String previousDomain = sharedPreferences.getString("domain_shop", "");
-                        boolean isShopChanged = !previousDomain.equals(finalDomain);
-                        
-                        // If switching to a different shop, clear shop-specific data
-                        if (isShopChanged && !previousDomain.isEmpty()) {
-                            Log.d("MainActivity", "Shop changed from " + previousDomain + " to " + finalDomain + ". Clearing shop-specific data.");
-                            clearShopSpecificData();
-                        }
-                        
-                        // Save login data with manual domain
-                        SharedPreferences.Editor editor = sharedPreferences.edit();
-                        editor.putInt("shop_id", 1);
-                        editor.putString("domain_shop", finalDomain);
-                        editor.putString("username", username);
-                        editor.remove("password");
-                        editor.remove("token");
-                        // set a default location_id if absent
-                        if (!sharedPreferences.contains("location_id")) {
-                            editor.putInt("location_id", 1);
-                        }
-                        editor.apply();
-
-                        // Update globals minimally
-                        domain_shop = finalDomain;
-                        location_id = sharedPreferences.getInt("location_id", 1);
-                        
-                        // Try to get shop name from configuration
-                        String configShopName = getShopNameFromConfiguration(getActivity(), finalDomain);
-                        if (configShopName != null && !configShopName.isEmpty()) {
-                            shop_name = configShopName;
-                        } else {
-                            shop_name = finalDomain; // fallback to domain as header
-                        }
-                        if (textview_ti_header != null) textview_ti_header.setText(shop_name);
-
-                        // Set API endpoints
-                        tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
-                        tiMenusEndpointURL = domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
-                        tiCategoriesEndpointURL = domain_shop + "/api/categories?location=" + location_id;
-
-                        // Reinitialize URLs and enable buttons
-                        ((MainActivity) getActivity()).initilizeURLs();
-                        button_bluetooth_browse.setEnabled(true);
-                        button_ti_print.setEnabled(true);
-                button_ti_clear_ids.setEnabled(true);
-                if (button_dashboard != null) button_dashboard.setEnabled(true);
-                        ((MainActivity) getActivity()).updateTestPrintButtonState();
-                        dismiss();
-                        
-                        // Navigate to Dashboard after successful login
-                        Intent intent = new Intent(getActivity(), DashboardActivity.class);
-                        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                        startActivity(intent);
-                        getActivity().finish();
-                    });
-                }
-
-                @Override
-                public void onTokenError(Exception exception) {
-                    // Authentication failed
-                    getActivity().runOnUiThread(() -> {
-                        etError.setVisibility(View.VISIBLE);
-                        String errorMsg = exception.getMessage();
-                        
-                        // Check if it's a no internet error (check both English and German)
-                        if (errorMsg != null && (errorMsg.contains("No internet connection") || 
-                            errorMsg.contains("Keine Internetverbindung"))) {
-                            etError.setText(getString(R.string.no_internet_error));
-                        }
-                        // Use the error message directly if it's already user-friendly (from NetworkHelper)
-                        // Check for both English and German error messages
-                        else if (errorMsg != null && (errorMsg.contains("Cannot connect") || 
-                            errorMsg.contains("Connection timeout") || 
-                            errorMsg.contains("Connection refused") ||
-                            errorMsg.contains("SSL/TLS") ||
-                            errorMsg.contains("DNS Resolution Failed") ||
-                            errorMsg.contains("DNS-Auflösung") ||
-                            errorMsg.contains("Verbindungszeitüberschreitung") ||
-                            errorMsg.contains("Verbindung abgelehnt") ||
-                            errorMsg.contains("SSL/TLS-Fehler") ||
-                            errorMsg.contains("Hostname kann nicht aufgelöst werden"))) {
-                            etError.setText(errorMsg);
-                        } else {
-                            etError.setText(getString(R.string.authentication_failed) + ": " + (errorMsg != null ? errorMsg : getString(R.string.unknown_error)));
-                        }
-            okButton.setEnabled(true);
-            okButton.setText(getString(R.string.login_button));
-                    });
-                }
-            });
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putInt("shop_id", 1);
+        editor.putString("domain_shop", domain);
+        editor.putString("username", username);
+        editor.remove("password");
+        editor.remove("token");
+        if (!sharedPreferences.contains("location_id")) {
+            editor.putInt("location_id", 1);
         }
+        editor.apply();
+
+        domain_shop = domain;
+        location_id = sharedPreferences.getInt("location_id", 1);
+        String configShopName = getShopNameFromConfiguration(this, domain);
+        shop_name = (configShopName != null && !configShopName.isEmpty()) ? configShopName : domain;
+        if (textview_ti_header != null) {
+            textview_ti_header.setText(shop_name);
+        }
+        String[] urls = ShopCatalogRepository.catalogUrls(domain_shop, location_id);
+        tiOrdersEndpointURL = urls[0];
+        tiMenusEndpointURL = urls[1];
+        tiCategoriesEndpointURL = urls[2];
+        initilizeURLs();
+        enableAllButtons();
+
+        Intent intent = new Intent(this, DashboardActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
+        finish();
     }
 
     @Override
     protected void onDestroy() {
+        if (usbPrinterPermission != null) {
+            usbPrinterPermission.unregister();
+        }
         super.onDestroy();
-       // stopService();
-      //  unbindFromService();
-
     }
 
 
     @SuppressLint("SimpleDateFormat")
     public boolean TITestPrinter(boolean normal_click) {
+        if (selectedDevice == null) {
+            selectedDevice = PrintDispatcher.resolve(this);
+        }
         if (selectedDevice == null || !isPrinterSelected) {
             Toast.makeText(context, R.string.select_printer_text, Toast.LENGTH_SHORT).show();
             return false;
         }
-        
-        String print_info;
-        print_info = DocketStringModeler.TITestPrinter(normal_click, selectedDevice, context);
 
-        this.checkBluetoothPermissions(() -> {
-            new AsyncBluetoothEscPosPrint(
-                    this,
-                    new AsyncEscPosPrint.OnPrintFinished() {
-                        @Override
-                        public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
-                            Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
-                            stopService(); //stop the service loop
-                        }
+        String print_info = DocketStringModeler.TITestPrinter(normal_click, selectedDevice, context);
+        printWithSelectedPrinter(print_info, new AsyncEscPosPrint.OnPrintFinished() {
+            @Override
+            public void onError(com.dantsu.thermalprinter.async.AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
+                Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !");
+            }
 
-                        @Override
-                        public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
-                            Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
-                            // Play sound when test print is done
-                            if (mediaPlayer != null) {
-                                try {
-                                    if (mediaPlayer.isPlaying()) {
-                                        mediaPlayer.stop();
-                                    }
-                                    mediaPlayer.reset();
-                                    mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
-                                    if (mediaPlayer != null) {
-                                        mediaPlayer.start();
-                                    }
-                                } catch (Exception e) {
-                                    Log.e("MainActivity", "Error playing test print sound", e);
-                                }
-                            }
+            @Override
+            public void onSuccess(com.dantsu.thermalprinter.async.AsyncEscPosPrinter asyncEscPosPrinter) {
+                Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !");
+                if (mediaPlayer != null) {
+                    try {
+                        if (mediaPlayer.isPlaying()) {
+                            mediaPlayer.stop();
                         }
+                        mediaPlayer.reset();
+                        mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
+                        if (mediaPlayer != null) {
+                            mediaPlayer.start();
+                        }
+                    } catch (Exception e) {
+                        Log.e("MainActivity", "Error playing test print sound", e);
                     }
-            )
-                    .execute(this.TIgetAsyncEscPosPrinter(selectedDevice, print_info));
+                }
+            }
         });
-        return true; // for OnLongClickListener
+        return true;
     }
 }

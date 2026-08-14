@@ -1,12 +1,9 @@
 package com.dantsu.escposprinter.connection.usb;
 
 import android.content.Context;
-import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 
 import androidx.annotation.Nullable;
-
-import com.dantsu.escposprinter.exceptions.EscPosConnectionException;
 
 public class UsbPrintersConnections extends UsbConnections {
 
@@ -54,11 +51,7 @@ public class UsbPrintersConnections extends UsbConnections {
         UsbConnection[] printersTmp = new UsbConnection[usbConnections.length];
         for (UsbConnection usbConnection : usbConnections) {
             UsbDevice device = usbConnection.getDevice();
-            int usbClass = device.getDeviceClass();
-            if((usbClass == UsbConstants.USB_CLASS_PER_INTERFACE || usbClass == UsbConstants.USB_CLASS_MISC ) && UsbDeviceHelper.findPrinterInterface(device) != null) {
-                usbClass = UsbConstants.USB_CLASS_PRINTER;
-            }
-            if (usbClass == UsbConstants.USB_CLASS_PRINTER) {
+            if (UsbDeviceHelper.findPrinterInterface(device) != null) {
                 printersTmp[i++] = new UsbConnection(this.usbManager, device);
             }
         }
@@ -67,5 +60,19 @@ public class UsbPrintersConnections extends UsbConnections {
         System.arraycopy(printersTmp, 0, usbPrinters, 0, i);
         return usbPrinters;
     }
-    
+
+    @Nullable
+    public static UsbConnection findByIds(Context context, int vendorId, int productId) {
+        UsbConnection[] printers = new UsbPrintersConnections(context).getList();
+        if (printers == null) {
+            return null;
+        }
+        for (UsbConnection connection : printers) {
+            UsbDevice device = connection.getDevice();
+            if (device != null && device.getVendorId() == vendorId && device.getProductId() == productId) {
+                return connection;
+            }
+        }
+        return null;
+    }
 }

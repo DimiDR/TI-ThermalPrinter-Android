@@ -4,7 +4,8 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.dantsu.thermalprinter.R;
 import com.dantsu.escposprinter.EscPosCharsetEncoding;
@@ -16,8 +17,10 @@ import com.dantsu.escposprinter.exceptions.EscPosEncodingException;
 import com.dantsu.escposprinter.exceptions.EscPosParserException;
 
 import java.lang.ref.WeakReference;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Integer, AsyncEscPosPrint.PrinterStatus> {
+public abstract class AsyncEscPosPrint {
     public final static int FINISH_SUCCESS = 1;
     public final static int FINISH_NO_PRINTER = 2;
     public final static int FINISH_PRINTER_DISCONNECTED = 3;
@@ -30,10 +33,12 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
     protected final static int PROGRESS_PRINTING = 3;
     protected final static int PROGRESS_PRINTED = 4;
 
+    private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
+
     protected ProgressDialog dialog;
     protected WeakReference<Context> weakContext;
     protected OnPrintFinished onPrintFinished;
-
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public AsyncEscPosPrint(Context context) {
         this(context, null);
@@ -42,6 +47,16 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
     public AsyncEscPosPrint(Context context, OnPrintFinished onPrintFinished) {
         this.weakContext = new WeakReference<>(context);
         this.onPrintFinished = onPrintFinished;
+    }
+
+    public void execute(AsyncEscPosPrinter... printersData) {
+        mainHandler.post(() -> {
+            onPreExecute();
+            EXECUTOR.execute(() -> {
+                PrinterStatus result = doInBackground(printersData);
+                mainHandler.post(() -> onPostExecute(result));
+            });
+        });
     }
 
     protected PrinterStatus doInBackground(AsyncEscPosPrinter... printersData) {
@@ -56,25 +71,27 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
         try {
             DeviceConnection deviceConnection = printerData.getPrinterConnection();
 
-            if(deviceConnection == null) {
+            if (deviceConnection == null) {
                 return new PrinterStatus(null, AsyncEscPosPrint.FINISH_NO_PRINTER);
             }
 
+            EscPosCharsetEncoding charsetEncoding = printerData.getCharsetEncoding();
+            if (charsetEncoding == null) {
+                charsetEncoding = new EscPosCharsetEncoding("IBM850", 2);
+            }
             EscPosPrinter printer = new EscPosPrinter(
                     deviceConnection,
                     printerData.getPrinterDpi(),
                     printerData.getPrinterWidthMM(),
                     printerData.getPrinterNbrCharactersPerLine(),
-                    new EscPosCharsetEncoding("windows-1252", 16)
+                    charsetEncoding
             );
-
-            // printer.useEscAsteriskCommand(true);
 
             this.publishProgress(AsyncEscPosPrint.PROGRESS_PRINTING);
 
             String[] textsToPrint = printerData.getTextsToPrint();
 
-            for(String textToPrint : textsToPrint) {
+            for (String textToPrint : textsToPrint) {
                 printer.printFormattedTextAndCut(textToPrint);
                 Thread.sleep(500);
             }
@@ -95,8 +112,13 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
             return new PrinterStatus(printerData, AsyncEscPosPrint.FINISH_BARCODE_ERROR);
         } catch (InterruptedException e) {
             e.printStackTrace();
+            Thread.currentThread().interrupt();
         }
         return new PrinterStatus(printerData, AsyncEscPosPrint.FINISH_SUCCESS);
+    }
+
+    protected void publishProgress(Integer... progress) {
+        mainHandler.post(() -> onProgressUpdate(progress));
     }
 
     protected void onPreExecute() {
@@ -123,7 +145,7 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
         if (context == null || this.dialog == null) {
             return;
         }
-        
+
         switch (progress[0]) {
             case AsyncEscPosPrint.PROGRESS_CONNECTING:
                 this.dialog.setMessage(context.getString(R.string.connecting_printer));
@@ -157,11 +179,6 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
 
         switch (result.getPrinterStatus()) {
             case AsyncEscPosPrint.FINISH_SUCCESS:
-                //Dimitri: removed to so you dont need to click it away
-//                new AlertDialog.Builder(context)
-//                        .setTitle("Success")
-//                        .setMessage("Congratulation ! The texts are printed !")
-//                        .show();
                 break;
             case AsyncEscPosPrint.FINISH_NO_PRINTER:
                 if (canShowDialog) {
@@ -174,37 +191,37 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
             case AsyncEscPosPrint.FINISH_PRINTER_DISCONNECTED:
                 if (canShowDialog) {
                     new AlertDialog.Builder(context)
-                        .setTitle(R.string.broken_connection_title)
-                        .setMessage(R.string.broken_connection_message)
-                        .show();
+                            .setTitle(R.string.broken_connection_title)
+                            .setMessage(R.string.broken_connection_message)
+                            .show();
                 }
                 break;
             case AsyncEscPosPrint.FINISH_PARSER_ERROR:
                 if (canShowDialog) {
                     new AlertDialog.Builder(context)
-                        .setTitle(R.string.invalid_format_title)
-                        .setMessage(R.string.invalid_format_message)
-                        .show();
+                            .setTitle(R.string.invalid_format_title)
+                            .setMessage(R.string.invalid_format_message)
+                            .show();
                 }
                 break;
             case AsyncEscPosPrint.FINISH_ENCODING_ERROR:
                 if (canShowDialog) {
                     new AlertDialog.Builder(context)
-                        .setTitle(R.string.encoding_error_title)
-                        .setMessage(R.string.encoding_error_message)
-                        .show();
+                            .setTitle(R.string.encoding_error_title)
+                            .setMessage(R.string.encoding_error_message)
+                            .show();
                 }
                 break;
             case AsyncEscPosPrint.FINISH_BARCODE_ERROR:
                 if (canShowDialog) {
                     new AlertDialog.Builder(context)
-                        .setTitle(R.string.barcode_error_title)
-                        .setMessage(R.string.barcode_error_message)
-                        .show();
+                            .setTitle(R.string.barcode_error_title)
+                            .setMessage(R.string.barcode_error_message)
+                            .show();
                 }
                 break;
         }
-        if(this.onPrintFinished != null) {
+        if (this.onPrintFinished != null) {
             if (result.getPrinterStatus() == AsyncEscPosPrint.FINISH_SUCCESS) {
                 this.onPrintFinished.onSuccess(result.getAsyncEscPosPrinter());
             } else {
@@ -217,7 +234,7 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
         private AsyncEscPosPrinter asyncEscPosPrinter;
         private int printerStatus;
 
-        public PrinterStatus (AsyncEscPosPrinter asyncEscPosPrinter, int printerStatus) {
+        public PrinterStatus(AsyncEscPosPrinter asyncEscPosPrinter, int printerStatus) {
             this.asyncEscPosPrinter = asyncEscPosPrinter;
             this.printerStatus = printerStatus;
         }

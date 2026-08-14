@@ -8,7 +8,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -19,15 +18,13 @@ import com.dantsu.thermalprinter.helpClasses.AuthStore;
 import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
 import com.dantsu.thermalprinter.helpClasses.UpdateVerifier;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.concurrent.Executors;
 
 public class SplashActivity extends AppCompatActivity {
 
@@ -35,13 +32,15 @@ public class SplashActivity extends AppCompatActivity {
 
     private boolean isUpdate = false;
     private String apkFile = "";
+    private String apkSha256 = "";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
         new AuthStore(this);
         PrintMonitorService.restoreIfEnabled(this);
-        if (isNetworkAvailable()){
+        if (isNetworkAvailable()) {
             checkForUpdates();
         } else {
             goToNextActivity();
@@ -56,95 +55,58 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void checkForUpdates() {
-        new FetchAppDetailsTask().execute(APP_DETAILS_URL);
+        Executors.newSingleThreadExecutor().execute(() -> {
+            String result = fetch(APP_DETAILS_URL);
+            UpdateVerifier.UpdateInfo info = result == null ? null : UpdateVerifier.parseUpdateJson(result, currentAppVersion);
+            runOnUiThread(() -> {
+                if (info != null) {
+                    isUpdate = true;
+                    apkFile = info.apkUrl;
+                    apkSha256 = info.sha256;
+                }
+                goToNextActivity();
+            });
+        });
     }
 
-    private class FetchAppDetailsTask extends AsyncTask<String, Void, String> {
-        @Override
-        protected String doInBackground(String... urls) {
-            HttpURLConnection urlConnection = null;
-            try {
-                URL url = new URL(urls[0]);
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setConnectTimeout(15000);
-                urlConnection.setReadTimeout(15000);
-                InputStream in = new BufferedInputStream(urlConnection.getInputStream());
-                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-                StringBuilder result = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    result.append(line);
-                }
-                return result.toString();
-            } catch (Exception e) {
-                e.printStackTrace();
-                return null;
-            } finally {
-                if (urlConnection != null) {
-                    urlConnection.disconnect();
-                }
+    private String fetch(String urlString) {
+        HttpURLConnection urlConnection = null;
+        try {
+            URL url = new URL(urlString);
+            urlConnection = (HttpURLConnection) url.openConnection();
+            urlConnection.setConnectTimeout(15000);
+            urlConnection.setReadTimeout(15000);
+            InputStream in = new BufferedInputStream(urlConnection.getInputStream());
+            BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+            StringBuilder result = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                result.append(line);
             }
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            if (result != null) {
-                try {
-                    JSONObject jsonObject = new JSONObject(result);
-                    String appVersion = jsonObject.getString("app_version");
-                    String fileToDownload = jsonObject.getString("apk_file");
-
-                    if (isNewVersionAvailable(currentAppVersion, appVersion)
-                            && UpdateVerifier.isAllowedApkUrl(fileToDownload)) {
-                        isUpdate = true;
-                        apkFile = fileToDownload;
-                    }
-
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
+            return result.toString();
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (urlConnection != null) {
+                urlConnection.disconnect();
             }
-            goToNextActivity();
         }
     }
 
-    public boolean isNewVersionAvailable(String currentAppVersion, String appVersion) {
-        String[] currentVersionParts = currentAppVersion.split("\\.");
-        String[] newVersionParts = appVersion.split("\\.");
-
-        int length = Math.max(currentVersionParts.length, newVersionParts.length);
-
-        for (int i = 0; i < length; i++) {
-            int currentPart = i < currentVersionParts.length ? Integer.parseInt(currentVersionParts[i]) : 0;
-            int newPart = i < newVersionParts.length ? Integer.parseInt(newVersionParts[i]) : 0;
-
-            if (currentPart < newPart) {
-                return true;
-            } else if (currentPart > newPart) {
-                return false;
+    public void goToNextActivity() {
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            Intent dashboardIntent = new Intent(SplashActivity.this, DashboardActivity.class);
+            if (isUpdate) {
+                Intent mainIntent = new Intent(SplashActivity.this, MainActivity.class);
+                mainIntent.putExtra("isUpdate", true);
+                mainIntent.putExtra("apkFile", apkFile);
+                mainIntent.putExtra("apkSha256", apkSha256);
+                mainIntent.putExtra("currentAppVersion", currentAppVersion);
+                startActivity(mainIntent);
+            } else {
+                startActivity(dashboardIntent);
             }
-        }
-        return false;
-    }
-
-
-    public void goToNextActivity(){
-
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                Intent dashboardIntent = new Intent(SplashActivity.this, DashboardActivity.class);
-                if (isUpdate) {
-                    Intent mainIntent = new Intent(SplashActivity.this, MainActivity.class);
-                    mainIntent.putExtra("isUpdate", true);
-                    mainIntent.putExtra("apkFile", apkFile);
-                    mainIntent.putExtra("currentAppVersion", currentAppVersion);
-                    startActivity(mainIntent);
-                } else {
-                    startActivity(dashboardIntent);
-                }
-                finish();
-            }
+            finish();
         }, SPLASH_DISPLAY_LENGTH);
     }
 }

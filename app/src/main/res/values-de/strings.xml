@@ -229,8 +229,48 @@
     <string name="customer_information">Kundeninformation</string>
     <string name="session_expired">Sitzung abgelaufen. Bitte erneut anmelden.</string>
     <string name="update_url_rejected">Update abgelehnt: die Download-URL stammt nicht von einem vertrauenswürdigen Host.</string>
+    <string name="update_hash_mismatch">Update abgelehnt: die heruntergeladene Datei stimmt nicht mit der erwarteten Prüfsumme überein.</string>
+    <string name="update_download_failed">Update-Download fehlgeschlagen. Bitte später erneut versuchen.</string>
+    <string name="update_downloading">Update wird heruntergeladen…</string>
+    <string name="update_allow_unknown_sources">Erlauben Sie die Installation unbekannter Apps für diese App und tippen Sie danach erneut auf Update.</string>
     <string name="notification_print_monitor_channel">Automatischer Druck</string>
     <string name="notification_print_monitor_title">Automatischer Druck aktiv</string>
     <string name="notification_print_monitor_text">Neue Bestellungen werden überwacht und gedruckt.</string>
+    <string name="notification_order_hook_title">Warte auf Bestellungen</string>
+    <string name="notification_order_hook_text">Der Shop sendet ein Signal, sobald eine neue Bestellung kommt.</string>
+    <string name="order_hook_title">Bestell-Signal</string>
+    <string name="order_hook_description">Die Shop-Seite sendet ein Hook-Signal an die App. Dann ertönt im Laden ein Ton. Tragen Sie diese URL in TastyIgniter unter Webhooks (Ereignis: Orders) ein.</string>
+    <string name="order_hook_copy">URL kopieren</string>
+    <string name="order_hook_copied">Webhook-URL kopiert</string>
+    <string name="order_hook_test">Testsignal senden</string>
+    <string name="order_hook_test_sent">Testsignal gesendet. Der Ton sollte gleich kommen.</string>
 
+    <string name="printer_connection_type">Verbindung</string>
+    <string name="printer_paper_size">Papierbreite</string>
+    <string name="printer_charset">Zeichensatz</string>
+    <string name="printer_ip_hint">Drucker-IP (z. B. 192.168.1.100)</string>
+    <string name="printer_port_hint">Port (meist 9100)</string>
+    <string name="save_network_printer">Netzwerkdrucker speichern</string>
+    <string name="select_usb_printer">USB-Drucker auswählen</string>
+    <string name="select_printer">Drucker auswählen</string>
+    <string name="no_usb_printers_found">Keine USB-Drucker gefunden</string>
+    <string name="no_usb_printers_message">Bitte den Drucker per USB-OTG-Kabel verbinden und erneut versuchen.</string>
+    <string name="usb_permission_denied">USB-Berechtigung wurde verweigert.</string>
+    <string name="network_printer_saved">Netzwerkdrucker gespeichert</string>
+    <string name="network_printer_invalid">Bitte eine gültige IP-Adresse eingeben.</string>
+    <string-array name="printer_connection_types">
+        <item>Bluetooth</item>
+        <item>USB</item>
+        <item>WLAN / TCP</item>
+    </string-array>
+    <string-array name="printer_paper_sizes">
+        <item>58 mm (32 Zeichen)</item>
+        <item>80 mm (48 Zeichen)</item>
+    </string-array>
+    <string-array name="printer_charsets">
+        <item>PC850 — China-Drucker / Umlaute (empfohlen)</item>
+        <item>CP437 — Werksstandard vieler Klone</item>
+        <item>Windows-1252 — Epson / moderne Drucker</item>
+        <item>GBK — chinesische Zeichen</item>
+    </string-array>
 </resources>

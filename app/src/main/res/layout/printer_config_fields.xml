@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/printer_connection_type"
+        android:textSize="14sp"
+        android:textColor="@color/colorTextSecondary"
+        android:layout_marginBottom="4dp" />
+
+    <Spinner
+        android:id="@+id/spinner_printer_connection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:enabled="false" />
+
+    <LinearLayout
+        android:id="@+id/layout_tcp_settings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginBottom="12dp">
+
+        <EditText
+            android:id="@+id/edit_printer_ip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/printer_ip_hint"
+            android:inputType="textUri"
+            android:importantForAutofill="no" />
+
+        <EditText
+            android:id="@+id/edit_printer_port"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/printer_port_hint"
+            android:inputType="number"
+            android:importantForAutofill="no" />
+
+        <Button
+            android:id="@+id/button_save_tcp_printer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/save_network_printer"
+            android:textSize="16sp"
+            android:background="@drawable/button_secondary"
+            android:textColor="@color/colorTextOnPrimary"
+            android:textAllCaps="false"
+            android:enabled="false" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/button_bluetooth_browse"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/select_bluetooth_printer"
+        android:textSize="16sp"
+        android:background="@drawable/button_secondary"
+        android:textColor="@color/colorTextOnPrimary"
+        android:textAllCaps="false"
+        android:drawablePadding="8dp"
+        android:layout_marginBottom="12dp"
+        android:enabled="false" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/printer_paper_size"
+        android:textSize="14sp"
+        android:textColor="@color/colorTextSecondary"
+        android:layout_marginBottom="4dp" />
+
+    <Spinner
+        android:id="@+id/spinner_printer_paper"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:enabled="false" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/printer_charset"
+        android:textSize="14sp"
+        android:textColor="@color/colorTextSecondary"
+        android:layout_marginBottom="4dp" />
+
+    <Spinner
+        android:id="@+id/spinner_printer_charset"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:enabled="false" />
+
+    <Button
+        android:id="@+id/button_ti_testprint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/test_print_button"
+        android:textSize="16sp"
+        android:background="@drawable/button_secondary"
+        android:textColor="@color/colorTextOnPrimary"
+        android:textAllCaps="false"
+        android:drawableStart="@drawable/ic_receipt"
+        android:drawablePadding="8dp"
+        android:enabled="false" />
+</merge>

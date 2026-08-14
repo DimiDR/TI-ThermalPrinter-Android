@@ -232,7 +232,48 @@
     <string name="customer_information">Customer Information</string>
     <string name="session_expired">Session expired. Please log in again.</string>
     <string name="update_url_rejected">Update rejected: the download URL is not from a trusted host.</string>
+    <string name="update_hash_mismatch">Update rejected: the downloaded file does not match the expected checksum.</string>
+    <string name="update_download_failed">Update download failed. Please try again later.</string>
+    <string name="update_downloading">Downloading update…</string>
+    <string name="update_allow_unknown_sources">Allow installing unknown apps for this app, then tap Update again.</string>
     <string name="notification_print_monitor_channel">Automatic printing</string>
     <string name="notification_print_monitor_title">Automatic printing active</string>
     <string name="notification_print_monitor_text">New orders are being monitored and printed.</string>
+    <string name="notification_order_hook_title">Waiting for orders</string>
+    <string name="notification_order_hook_text">The shop will signal the app when a new order arrives.</string>
+    <string name="order_hook_title">Order signal</string>
+    <string name="order_hook_description">The shop website sends a hook signal to this app. Then a sound plays in the store. Paste this URL into TastyIgniter Webhooks (event: Orders).</string>
+    <string name="order_hook_copy">Copy URL</string>
+    <string name="order_hook_copied">Webhook URL copied</string>
+    <string name="order_hook_test">Send test signal</string>
+    <string name="order_hook_test_sent">Test signal sent. The sound should play shortly.</string>
+
+    <string name="printer_connection_type">Connection</string>
+    <string name="printer_paper_size">Paper width</string>
+    <string name="printer_charset">Character set</string>
+    <string name="printer_ip_hint">Printer IP (e.g. 192.168.1.100)</string>
+    <string name="printer_port_hint">Port (usually 9100)</string>
+    <string name="save_network_printer">Save network printer</string>
+    <string name="select_usb_printer">Select USB printer</string>
+    <string name="select_printer">Select printer</string>
+    <string name="no_usb_printers_found">No USB printers found</string>
+    <string name="no_usb_printers_message">Connect the printer with a USB OTG cable and try again.</string>
+    <string name="usb_permission_denied">USB permission was denied.</string>
+    <string name="network_printer_saved">Network printer saved</string>
+    <string name="network_printer_invalid">Please enter a valid IP address.</string>
+    <string-array name="printer_connection_types">
+        <item>Bluetooth</item>
+        <item>USB</item>
+        <item>WLAN / TCP</item>
+    </string-array>
+    <string-array name="printer_paper_sizes">
+        <item>58 mm (32 characters)</item>
+        <item>80 mm (48 characters)</item>
+    </string-array>
+    <string-array name="printer_charsets">
+        <item>PC850 — Chinese printers / umlauts (recommended)</item>
+        <item>CP437 — Factory default of many clones</item>
+        <item>Windows-1252 — Epson / modern printers</item>
+        <item>GBK — Chinese characters</item>
+    </string-array>
 </resources>

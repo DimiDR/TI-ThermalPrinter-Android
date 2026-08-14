@@ -33,33 +33,51 @@ public class BluetoothPrintersConnections extends BluetoothConnections {
     }
 
     /**
-     * Get a list of bluetooth printers.
+     * Find a paired device by MAC address.
+     */
+    @SuppressLint("MissingPermission")
+    @Nullable
+    public static BluetoothConnection findByAddress(String address) {
+        if (address == null || address.isEmpty()) {
+            return null;
+        }
+        BluetoothConnection[] devices = new BluetoothPrintersConnections().getList();
+        if (devices == null) {
+            return null;
+        }
+        for (BluetoothConnection connection : devices) {
+            BluetoothDevice device = connection.getDevice();
+            if (device != null && address.equalsIgnoreCase(device.getAddress())) {
+                return connection;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Whether this device would have been listed by the old Imaging-class filter.
+     * Used only to migrate a stored list index after the filter was removed.
+     */
+    public static boolean matchesLegacyPrinterClass(BluetoothDevice device) {
+        if (device == null || device.getBluetoothClass() == null) {
+            return false;
+        }
+        int majDeviceCl = device.getBluetoothClass().getMajorDeviceClass();
+        int deviceCl = device.getBluetoothClass().getDeviceClass();
+        return (majDeviceCl == BluetoothClass.Device.Major.IMAGING || majDeviceCl == 7936)
+                && (deviceCl == 1664 || deviceCl == 7936 || deviceCl == BluetoothClass.Device.Major.IMAGING);
+    }
+
+    /**
+     * Get a list of paired bluetooth devices that can be used as ESC/POS printers.
+     * Chinese modules often report device class 0 / unclassified, so this no longer
+     * filters on Imaging class.
      *
-     * @return an array of EscPosPrinterCommands
+     * @return an array of BluetoothConnection
      */
     @SuppressLint("MissingPermission")
     @Nullable
     public BluetoothConnection[] getList() {
-        BluetoothConnection[] bluetoothDevicesList = super.getList();
-
-        if (bluetoothDevicesList == null) {
-            return null;
-        }
-
-        int i = 0;
-        BluetoothConnection[] printersTmp = new BluetoothConnection[bluetoothDevicesList.length];
-        for (BluetoothConnection bluetoothConnection : bluetoothDevicesList) {
-            BluetoothDevice device = bluetoothConnection.getDevice();
-
-            int majDeviceCl = device.getBluetoothClass().getMajorDeviceClass(),
-                    deviceCl = device.getBluetoothClass().getDeviceClass();
-
-            if ((majDeviceCl == BluetoothClass.Device.Major.IMAGING || majDeviceCl == 7936 ) && (deviceCl == 1664 || deviceCl == 7936 || deviceCl == BluetoothClass.Device.Major.IMAGING )) {
-                printersTmp[i++] = new BluetoothConnection(device);
-            }
-        }
-        BluetoothConnection[] bluetoothPrinters = new BluetoothConnection[i];
-        System.arraycopy(printersTmp, 0, bluetoothPrinters, 0, i);
-        return bluetoothPrinters;
+        return super.getList();
     }
 }

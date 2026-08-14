@@ -2,7 +2,6 @@ package com.dantsu.thermalprinter;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
 import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,6 +12,8 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.dantsu.thermalprinter.helpClasses.OrderStatusMapper;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -98,21 +99,14 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     }
     
     public void updateOrders(List<JSONObject> newOrders, JSONObject menusData, JSONObject categoriesData) {
-        // Filter out completed orders (status_id = 5)
         List<JSONObject> filteredOrders = new ArrayList<>();
         if (newOrders != null) {
             for (JSONObject order : newOrders) {
                 try {
-                    // Check if order has attributes object (JSON:API format)
-                    JSONObject attributes = order.optJSONObject("attributes");
-                    JSONObject orderData = attributes != null ? attributes : order;
-                    
-                    int statusId = orderData.optInt("status_id", -1);
-                    if (statusId != 5) { // Exclude completed orders (status_id = 5)
+                    if (!OrderStatusMapper.isCompleted(order)) {
                         filteredOrders.add(order);
                     }
                 } catch (Exception e) {
-                    // If there's an error checking status, include the order
                     filteredOrders.add(order);
                 }
             }
@@ -125,21 +119,14 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
     }
     
     public void appendOrders(List<JSONObject> newOrders) {
-        // Filter out completed orders (status_id = 5) and append to existing list
         List<JSONObject> filteredOrders = new ArrayList<>();
         if (newOrders != null) {
             for (JSONObject order : newOrders) {
                 try {
-                    // Check if order has attributes object (JSON:API format)
-                    JSONObject attributes = order.optJSONObject("attributes");
-                    JSONObject orderData = attributes != null ? attributes : order;
-                    
-                    int statusId = orderData.optInt("status_id", -1);
-                    if (statusId != 5) { // Exclude completed orders (status_id = 5)
+                    if (!OrderStatusMapper.isCompleted(order)) {
                         filteredOrders.add(order);
                     }
                 } catch (Exception e) {
-                    // If there's an error checking status, include the order
                     filteredOrders.add(order);
                 }
             }
@@ -423,14 +410,8 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                 textOrderComment.setVisibility(View.GONE);
             }
             
-            // Order status - get from status_id and map to status name
-            int statusId = orderData.optInt("status_id", -1);
-            String statusName = getStatusNameById(statusId);
-            textOrderStatus.setText(statusName);
-            
-            // Set status color based on status ID
-            int statusColor = getStatusColorById(statusId);
-            viewStatusIndicator.setBackgroundColor(statusColor);
+            textOrderStatus.setText(OrderStatusMapper.displayName(order));
+            viewStatusIndicator.setBackgroundColor(OrderStatusMapper.color(order));
             
             // Payment method
             String paymentCode = orderData.optString("payment", "cod");
@@ -510,40 +491,6 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
                         deliveryTimeChangeListener.onDeliveryTimeChangeClick(order, 45);
                     }
                 });
-            }
-        }
-        
-        private String getStatusNameById(int statusId) {
-            switch (statusId) {
-                case 1:
-                    return "Pending";
-                case 2:
-                    return "Confirmed";
-                case 3:
-                    return "Preparation";
-                case 4:
-                    return "Delivery";
-                case 5:
-                    return "Completed";
-                default:
-                    return "Unknown";
-            }
-        }
-        
-        private int getStatusColorById(int statusId) {
-            switch (statusId) {
-                case 1:
-                    return Color.parseColor("#FFA500"); // Orange for Pending
-                case 2:
-                    return Color.parseColor("#FFD700"); // Gold for Confirmed
-                case 3:
-                    return Color.parseColor("#FF6B35"); // Orange-Red for Preparation
-                case 4:
-                    return Color.parseColor("#4CAF50"); // Green for Delivery
-                case 5:
-                    return Color.parseColor("#9E9E9E"); // Gray for Completed
-                default:
-                    return Color.parseColor("#FF0000"); // Red for Unknown
             }
         }
         
