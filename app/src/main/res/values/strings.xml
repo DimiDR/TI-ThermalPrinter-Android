@@ -230,4 +230,9 @@
     <string name="delivery_payment_total">Delivery - Cash Payment - %1$s€</string>
     <string name="asap_order_time">ASAP: on %1$s</string>
     <string name="customer_information">Customer Information</string>
+    <string name="session_expired">Session expired. Please log in again.</string>
+    <string name="update_url_rejected">Update rejected: the download URL is not from a trusted host.</string>
+    <string name="notification_print_monitor_channel">Automatic printing</string>
+    <string name="notification_print_monitor_title">Automatic printing active</string>
+    <string name="notification_print_monitor_text">New orders are being monitored and printed.</string>
 </resources>

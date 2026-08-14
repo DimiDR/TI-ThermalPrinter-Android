@@ -227,5 +227,10 @@
     <string name="delivery_payment_total">Lieferung - Barzahlung - %1$s€</string>
     <string name="asap_order_time">Sofort: am %1$s</string>
     <string name="customer_information">Kundeninformation</string>
+    <string name="session_expired">Sitzung abgelaufen. Bitte erneut anmelden.</string>
+    <string name="update_url_rejected">Update abgelehnt: die Download-URL stammt nicht von einem vertrauenswürdigen Host.</string>
+    <string name="notification_print_monitor_channel">Automatischer Druck</string>
+    <string name="notification_print_monitor_title">Automatischer Druck aktiv</string>
+    <string name="notification_print_monitor_text">Neue Bestellungen werden überwacht und gedruckt.</string>
 
 </resources>

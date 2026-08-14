@@ -17,7 +17,6 @@ import android.graphics.drawable.GradientDrawable;
 import android.media.MediaPlayer;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -69,21 +68,17 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.dantsu.thermalprinter.helpClasses.AuthStore;
 import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.helpClasses.IdManager;
-import com.dantsu.thermalprinter.helpClasses.MyWakeLockManager;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
+import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
+import com.dantsu.thermalprinter.helpClasses.UpdateVerifier;
 import com.dantsu.thermalprinter.helpClasses.WebViewDialogFragment;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
 import com.google.android.material.chip.Chip;
@@ -128,7 +123,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private static String domain_shop;
     private static String domain_website = "";
     private static String username = "";
-    private static String password = "";
     private static String shop_name = "";
     private static Integer location_id;
     private static String tiOrdersEndpointURL = "";
@@ -280,12 +274,18 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         //enable update button, if updates available
         if (getIntent().getBooleanExtra("isUpdate", false)){
             apkFile = getIntent().getStringExtra("apkFile");
+            if (!UpdateVerifier.isAllowedApkUrl(apkFile)) {
+                apkFile = null;
+                button_ti_updates.setEnabled(false);
+                button_ti_updates.setText(getString(R.string.version) + " " + Constants.currentAppVersion);
+            } else {
             button_ti_updates.setEnabled(true);
             button_ti_updates.setText(R.string.update_available_button);
             setButtonBackgroundWithRoundedCorners(button_ti_updates, ContextCompat.getColor(this, R.color.colorError));
             if (!networkHelperViewModel.isUpdatePopupShown()) {
                 showUpdatePopup();
                 networkHelperViewModel.setUpdatePopupShown(true);
+            }
             }
         }else{
             button_ti_updates.setEnabled(false);
@@ -306,7 +306,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
                 // Fetch orders data to show popup - NetworkHelper will use token from SharedPreferences
                 String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-                networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, this);
+                networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, this);
             }
         }
 
@@ -316,7 +316,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         // Check for persistent login
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
         String savedDomain = sharedPreferences.getString("domain_shop", "");
-        String savedToken = sharedPreferences.getString("token", "");
+        String savedToken = new AuthStore(this).getToken();
+        if (savedToken == null) {
+            savedToken = "";
+        }
 
         //apply automatic printer selection of last selected device
         SharedPreferences prefs = getSharedPreferences("MyPrefs", MODE_PRIVATE);
@@ -358,19 +361,15 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     
                     // Fetch data immediately when app starts and URLs are initialized
                     String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-                    // NetworkHelper will use token from SharedPreferences
-                    networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, MainActivity.this);
+                    networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, MainActivity.this);
                     
-                    // If reprint was requested, fetch orders now that URLs are initialized
                     if (shouldShowReprintPopup) {
                         // Already fetching above, shouldShowReprintPopup flag will be handled in onSuccess
                     }
                     
-                    // Start initial refresh after 1 second delay if service should be active
                     new Handler().postDelayed(() -> {
-                        if (Constants.isServiceActive && !isServiceStarted) {
-                            // Use startService() to properly initialize all service components
-                            startService();
+                        if (PrintMonitorService.isEnabled(MainActivity.this)) {
+                            startPrintMonitor();
                         }
                     }, 1000);
                 });
@@ -492,7 +491,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             // Ensure we request last 50 orders for reprint
             String reprintOrdersURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
             String[] urls = {reprintOrdersURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-            networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, this);
+            networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, this);
         } else {
             // Fallback to cached data if URLs not ready
             if (!cachedOrdersList.isEmpty() && cachedJsonObjectMenus != null && cachedJsonObjectCategories != null) {
@@ -635,34 +634,25 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         
         // Fetch data immediately when app comes to foreground
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-        String savedToken = sharedPreferences.getString("token", "");
+        String savedToken = new AuthStore(this).getToken();
+        if (savedToken == null) {
+            savedToken = "";
+        }
         
         // Check if URLs are initialized and user is logged in
         if (!savedToken.isEmpty() && 
             tiOrdersEndpointURL != null && !tiOrdersEndpointURL.isEmpty() && 
             tiMenusEndpointURL != null && !tiMenusEndpointURL.isEmpty() &&
             tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
-            // Fetch data immediately when coming to foreground
             String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-            networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, this);
+            networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, this);
             
-            // Check if service should be active and start it if needed
-            // This ensures the service starts even if activated from DashboardActivity
-            if (Constants.isServiceActive && !isServiceStarted) {
-                Log.d("MainActivity", "Service flag is active but service not started, starting service");
-                startService();
+            if (PrintMonitorService.isEnabled(this)) {
+                startPrintMonitor();
             }
         }
         
-        updateUIBasedOnServiceStatus(); // Update UI based on service status
-        
-        // Check if KitchenDisplayActivity was closed and restart timer if needed
-        boolean kitchenOpen = sharedPreferences.getBoolean("kitchen_display_open", false);
-        if (!kitchenOpen && Constants.isServiceActive && !isKitchenDisplayOpen && isServiceStarted) {
-            // KitchenDisplayActivity was closed, restart MainActivity timer
-            startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
-        }
-        isKitchenDisplayOpen = kitchenOpen;
+        updateUIBasedOnServiceStatus();
     }
     
     @Override
@@ -683,12 +673,12 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 .setTitle(R.string.update_available)
                 .setMessage(R.string.update_available_message)
                 .setPositiveButton(R.string.update, (dialog, which) -> {
-                    // URL to open
-                    // Create an intent with ACTION_VIEW
+                    if (!UpdateVerifier.isAllowedApkUrl(apkFile)) {
+                        Toast.makeText(this, R.string.update_url_rejected, Toast.LENGTH_LONG).show();
+                        return;
+                    }
                     Intent intent = new Intent(Intent.ACTION_VIEW);
                     intent.setData(Uri.parse(apkFile));
-
-                    // Start the activity
                     startActivity(intent);
                 })
                 .setNegativeButton(R.string.cancel, null)
@@ -723,7 +713,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     }
     @Override
     public void onSuccess(String[] results) {
-        String orderID;
         JSONObject dataObjectOrders;
         List<JSONObject> ordersList = new ArrayList<>();
         JSONObject jsonObjectOrders, jsonObjectMenus = null, jsonObjectCategories = null;
@@ -733,12 +722,9 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 jsonObjectMenus = new JSONObject(results[1]);
                 jsonObjectCategories = new JSONObject(results[2]);
 
-                // Log the entire orders JSON before filtering
-                Log.e("MainActivity", "Full Orders JSON: " + jsonObjectOrders.toString());
-
+                printedOrders = IdManager.getIds(this);
                 JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
                 Log.d("ReprintOrders", "API returned " + dataArrayOrders.length() + " orders");
-                JSONArray filteredOrders = DocketStringModeler.filterPrintableOrders(dataArrayOrders, printedOrders);
                 
                 // Count open orders (not completed - status_id != 5) and check for new unprinted orders
                 int openOrderCount = 0;
@@ -808,8 +794,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                     }
                 }
                 
-                // Play sound for new unprinted orders
-                if (hasNewUnprintedOrder) {
+                // Play sound for new unprinted orders when auto-print service is not already handling it
+                if (hasNewUnprintedOrder && !PrintMonitorService.isEnabled(this)) {
                     Log.d("MainActivity", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
                     
                     // Ensure MediaPlayer is initialized
@@ -864,28 +850,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 // Update the order count badge
                 updateOrderCountBadge(openOrderCount);
 
-                // Only print automatically if Auto Print service is active
-                if (Constants.isServiceActive) {
-                    for (int i = 0; i < filteredOrders.length(); i++) {
-                        dataObjectOrders = filteredOrders.getJSONObject(i);
-                        orderID = dataObjectOrders.getString("id");
-
-                        //print receipt
-                        if (chipReceipt.isChecked()) {
-                            TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
-                        }
-                        // print receipt for kitchen
-                        if (chipKitchen.isChecked()) {
-                            TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
-                        }
-
-                        if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
-                            break;
-                        }
-                    }
-                }
-
-                Log.e("MainActivity", "Orders List Size: " + ordersList.size());
+                Log.d("MainActivity", "Orders List Size: " + ordersList.size());
 
                 // Cache orders data for reprint functionality
                 cachedOrdersList = ordersList;
@@ -1085,104 +1050,52 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 //    ==============================================================================================*/
 
     public void tiPrintMonitoring() {
-        if (!Constants.isServiceActive) {
-            // Start printing
+        if (!PrintMonitorService.isEnabled(this)) {
             if (selectedDevice == null) {
                 Toast.makeText(context, R.string.select_printer_text, Toast.LENGTH_SHORT).show();
                 isPrinterSelected = false;
             } else {
-                startService(); // This will handle starting and binding the service
+                startPrintMonitor();
                 isPrinterSelected = true;
             }
         } else {
-            // Stop printing
-            stopService(); // This will handle stopping and unbinding the service
+            stopPrintMonitor();
         }
+    }
+
+    private void startPrintMonitor() {
+        PrintMonitorService.requestNotificationPermissionIfNeeded(this);
+        PrintMonitorService.start(this);
+        isServiceStarted = true;
+        int buttonColor = ContextCompat.getColor(this, R.color.light_green);
+        if (button_ti_print != null) {
+            setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
+            button_ti_print.setText(R.string.printer_active);
+        }
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    }
+
+    private void stopPrintMonitor() {
+        PrintMonitorService.stop(this);
+        isServiceStarted = false;
+        if (networkHelperViewModel.getNetworkHelper().isNetworkTaskRunning()) {
+            networkHelperViewModel.getNetworkHelper().cancelNetworkTask();
+        }
+        networkHelperViewModel.cancelTimer();
+        int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
+        if (button_ti_print != null) {
+            setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
+            button_ti_print.setText(R.string.printer_inactive);
+        }
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     private void startService() {
-        // Check if service should be active and if URLs are initialized
-        if (!Constants.isServiceActive) {
-            Constants.isServiceActive = true;
-        }
-        
-        // Only start the actual service task if it's not already started and URLs are ready
-        if (!isServiceStarted && 
-            tiOrdersEndpointURL != null && !tiOrdersEndpointURL.isEmpty() &&
-            tiMenusEndpointURL != null && !tiMenusEndpointURL.isEmpty() &&
-            tiCategoriesEndpointURL != null && !tiCategoriesEndpointURL.isEmpty()) {
-            //bindToService();
-            Log.d("MainActivity", "Service bound");
-
-            // Update UI elements or perform other tasks related to starting the service
-            int buttonColor = ContextCompat.getColor(this, R.color.light_green);
-            if (button_ti_print != null) {
-                setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
-                button_ti_print.setText(R.string.printer_active);
-            }
-            // Acquire wake lock to keep CPU running
-            //MyWakeLockManager.acquireFullWakeLock(this); //TODO: remove as depricated
-            MyWakeLockManager.acquirePartialWakeLock(this);
-            Log.d("MainActivity", "Wake lock acquired");
-
-            // Keep screen on
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            Log.d("MainActivity", "Screen on flag set");
-
-            // Start any other tasks related to the service
-           // startWebServiceTask();
-            startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
-            Log.d("MainActivity", "Web service task started");
-
-            isServiceStarted = true;
-        } else if (isServiceStarted) {
-            // Service already started, just update UI
-            int buttonColor = ContextCompat.getColor(this, R.color.light_green);
-            if (button_ti_print != null) {
-                setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
-                button_ti_print.setText(R.string.printer_active);
-            }
-        }
+        startPrintMonitor();
     }
 
     private void stopService() {
-        // Stop the service if it's actually running
-        if (isServiceStarted) {
-            //stopAndUnbindServiceWithDelay();
-            if (networkHelperViewModel.getNetworkHelper().isNetworkTaskRunning()) {
-                networkHelperViewModel.getNetworkHelper().cancelNetworkTask();
-            }
-            networkHelperViewModel.cancelTimer();
-
-            // Update UI elements or perform other tasks related to stopping the service
-            int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
-            if (button_ti_print != null) {
-                setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
-                button_ti_print.setText(R.string.printer_inactive);
-            }
-
-            // Release wake lock to allow CPU to sleep
-            //MyWakeLockManager.releaseFullWakeLock(); //TODO: remove as depricated
-            MyWakeLockManager.releasePartialWakeLock();
-            Log.d("MainActivity", "Wake lock released");
-
-            // Remove keep screen on flag
-            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            Log.d("MainActivity", "Screen on flag cleared");
-
-            // Update service status flag
-            Constants.isServiceActive = false;
-            Log.d("MainActivity", "Service stopped, isServiceActive set to false");
-
-            isServiceStarted = false;
-        } else if (!Constants.isServiceActive) {
-            // Service not started but flag is false, just update UI
-            int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
-            if (button_ti_print != null) {
-                setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
-                button_ti_print.setText(R.string.printer_inactive);
-            }
-        }
+        stopPrintMonitor();
     }
 
     private void changeColorOfButton(int buttonColor, Button button) {
@@ -1205,83 +1118,31 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     }
 
 private void restartWebservice(int buttonColor){
-//stopAndUnbindServiceWithDelay();
-    if (networkHelperViewModel.getNetworkHelper().isNetworkTaskRunning()) {
-        networkHelperViewModel.getNetworkHelper().cancelNetworkTask();
-    }
-    networkHelperViewModel.cancelTimer();
-    startWebServiceTask(this, tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL);
     int buttonColorID = ContextCompat.getColor(this, buttonColor);
     if (button_ti_print != null) {
-        setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColorID); // set to yellow if connection to printer is broken
+        setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColorID);
     }
 }
 
     private void updateUIBasedOnServiceStatus() {
-        // Retrieve saved login details from SharedPreferences
-        SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-        String savedUsername = sharedPreferences.getString("username", "");
-        String savedPassword = sharedPreferences.getString("password", "");
-        if (!savedUsername.isEmpty() && !savedPassword.isEmpty()){
-            if (Constants.isServiceActive) {
-                startService();
-                // Update UI elements for active service
-                int buttonColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
-                if (button_ti_print != null) {
-                    setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
-                    button_ti_print.setText(R.string.printer_active);
-                }
-                MyWakeLockManager.acquireFullWakeLock(this);
-                Log.d("MainActivity", "Wake lock acquired");
-                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                Log.d("MainActivity", "Screen on flag set");
-            } else {
-                stopService();
-                // Update UI elements for inactive service
-                int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
-                if (button_ti_print != null) {
-                    setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
-                    button_ti_print.setText(R.string.printer_inactive);
-                }
-                MyWakeLockManager.releaseFullWakeLock();
-                Log.d("MainActivity", "Wake lock released");
-                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                Log.d("MainActivity", "Screen on flag cleared");
+        boolean active = PrintMonitorService.isEnabled(this);
+        isServiceStarted = active;
+        Constants.isServiceActive = active;
+        if (active) {
+            int buttonColor = ContextCompat.getColor(this, R.color.light_green);
+            if (button_ti_print != null) {
+                setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
+                button_ti_print.setText(R.string.printer_active);
             }
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
+            if (button_ti_print != null) {
+                setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
+                button_ti_print.setText(R.string.printer_inactive);
+            }
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
-    }
-
-    public void startWebServiceTask(Activity activity, String ordersUrl, String menusUrl, String categoriesUrl) {
-        // This method is used for automatic printing service
-        // It fetches orders periodically to detect new ones for printing
-        // Note: API refresh for UI updates is handled separately by foreground refresh in activities
-        Timer timer = networkHelperViewModel.getTimer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                // Check if user is still logged in before running refresh
-                SharedPreferences sharedPreferences = activity.getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-                String savedToken = sharedPreferences.getString("token", "");
-                if (savedToken.isEmpty()) {
-                    Log.d("MainActivity", "User not logged in, skipping refresh");
-                    return;
-                }
-                
-                // Check if KitchenDisplayActivity is open
-                boolean kitchenOpen = sharedPreferences.getBoolean("kitchen_display_open", false);
-                if (kitchenOpen) {
-                    Log.d("MainActivity", "KitchenDisplayActivity is open, skipping MainActivity refresh");
-                    return;
-                }
-
-                String[] urls = {ordersUrl, menusUrl, categoriesUrl};
-
-                Log.d("MainActivity", "Automatic printing service: fetching orders");
-                // Ensure the activity is still bound and the task can be executed
-                networkHelperViewModel.getNetworkHelper().fetchData(urls, username, password, domain_shop, (NetworkHelper.NetworkCallback) activity);
-
-            }
-        }, delayPeriod, Constants.REFRESH_INTERVAL_KITCHEN_OPEN);
     }
 
     private void showError(String errorMessage) {
@@ -1336,10 +1197,8 @@ private void restartWebservice(int buttonColor){
                                 }
                             }
                             printedOrders.add(orderId);
-                            // Remove from soundPlayedOrders since it's now printed (optional cleanup)
                             soundPlayedOrders.remove(orderId);
-                            IdManager.clearIds(context);
-                            IdManager.saveIds(context, printedOrders);
+                            IdManager.addId(context, orderId);
                         }
                     }
             )
@@ -1362,7 +1221,7 @@ private void restartWebservice(int buttonColor){
             }
 
         if (!url.startsWith("http://") && !url.startsWith("https://"))
-            url = "http://" + url;
+            url = "https://" + url;
         showWebViewDialog(url);
     }
 
@@ -1370,26 +1229,7 @@ private void restartWebservice(int buttonColor){
         FragmentManager fm = getSupportFragmentManager();
         WebViewDialogFragment webViewDialogFragment;
         
-        // Check if this is the Administration page and we have login credentials
-        if (url.contains("/admin")) {
-            // Get stored credentials for auto-login
-            SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-            String savedUsername = sharedPreferences.getString("username", "");
-            String savedPassword = sharedPreferences.getString("password", "");
-            String savedDomain = sharedPreferences.getString("domain_shop", "");
-            
-            Log.d("MainActivity", "Admin page detected. Username: " + savedUsername + ", Domain: " + savedDomain);
-            
-            if (!savedUsername.isEmpty() && !savedPassword.isEmpty() && !savedDomain.isEmpty()) {
-                Log.d("MainActivity", "Credentials found, creating WebView with auto-login");
-                webViewDialogFragment = WebViewDialogFragment.newInstance(url, savedUsername, savedPassword, savedDomain);
-            } else {
-                Log.d("MainActivity", "No credentials found, creating WebView without auto-login");
-                webViewDialogFragment = WebViewDialogFragment.newInstance(url);
-            }
-        } else {
-            webViewDialogFragment = WebViewDialogFragment.newInstance(url);
-        }
+        webViewDialogFragment = WebViewDialogFragment.newInstance(url);
 
         // Set the initial circle colors based on the conditions
         int printerColor;
@@ -1552,24 +1392,9 @@ private void restartWebservice(int buttonColor){
                 @Override
                 public void onClick(View v) {
                     String domainInput = etDomain.getText().toString();
-                    String username = etUsername.getText().toString(); //TODO wenn man Enter Druckt dann entsteht eine neue Zeile
+                    String username = etUsername.getText().toString();
                     String password = etPassword.getText().toString();
-                    String validCredentials = checkValidCredentials(domainInput, username, password);
-                    if (validCredentials.equals("OK")) {
-                        //reinitialize the variables
-                        ((MainActivity)getActivity()).initilizeURLs();
-
-                        button_bluetooth_browse.setEnabled(true);
-                        button_ti_print.setEnabled(true);
-                button_ti_clear_ids.setEnabled(true);
-                if (button_dashboard != null) button_dashboard.setEnabled(true);
-                        ((MainActivity)getActivity()).updateTestPrintButtonState();
-                        dismiss();
-                    } else {
-                        // activate the error text in the popup
-                        etError.setVisibility(View.VISIBLE);
-                        etError.setText(validCredentials);
-                    }
+                    authenticate(domainInput, username, password);
                 }
             });
 
@@ -1606,7 +1431,7 @@ private void restartWebservice(int buttonColor){
             return dialog;
         }
 
-        private String checkValidCredentials(String domainInput, String username, String password) {
+        private void authenticate(String domainInput, String username, String password) {
             // Show loading state
             etError.setVisibility(View.GONE);
             okButton.setEnabled(false);
@@ -1618,7 +1443,7 @@ private void restartWebservice(int buttonColor){
                 etError.setText(getString(R.string.no_internet_error));
                 okButton.setEnabled(true);
                 okButton.setText(getString(R.string.login_button));
-                return "NO_INTERNET";
+                return;
             }
             
             // Validate domain input
@@ -1627,7 +1452,7 @@ private void restartWebservice(int buttonColor){
                 etError.setText(getString(R.string.domain_required));
                 okButton.setEnabled(true);
                 okButton.setText(getString(R.string.login_button));
-                return "DOMAIN_REQUIRED";
+                return;
             }
             // Normalize domain: remove all whitespace, trailing slashes, and ensure proper format
             String domainNormalized = domainInput.trim().replaceAll("\\s+", ""); // remove all whitespace
@@ -1639,7 +1464,7 @@ private void restartWebservice(int buttonColor){
                 etError.setText(getString(R.string.invalid_domain));
                 okButton.setEnabled(true);
                 okButton.setText(getString(R.string.login_button));
-                return "INVALID_DOMAIN";
+                return;
             }
             
             if (!domainNormalized.startsWith("http://") && !domainNormalized.startsWith("https://")) {
@@ -1667,11 +1492,11 @@ private void restartWebservice(int buttonColor){
                         
                         // Save login data with manual domain
                         SharedPreferences.Editor editor = sharedPreferences.edit();
-                        editor.putInt("shop_id", 1); // legacy field, no longer used for selection
+                        editor.putInt("shop_id", 1);
                         editor.putString("domain_shop", finalDomain);
-                        editor.putString("token", token);
                         editor.putString("username", username);
-                        editor.putString("password", password);
+                        editor.remove("password");
+                        editor.remove("token");
                         // set a default location_id if absent
                         if (!sharedPreferences.contains("location_id")) {
                             editor.putInt("location_id", 1);
@@ -1746,8 +1571,6 @@ private void restartWebservice(int buttonColor){
                     });
                 }
             });
-
-            return "PROCESSING";
         }
     }
 

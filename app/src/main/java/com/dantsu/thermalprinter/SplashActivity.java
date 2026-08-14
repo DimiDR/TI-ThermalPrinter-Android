@@ -11,9 +11,13 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.dantsu.thermalprinter.helpClasses.AuthStore;
+import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
+import com.dantsu.thermalprinter.helpClasses.UpdateVerifier;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -27,7 +31,7 @@ import java.net.URL;
 
 public class SplashActivity extends AppCompatActivity {
 
-    private static final int SPLASH_DISPLAY_LENGTH = 1000; // 1 seconds
+    private static final int SPLASH_DISPLAY_LENGTH = 1000;
 
     private boolean isUpdate = false;
     private String apkFile = "";
@@ -35,7 +39,8 @@ public class SplashActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
-        //check for updates only if internet connection is available
+        new AuthStore(this);
+        PrintMonitorService.restoreIfEnabled(this);
         if (isNetworkAvailable()){
             checkForUpdates();
         } else {
@@ -57,9 +62,12 @@ public class SplashActivity extends AppCompatActivity {
     private class FetchAppDetailsTask extends AsyncTask<String, Void, String> {
         @Override
         protected String doInBackground(String... urls) {
+            HttpURLConnection urlConnection = null;
             try {
                 URL url = new URL(urls[0]);
-                HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setConnectTimeout(15000);
+                urlConnection.setReadTimeout(15000);
                 InputStream in = new BufferedInputStream(urlConnection.getInputStream());
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in));
                 StringBuilder result = new StringBuilder();
@@ -70,9 +78,11 @@ public class SplashActivity extends AppCompatActivity {
                 return result.toString();
             } catch (Exception e) {
                 e.printStackTrace();
-                goToNextActivity();
                 return null;
-
+            } finally {
+                if (urlConnection != null) {
+                    urlConnection.disconnect();
+                }
             }
         }
 
@@ -84,18 +94,17 @@ public class SplashActivity extends AppCompatActivity {
                     String appVersion = jsonObject.getString("app_version");
                     String fileToDownload = jsonObject.getString("apk_file");
 
-                    if (isNewVersionAvailable(currentAppVersion, appVersion)) {
+                    if (isNewVersionAvailable(currentAppVersion, appVersion)
+                            && UpdateVerifier.isAllowedApkUrl(fileToDownload)) {
                         isUpdate = true;
                         apkFile = fileToDownload;
                     }
 
-                    goToNextActivity();
-
                 } catch (JSONException e) {
                     e.printStackTrace();
-                    goToNextActivity();
                 }
             }
+            goToNextActivity();
         }
     }
 
@@ -121,14 +130,13 @@ public class SplashActivity extends AppCompatActivity {
 
     public void goToNextActivity(){
 
-        new Handler().postDelayed(new Runnable() {
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
                 Intent dashboardIntent = new Intent(SplashActivity.this, DashboardActivity.class);
-                // Pass update info to Dashboard, which can forward to MainActivity if needed
                 if (isUpdate) {
                     Intent mainIntent = new Intent(SplashActivity.this, MainActivity.class);
-                    mainIntent.putExtra("isUpdate", isUpdate);
+                    mainIntent.putExtra("isUpdate", true);
                     mainIntent.putExtra("apkFile", apkFile);
                     mainIntent.putExtra("currentAppVersion", currentAppVersion);
                     startActivity(mainIntent);

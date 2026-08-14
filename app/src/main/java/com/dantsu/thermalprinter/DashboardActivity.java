@@ -18,7 +18,9 @@ import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.dantsu.thermalprinter.helpClasses.AuthStore;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
+import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
 import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
@@ -128,6 +130,8 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         docketStringModeler = new DocketStringModeler();
         loadPrinterConfiguration();
         loadChipPreferences();
+        
+        PrintMonitorService.restoreIfEnabled(this);
         
         // Load initial data
         refreshData();
@@ -294,47 +298,32 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
             return;
         }
         
-        if (!Constants.isServiceActive) {
-            // Start printing service
+        if (!PrintMonitorService.isEnabled(this)) {
             startAutoPrintService();
         } else {
-            // Stop printing service
             stopAutoPrintService();
         }
     }
     
     private void startAutoPrintService() {
-        if (!Constants.isServiceActive) {
-            // Update UI
-            int buttonColor = ContextCompat.getColor(this, R.color.light_green);
-            if (buttonAutoPrint != null) {
-                setButtonBackgroundWithRoundedCorners(buttonAutoPrint, buttonColor);
-                buttonAutoPrint.setText(R.string.printer_active);
-            }
-            
-            // Note: API refresh is handled separately by foreground refresh
-            // This button only controls automatic printing
-            
-            Constants.isServiceActive = true;
-            updateSystemStatus();
+        PrintMonitorService.requestNotificationPermissionIfNeeded(this);
+        PrintMonitorService.start(this);
+        int buttonColor = ContextCompat.getColor(this, R.color.light_green);
+        if (buttonAutoPrint != null) {
+            setButtonBackgroundWithRoundedCorners(buttonAutoPrint, buttonColor);
+            buttonAutoPrint.setText(R.string.printer_active);
         }
+        updateSystemStatus();
     }
     
     private void stopAutoPrintService() {
-        if (Constants.isServiceActive) {
-            // Note: API refresh is handled separately by foreground refresh
-            // This only stops automatic printing
-            
-            // Update UI
-            int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
-            if (buttonAutoPrint != null) {
-                setButtonBackgroundWithRoundedCorners(buttonAutoPrint, buttonColor);
-                buttonAutoPrint.setText(R.string.auto_print);
-            }
-            
-            Constants.isServiceActive = false;
-            updateSystemStatus();
+        PrintMonitorService.stop(this);
+        int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
+        if (buttonAutoPrint != null) {
+            setButtonBackgroundWithRoundedCorners(buttonAutoPrint, buttonColor);
+            buttonAutoPrint.setText(R.string.auto_print);
         }
+        updateSystemStatus();
     }
     
     private void updateAutoPrintButtonAppearance() {
@@ -343,7 +332,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         int buttonColor;
         int textResId;
         
-        if (Constants.isServiceActive) {
+        if (PrintMonitorService.isEnabled(this)) {
             buttonColor = ContextCompat.getColor(this, R.color.light_green);
             textResId = R.string.printer_active;
         } else {
@@ -375,7 +364,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         }
         
         String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-        networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, this);
+        networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, this);
     }
     
     private void startForegroundRefresh() {
@@ -389,8 +378,8 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
             public void run() {
                 mainHandler.post(() -> {
                     SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-                    String savedToken = sharedPreferences.getString("token", "");
-                    if (savedToken.isEmpty()) {
+                    String savedToken = new AuthStore(DashboardActivity.this).getToken();
+                    if (savedToken == null || savedToken.isEmpty()) {
                         Log.d("DashboardActivity", "User not logged in, skipping refresh");
                         return;
                     }
@@ -504,7 +493,7 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
         }
         
         // Update service status
-        boolean serviceActive = Constants.isServiceActive;
+        boolean serviceActive = PrintMonitorService.isEnabled(this);
         if (serviceActive) {
             viewServiceStatus.setBackground(ContextCompat.getDrawable(this, R.drawable.circle_green));
             textServiceStatus.setText(R.string.active);
@@ -532,11 +521,9 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 List<JSONObject> ordersList = new ArrayList<>();
                 
                 // Get static sets from MainActivity for tracking printed orders and sound played orders
-                java.util.Set<String> printedOrders = MainActivity.getPrintedOrders();
+                java.util.Set<String> printedOrders = IdManager.getIds(this);
+                MainActivity.getPrintedOrders().addAll(printedOrders);
                 java.util.Set<String> soundPlayedOrders = MainActivity.getSoundPlayedOrders();
-                
-                // Filter printable orders (not yet printed)
-                JSONArray filteredOrders = DocketStringModeler.filterPrintableOrders(dataArrayOrders, printedOrders);
                 
                 // Check for new unprinted orders and play sound
                 boolean hasNewUnprintedOrder = false;
@@ -584,38 +571,9 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                 }
                 
                 // Play sound for new unprinted orders
-                if (hasNewUnprintedOrder) {
+                if (hasNewUnprintedOrder && !PrintMonitorService.isEnabled(this)) {
                     Log.d("Dashboard", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
                     playNewOrderSound();
-                }
-                
-                // Only print automatically if Auto Print service is active
-                if (Constants.isServiceActive) {
-                    // Reload printer configuration before printing to ensure we have a valid connection
-                    loadPrinterConfiguration();
-                    
-                    // Check if printer is available after reloading
-                    if (selectedDevice != null) {
-                        for (int i = 0; i < filteredOrders.length(); i++) {
-                            JSONObject dataObjectOrders = filteredOrders.getJSONObject(i);
-                            String orderID = dataObjectOrders.getString("id");
-
-                            //print receipt
-                            if (chipReceiptChecked) {
-                                TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
-                            }
-                            // print receipt for kitchen
-                            if (chipKitchenChecked) {
-                                TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
-                            }
-
-                            if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
-                                break;
-                            }
-                        }
-                    } else {
-                        Log.w("Dashboard", "Auto print service is active but printer is not selected or available");
-                    }
                 }
                 
                 updateStatistics(ordersList);
@@ -676,10 +634,8 @@ public class DashboardActivity extends AppCompatActivity implements NetworkHelpe
                         }
                         
                         // Mark order as printed
-                        java.util.Set<String> printedOrders = MainActivity.getPrintedOrders();
-                        printedOrders.add(orderId);
-                        IdManager.clearIds(DashboardActivity.this);
-                        IdManager.saveIds(DashboardActivity.this, printedOrders);
+                        MainActivity.getPrintedOrders().add(orderId);
+                        IdManager.addId(DashboardActivity.this, orderId);
                     }
                 }
         ).execute(printer);

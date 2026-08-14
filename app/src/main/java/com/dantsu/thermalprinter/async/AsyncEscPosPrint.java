@@ -1,5 +1,6 @@
 package com.dantsu.thermalprinter.async;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -102,7 +103,7 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
         if (this.dialog == null) {
             Context context = weakContext.get();
 
-            if (context == null) {
+            if (!(context instanceof Activity) || ((Activity) context).isFinishing()) {
                 return;
             }
 
@@ -142,10 +143,13 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
     }
 
     protected void onPostExecute(PrinterStatus result) {
-        this.dialog.dismiss();
-        this.dialog = null;
+        if (this.dialog != null) {
+            this.dialog.dismiss();
+            this.dialog = null;
+        }
 
         Context context = weakContext.get();
+        boolean canShowDialog = context instanceof Activity && !((Activity) context).isFinishing();
 
         if (context == null) {
             return;
@@ -160,34 +164,44 @@ public abstract class AsyncEscPosPrint extends AsyncTask<AsyncEscPosPrinter, Int
 //                        .show();
                 break;
             case AsyncEscPosPrint.FINISH_NO_PRINTER:
-                new AlertDialog.Builder(context)
-                        .setTitle(R.string.no_printer_title)
-                        .setMessage(R.string.no_printer_message)
-                        .show();
+                if (canShowDialog) {
+                    new AlertDialog.Builder(context)
+                            .setTitle(R.string.no_printer_title)
+                            .setMessage(R.string.no_printer_message)
+                            .show();
+                }
                 break;
             case AsyncEscPosPrint.FINISH_PRINTER_DISCONNECTED:
-                new AlertDialog.Builder(context)
-                    .setTitle(R.string.broken_connection_title)
-                    .setMessage(R.string.broken_connection_message)
-                    .show();
+                if (canShowDialog) {
+                    new AlertDialog.Builder(context)
+                        .setTitle(R.string.broken_connection_title)
+                        .setMessage(R.string.broken_connection_message)
+                        .show();
+                }
                 break;
             case AsyncEscPosPrint.FINISH_PARSER_ERROR:
-                new AlertDialog.Builder(context)
-                    .setTitle(R.string.invalid_format_title)
-                    .setMessage(R.string.invalid_format_message)
-                    .show();
+                if (canShowDialog) {
+                    new AlertDialog.Builder(context)
+                        .setTitle(R.string.invalid_format_title)
+                        .setMessage(R.string.invalid_format_message)
+                        .show();
+                }
                 break;
             case AsyncEscPosPrint.FINISH_ENCODING_ERROR:
-                new AlertDialog.Builder(context)
-                    .setTitle(R.string.encoding_error_title)
-                    .setMessage(R.string.encoding_error_message)
-                    .show();
+                if (canShowDialog) {
+                    new AlertDialog.Builder(context)
+                        .setTitle(R.string.encoding_error_title)
+                        .setMessage(R.string.encoding_error_message)
+                        .show();
+                }
                 break;
             case AsyncEscPosPrint.FINISH_BARCODE_ERROR:
-                new AlertDialog.Builder(context)
-                    .setTitle(R.string.barcode_error_title)
-                    .setMessage(R.string.barcode_error_message)
-                    .show();
+                if (canShowDialog) {
+                    new AlertDialog.Builder(context)
+                        .setTitle(R.string.barcode_error_title)
+                        .setMessage(R.string.barcode_error_message)
+                        .show();
+                }
                 break;
         }
         if(this.onPrintFinished != null) {

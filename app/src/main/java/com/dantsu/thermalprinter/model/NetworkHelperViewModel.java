@@ -82,4 +82,13 @@ public class NetworkHelperViewModel extends AndroidViewModel {
             onBluetoothPermissionsGranted.onPermissionsGranted();
         }
     }
+
+    @Override
+    protected void onCleared() {
+        super.onCleared();
+        cancelTimer();
+        if (networkHelper != null) {
+            networkHelper.shutdown();
+        }
+    }
 }

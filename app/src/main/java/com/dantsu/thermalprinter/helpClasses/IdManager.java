@@ -9,33 +9,29 @@ public class IdManager {
     private static final String PREFS_NAME = "MyAppPrefs";
     private static final String KEY_IDS = "StoredIds";
 
-    public static void saveIds(Context context, Set<String> ids) {
-        SharedPreferences.Editor editor = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit();
-        editor.putStringSet(KEY_IDS, ids);
-        editor.apply(); // asynchonous
-//        boolean result = editor.commit(); // synchonous
-//        result = false;
+    /**
+     * Defensive copy so callers cannot mutate the live SharedPreferences StringSet.
+     */
+    static Set<String> snapshot(Set<String> stored) {
+        return stored == null ? new HashSet<String>() : new HashSet<String>(stored);
     }
 
-//    public static Set<String> getIds(Context context) {
-//        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-//        Set<String> TEST = prefs.getStringSet(KEY_IDS, new HashSet<>());
-//        return prefs.getStringSet(KEY_IDS, new HashSet<>());
-//    }
+    public static void saveIds(Context context, Set<String> ids) {
+        SharedPreferences.Editor editor = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit();
+        editor.putStringSet(KEY_IDS, snapshot(ids));
+        editor.apply();
+    }
 
     public static Set<String> getIds(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        //Set<String> TEST = prefs.getStringSet(KEY_IDS, new HashSet<>());
-        return prefs.getStringSet(KEY_IDS, new HashSet<>());
+        return snapshot(prefs.getStringSet(KEY_IDS, null));
     }
 
     public static void addId(Context context, String id) {
-        Set<String> ids = getIds(context); // Get the stored IDs
-        ids.remove(id); // Remove the ID if it already exists
-        ids.add(id); // Add the updated ID set
-        saveIds(context, ids); // Save the updated ID set
+        Set<String> ids = getIds(context);
+        ids.add(id);
+        saveIds(context, ids);
     }
-
 
     public static void removeId(Context context, String id) {
         Set<String> ids = getIds(context);

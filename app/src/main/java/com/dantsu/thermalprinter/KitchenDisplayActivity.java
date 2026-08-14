@@ -24,8 +24,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 
+import com.dantsu.thermalprinter.helpClasses.AuthStore;
 import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
+import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
 import com.dantsu.thermalprinter.helpClasses.IdManager;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
@@ -408,17 +410,9 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         try {
             // Get the authentication token from SharedPreferences
             // Try "api_token" first (used by NetworkHelper), then "loginPrefs" as fallback
-            SharedPreferences tokenPrefs = getSharedPreferences("api_token", Context.MODE_PRIVATE);
-            String token = tokenPrefs.getString("token", null);
-            
-            // Fallback to loginPrefs if token not found in api_token
+            String token = new AuthStore(this).getToken();
             if (token == null) {
-                SharedPreferences loginPrefs = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-                token = loginPrefs.getString("token", null);
-            }
-            
-            if (token == null) {
-                Log.e("KitchenDisplay", "No authentication token found in api_token or loginPrefs");
+                Log.e("KitchenDisplay", "No authentication token found");
                 return null;
             }
             
@@ -478,7 +472,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
         progressBar.setVisibility(View.VISIBLE);
         
         String[] urls = {tiOrdersEndpointURL, tiMenusEndpointURL, tiCategoriesEndpointURL};
-        networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, this);
+        networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, this);
     }
     
     private void loadMoreOrders() {
@@ -539,7 +533,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             }
         };
         
-        networkHelperViewModel.getNetworkHelper().fetchData(urls, "", "", domain_shop, paginationCallback);
+        networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, paginationCallback);
     }
     
     private void startForegroundRefresh() {
@@ -553,8 +547,8 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
             public void run() {
                 mainHandler.post(() -> {
                     SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
-                    String savedToken = sharedPreferences.getString("token", "");
-                    if (savedToken.isEmpty()) {
+                    String savedToken = new AuthStore(KitchenDisplayActivity.this).getToken();
+                    if (savedToken == null || savedToken.isEmpty()) {
                         Log.d("KitchenDisplayActivity", "User not logged in, skipping refresh");
                         return;
                     }
@@ -589,7 +583,8 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                 List<JSONObject> ordersList = new ArrayList<>();
                 
                 // Get static sets from MainActivity for tracking printed orders and sound played orders
-                java.util.Set<String> printedOrders = MainActivity.getPrintedOrders();
+                java.util.Set<String> printedOrders = IdManager.getIds(this);
+                MainActivity.getPrintedOrders().addAll(printedOrders);
                 java.util.Set<String> soundPlayedOrders = MainActivity.getSoundPlayedOrders();
                 
                 // Check for new unprinted orders and play sound
@@ -637,42 +632,9 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                     }
                 }
                 
-                // Play sound for new unprinted orders
-                if (hasNewUnprintedOrder) {
+                if (hasNewUnprintedOrder && !PrintMonitorService.isEnabled(this)) {
                     Log.d("KitchenDisplay", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
                     playNewOrderSound();
-                }
-                
-                // Filter printable orders (not yet printed) for automatic printing
-                JSONArray filteredOrders = DocketStringModeler.filterPrintableOrders(dataArrayOrders, printedOrders);
-                
-                // Only print automatically if Auto Print service is active
-                if (Constants.isServiceActive) {
-                    // Reload printer configuration before printing to ensure we have a valid connection
-                    loadPrinterConfiguration();
-                    
-                    // Check if printer is available after reloading
-                    if (selectedDevice != null) {
-                        for (int i = 0; i < filteredOrders.length(); i++) {
-                            JSONObject dataObjectOrders = filteredOrders.getJSONObject(i);
-                            String orderID = dataObjectOrders.getString("id");
-
-                            //print receipt
-                            if (chipReceiptChecked) {
-                                TIJobPrintBluetooth(docketStringModeler.startPrintingReceipt(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
-                            }
-                            // print receipt for kitchen
-                            if (chipKitchenChecked) {
-                                TIJobPrintBluetooth(docketStringModeler.startPrintingKitchen(dataObjectOrders, jsonObjectMenus, jsonObjectCategories, mediaPlayer, shop_name), orderID);
-                            }
-
-                            if (isLongerConnectionTime) { // stop loop if connection to printer has a problem
-                                break;
-                            }
-                        }
-                    } else {
-                        Log.w("KitchenDisplay", "Auto print service is active but printer is not selected or available");
-                    }
                 }
                 
                 // Check if we have more data based on the number of orders returned
@@ -880,12 +842,9 @@ public class KitchenDisplayActivity extends AppCompatActivity implements Network
                         }
                         
                         // Mark order as printed
-                        java.util.Set<String> printedOrders = MainActivity.getPrintedOrders();
-                        printedOrders.add(orderId);
-                        // Remove from soundPlayedOrders since it's now printed (optional cleanup)
+                        MainActivity.getPrintedOrders().add(orderId);
                         MainActivity.getSoundPlayedOrders().remove(orderId);
-                        IdManager.clearIds(KitchenDisplayActivity.this);
-                        IdManager.saveIds(KitchenDisplayActivity.this, printedOrders);
+                        IdManager.addId(KitchenDisplayActivity.this, orderId);
                     }
                 }
         ).execute(printer);
