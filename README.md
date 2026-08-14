@@ -41,19 +41,17 @@ Do **not** open CORS with `Access-Control-Allow-Origin: *`. This is a native And
 Set the Orders API in the admin dashboard to the staff/employee scope that matches your shop policy. Do not publish test shop passwords in this repository.
 
 # Order webhook (sound in the store)
-The tablet no longer asks the shop every minute. TastyIgniter must send a hook when an order is created.
+The tablet does not poll the shop every minute. TastyIgniter sends a hook when an order is created; the app then plays a sound and loads the order.
 
-1. Log in to the app, open **Settings**.
-2. Copy the webhook URL from **Order signal** (it looks like `https://ntfy.sh/jwprinter_…`).
-3. Install [Webhooks](https://tastyigniter.com/marketplace/item/igniterlabs-webhook) in TastyIgniter.
-4. Create a webhook:
-   - Event: **Orders**
-   - Payload URL: the copied URL
-   - Method: POST
-5. Place a test order, or tap **Send test signal** in the app. A sound should play on the tablet.
-6. Turn on **Auto Print** if tickets should print automatically.
+No extra server of your own is required. The public relay is **https://ntfy.sh** (see [docs/order-webhook.md](docs/order-webhook.md) for setup, LAN hook, and self-hosting).
 
-You can also POST to `http://TABLET-IP:8765/hook` if the shop server can reach the tablet on the LAN.
+Short setup:
+
+1. In the app, open **Settings** and copy the webhook URL (`https://ntfy.sh/jwprinter_…`).
+2. In TastyIgniter, install [Webhooks](https://tastyigniter.com/marketplace/item/igniterlabs-webhook) and create an **Orders** webhook with that URL (POST).
+3. Tap **Send test signal** or place a test order. A sound should play.
+4. Turn on **Auto Print** if tickets should print automatically.
+
 
 # Shop catalog
 Shop display names and domains live in `app/src/main/assets/users.json` (gitignored when it contains live shops). The file has a `shops` array and **must not contain passwords**. Staff log in with their TastyIgniter username and password; the app exchanges them for a token and never stores the password.
