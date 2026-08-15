@@ -33,7 +33,9 @@ public class NetworkHelper {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final AuthStore authStore;
     private final Context context;
+    private final Object callbackLock = new Object();
     private Future<?> networkTask;
+    private NetworkCallback activeCallback;
     private String token;
 
     public interface NetworkCallback {
@@ -126,6 +128,53 @@ public class NetworkHelper {
         return errorMessage;
     }
 
+    private String formatTokenError(int responseCode, String body) {
+        if (body != null && !body.isEmpty()) {
+            try {
+                JSONObject json = new JSONObject(body);
+                StringBuilder details = new StringBuilder();
+                if (json.has("errors")) {
+                    Object errors = json.get("errors");
+                    if (errors instanceof JSONObject) {
+                        JSONObject errObj = (JSONObject) errors;
+                        java.util.Iterator<String> keys = errObj.keys();
+                        while (keys.hasNext()) {
+                            String key = keys.next();
+                            Object value = errObj.get(key);
+                            if (value instanceof org.json.JSONArray) {
+                                org.json.JSONArray arr = (org.json.JSONArray) value;
+                                for (int i = 0; i < arr.length(); i++) {
+                                    if (details.length() > 0) {
+                                        details.append(" ");
+                                    }
+                                    details.append(arr.optString(i));
+                                }
+                            } else if (value != null) {
+                                if (details.length() > 0) {
+                                    details.append(" ");
+                                }
+                                details.append(value);
+                            }
+                        }
+                    }
+                }
+                if (details.length() == 0 && json.has("message")) {
+                    details.append(json.optString("message"));
+                }
+                if (details.length() > 0) {
+                    return details.toString();
+                }
+            } catch (Exception ignored) { }
+        }
+        if (responseCode == 401 || responseCode == 403) {
+            return context.getString(R.string.authentication_failed);
+        }
+        if (responseCode == 422) {
+            return context.getString(R.string.authentication_failed);
+        }
+        return context.getString(R.string.authentication_failed) + " (" + responseCode + ")";
+    }
+
     private void generateToken(String username, String password, String domain_shop) throws IOException {
         if (!isNetworkAvailable()) {
             throw new IOException(context.getString(R.string.no_internet_error));
@@ -166,9 +215,12 @@ public class NetworkHelper {
             urlConnection.setDoOutput(true);
 
             JSONObject jsonParam = new JSONObject();
+            // Staff/printer app needs an admin token (customer lookup fails with admin email)
+            jsonParam.put("email", username);
             jsonParam.put("username", username);
             jsonParam.put("password", password);
-            jsonParam.put("device_name", "my_device");
+            jsonParam.put("device_name", "thermal_printer_app");
+            jsonParam.put("is_admin", 1);
 
             OutputStream os = urlConnection.getOutputStream();
             os.write(jsonParam.toString().getBytes(StandardCharsets.UTF_8));
@@ -202,11 +254,7 @@ public class NetworkHelper {
                     }
                 } catch (Exception ignored) { }
 
-                String message = "Token generation failed. Response code: " + responseCode;
-                if (errorResponse.length() > 0) {
-                    message += ", body: " + errorResponse;
-                }
-                throw new IOException(message);
+                throw new IOException(formatTokenError(responseCode, errorResponse.toString()));
             }
         } catch (IOException e) {
             throw new IOException(getFriendlyErrorMessage(e, normalizedDomain), e);
@@ -224,12 +272,16 @@ public class NetworkHelper {
     }
 
     public void fetchData(String[] urls, String username, String password, String domain_shop, NetworkCallback callback) {
-        cancelNetworkTask();
+        replaceActiveCallback(callback);
 
+        final NetworkCallback thisCallback = callback;
         networkTask = executor.submit(() -> {
             Exception exception = null;
             String[] results = null;
             try {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new IOException("Request cancelled");
+                }
                 if (token == null) {
                     token = authStore.getToken();
                 }
@@ -243,6 +295,9 @@ public class NetworkHelper {
 
                 results = new String[urls.length];
                 for (int i = 0; i < urls.length; i++) {
+                    if (Thread.currentThread().isInterrupted()) {
+                        throw new IOException("Request cancelled");
+                    }
                     results[i] = getWithAuth(urls[i], username, password, domain_shop);
                 }
             } catch (Exception e) {
@@ -252,10 +307,13 @@ public class NetworkHelper {
             final Exception postedException = exception;
             final String[] postedResults = results;
             mainHandler.post(() -> {
+                if (!clearActiveCallback(thisCallback)) {
+                    return;
+                }
                 if (postedException != null) {
-                    callback.onError(postedException);
+                    thisCallback.onError(postedException);
                 } else {
-                    callback.onSuccess(postedResults);
+                    thisCallback.onSuccess(postedResults);
                 }
             });
         });
@@ -263,14 +321,15 @@ public class NetworkHelper {
 
     private String getWithAuth(String requestUrl, String username, String password, String domain_shop) throws IOException {
         HttpURLConnection urlConnection = null;
-        BufferedReader reader = null;
         try {
             urlConnection = openGet(requestUrl);
-            if (urlConnection.getResponseCode() == 401) {
+            int responseCode = urlConnection.getResponseCode();
+            if (responseCode == 401) {
                 urlConnection.disconnect();
                 if (username != null && !username.isEmpty() && password != null && !password.isEmpty()) {
                     generateToken(username, password, domain_shop);
                     urlConnection = openGet(requestUrl);
+                    responseCode = urlConnection.getResponseCode();
                 } else {
                     authStore.clearToken();
                     token = null;
@@ -278,29 +337,47 @@ public class NetworkHelper {
                 }
             }
 
-            InputStream inputStream = urlConnection.getInputStream();
-            if (inputStream == null) {
-                return null;
+            if (responseCode >= 400) {
+                String errorBody = readStreamQuietly(urlConnection.getErrorStream());
+                Log.e(TAG, "HTTP " + responseCode + " for " + requestUrl
+                        + (errorBody.isEmpty() ? "" : " body=" + truncate(errorBody, 200)));
+                throw new IOException("HTTP " + responseCode + " for " + requestUrl);
             }
-            reader = new BufferedReader(new InputStreamReader(inputStream));
-            StringBuilder buffer = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                buffer.append(line).append("\n");
-            }
-            return buffer.length() == 0 ? null : buffer.toString();
+
+            return readStreamQuietly(urlConnection.getInputStream());
         } catch (IOException e) {
             throw new IOException(getFriendlyErrorMessage(e, domain_shop != null ? domain_shop : requestUrl), e);
         } finally {
             if (urlConnection != null) {
                 urlConnection.disconnect();
             }
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException ignored) { }
-            }
         }
+    }
+
+    private static String readStreamQuietly(InputStream stream) throws IOException {
+        if (stream == null) {
+            return null;
+        }
+        BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+        try {
+            StringBuilder buffer = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                buffer.append(line).append("\n");
+            }
+            return buffer.length() == 0 ? null : buffer.toString();
+        } finally {
+            try {
+                reader.close();
+            } catch (IOException ignored) { }
+        }
+    }
+
+    private static String truncate(String value, int max) {
+        if (value == null || value.length() <= max) {
+            return value == null ? "" : value;
+        }
+        return value.substring(0, max) + "…";
     }
 
     private HttpURLConnection openGet(String requestUrl) throws IOException {
@@ -317,10 +394,7 @@ public class NetworkHelper {
     }
 
     public void cancelNetworkTask() {
-        if (networkTask != null && !networkTask.isDone()) {
-            networkTask.cancel(true);
-            networkTask = null;
-        }
+        replaceActiveCallback(null);
     }
 
     public boolean isNetworkTaskRunning() {
@@ -330,6 +404,35 @@ public class NetworkHelper {
     public void shutdown() {
         cancelNetworkTask();
         executor.shutdownNow();
+    }
+
+    /**
+     * Swaps the in-flight callback. The previous request is cancelled and receives
+     * {@code onError} so callers (e.g. ShopCatalogRepository) never leave a latch stuck.
+     */
+    private void replaceActiveCallback(NetworkCallback next) {
+        NetworkCallback previous;
+        synchronized (callbackLock) {
+            previous = activeCallback;
+            activeCallback = next;
+        }
+        if (networkTask != null && !networkTask.isDone()) {
+            networkTask.cancel(true);
+            networkTask = null;
+        }
+        if (previous != null) {
+            mainHandler.post(() -> previous.onError(new IOException("Request cancelled")));
+        }
+    }
+
+    private boolean clearActiveCallback(NetworkCallback expected) {
+        synchronized (callbackLock) {
+            if (activeCallback != expected) {
+                return false;
+            }
+            activeCallback = null;
+            return true;
+        }
     }
 
     public interface TokenCallback {
@@ -349,6 +452,7 @@ public class NetworkHelper {
                 final String result = token;
                 mainHandler.post(() -> callback.onTokenGenerated(result));
             } catch (IOException e) {
+                Log.e(TAG, "Token generation failed: " + e.getMessage(), e);
                 mainHandler.post(() -> callback.onTokenError(e));
             }
         });
@@ -400,6 +504,33 @@ public class NetworkHelper {
             } catch (Exception e) {
                 Exception wrapped = (e instanceof IOException) ? e : new IOException(getFriendlyErrorMessage(e, domain_shop), e);
                 mainHandler.post(() -> callback.onLocationError(wrapped));
+            }
+        });
+    }
+
+    public interface StaffProfileCallback {
+        void onStaffProfileLoaded(StaffProfileResolver.StaffProfile profile);
+        void onStaffProfileError(Exception exception);
+    }
+
+    public void fetchStaffProfileAsync(String domain_shop, String loginIdentifier, StaffProfileCallback callback) {
+        executor.submit(() -> {
+            try {
+                if (token == null) {
+                    token = authStore.getToken();
+                }
+                if (token == null) {
+                    throw new IOException(context.getString(R.string.session_expired));
+                }
+
+                String usersUrl = domain_shop.replaceAll("/+$", "") + "/api/users?include=role&pageLimit=100";
+                String body = getWithAuth(usersUrl, null, null, domain_shop);
+                StaffProfileResolver.StaffProfile profile =
+                        StaffProfileResolver.resolve(body, loginIdentifier);
+                mainHandler.post(() -> callback.onStaffProfileLoaded(profile));
+            } catch (Exception e) {
+                Exception wrapped = (e instanceof IOException) ? e : new IOException(getFriendlyErrorMessage(e, domain_shop), e);
+                mainHandler.post(() -> callback.onStaffProfileError(wrapped));
             }
         });
     }

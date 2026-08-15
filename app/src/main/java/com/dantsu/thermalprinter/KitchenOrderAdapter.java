@@ -401,9 +401,9 @@ public class KitchenOrderAdapter extends RecyclerView.Adapter<KitchenOrderAdapte
             }
             textOrderItems.setText(itemsText.toString().trim());
             
-            // Order comment
+            // Order comment — optString turns JSON null into the literal "null"
             String comment = orderData.optString("comment", "");
-            if (!comment.isEmpty()) {
+            if (!"null".equals(comment) && !comment.isEmpty()) {
                 textOrderComment.setText(comment);
                 textOrderComment.setVisibility(View.VISIBLE);
             } else {

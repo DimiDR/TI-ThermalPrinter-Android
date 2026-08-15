@@ -62,7 +62,7 @@
     <string name="login_required">Anmeldung erforderlich</string>
     <string name="login_description">Geben Sie Ihre TastyIgniter-Anmeldedaten ein, um auf das Restaurantverwaltungssystem zuzugreifen.</string>
     <string name="select_shop">Shop auswählen</string>
-    <string name="username">Benutzername</string>
+    <string name="username">E-Mail</string>
     <string name="password">Passwort</string>
     <string name="cancel">Abbrechen</string>
     
@@ -97,6 +97,9 @@
     <!-- Settings & Configuration -->
     <string name="settings_title">Einstellungen &amp; Konfiguration</string>
     <string name="shop_information">Shop-Informationen</string>
+    <string name="logged_in_as">Benutzer: %1$s</string>
+    <string name="staff_role">Rolle: %1$s</string>
+    <string name="staff_role_unknown">Rolle: unbekannt</string>
     <string name="printer_configuration">Druckerkonfiguration</string>
     <string name="select_bluetooth_printer">Bluetooth-Drucker auswählen</string>
     <string name="service_control">Dienststeuerung</string>

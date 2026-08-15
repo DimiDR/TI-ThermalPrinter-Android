@@ -74,6 +74,24 @@
                         android:text="@string/login_text"
                         android:textSize="16sp"
                         android:textColor="@color/colorTextSecondary"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/textview_logged_in_user"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="15sp"
+                        android:textColor="@color/colorTextPrimary"
+                        android:visibility="gone"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:id="@+id/textview_staff_role"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="15sp"
+                        android:textColor="@color/colorTextPrimary"
+                        android:visibility="gone"
                         android:layout_marginBottom="16dp" />
 
                     <LinearLayout

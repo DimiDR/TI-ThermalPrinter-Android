@@ -39,6 +39,14 @@
       "domain_website": "https://foodninja.app",
       "kitchen_view": "https://foodninja.app/admin/thoughtco/kitchendisplay/summary/view/1",
       "location_id": "10"
+    },
+    {
+      "shop_id": 6,
+      "shop_name": "Harbour View",
+      "domain_shop": "http://10.0.2.2:8080",
+      "domain_website": "http://10.0.2.2:8080",
+      "kitchen_view": "http://10.0.2.2:8080/admin/thoughtco/kitchendisplay/summary/view/1",
+      "location_id": "1"
     }
   ]
 }

@@ -11,11 +11,8 @@ import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
 import com.dantsu.thermalprinter.helpClasses.BluetoothPrinterHelper;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 
-import java.util.Timer;
-
 public class NetworkHelperViewModel extends AndroidViewModel {
     private NetworkHelper networkHelper;
-    private Timer timer;
     private BluetoothConnection selectedDevice;
     private boolean isUpdatePopupShown = false;
 
@@ -26,21 +23,6 @@ public class NetworkHelperViewModel extends AndroidViewModel {
 
     public NetworkHelper getNetworkHelper() {
         return networkHelper;
-    }
-
-    public Timer getTimer() {
-        if (timer == null) {
-            timer = new Timer();
-        }
-        return timer;
-    }
-
-    public void cancelTimer() {
-        if (timer != null) {
-            timer.cancel();
-            timer.purge();
-            timer = null;
-        }
     }
 
     public BluetoothConnection getSelectedDevice() {
@@ -67,7 +49,6 @@ public class NetworkHelperViewModel extends AndroidViewModel {
     @Override
     protected void onCleared() {
         super.onCleared();
-        cancelTimer();
         if (networkHelper != null) {
             networkHelper.shutdown();
         }

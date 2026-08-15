@@ -176,7 +176,6 @@ public class DashboardActivity extends AppCompatActivity implements ShopCatalogR
     private void loadShopConfiguration() {
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
         domain_shop = sharedPreferences.getString("domain_shop", "");
-        location_id = sharedPreferences.getInt("location_id", 1);
         
         if (domain_shop.isEmpty()) {
             // Navigate to Settings (MainActivity) instead of closing app
@@ -185,6 +184,9 @@ public class DashboardActivity extends AppCompatActivity implements ShopCatalogR
             finish();
             return;
         }
+
+        ShopConfigUtils.applyShopPreferences(this, domain_shop);
+        location_id = ShopConfigUtils.resolveLocationId(this, domain_shop);
         
         // Check if shop has changed
         boolean isShopChanged = !currentShopDomain.equals(domain_shop) && !currentShopDomain.isEmpty();
@@ -206,18 +208,14 @@ public class DashboardActivity extends AppCompatActivity implements ShopCatalogR
         currentShopDomain = domain_shop;
         
         // Set API endpoints
-        tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
-        tiMenusEndpointURL = domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
-        tiCategoriesEndpointURL = domain_shop + "/api/categories?location=" + location_id;
+        String[] catalogUrls = ShopCatalogRepository.catalogUrls(domain_shop, location_id == null ? 1 : location_id);
+        tiOrdersEndpointURL = catalogUrls[0];
+        tiMenusEndpointURL = catalogUrls[1];
+        tiCategoriesEndpointURL = catalogUrls[2];
         
-        // Get shop name
-        List<ShopConfigUtils.Shop> shops = ShopConfigUtils.getShops(this);
-        for (ShopConfigUtils.Shop shop : shops) {
-            if (shop.domain_shop.equals(domain_shop)) {
-                shop_name = shop.shop_name;
-                textShopName.setText(shop_name);
-                break;
-            }
+        shop_name = ShopConfigUtils.resolveShopName(this, domain_shop);
+        if (textShopName != null) {
+            textShopName.setText(shop_name);
         }
     }
     
@@ -672,9 +670,18 @@ public class DashboardActivity extends AppCompatActivity implements ShopCatalogR
         if (swipeRefreshLayout != null) {
             swipeRefreshLayout.setRefreshing(false);
         }
-        
+
+        if (isRequestCancelled(exception)) {
+            Log.d("Dashboard", "Catalog request cancelled (superseded)");
+            return;
+        }
+
         Log.e("Dashboard", "Error fetching data", exception);
         Toast.makeText(this, getString(R.string.error_message, exception.getMessage()), Toast.LENGTH_SHORT).show();
+    }
+
+    private static boolean isRequestCancelled(Exception exception) {
+        return exception != null && "Request cancelled".equals(exception.getMessage());
     }
     
     @Override

@@ -34,7 +34,7 @@ Install the TastyIgniter API addon and allow **List all resources (GET)** for:
 - `/api/orders`
 - `/api/menus`
 - `/api/categories`
-- `/api/statuses` (used to map status names to IDs)
+- `/api/status` (used to map status names to IDs)
 
 Do **not** open CORS with `Access-Control-Allow-Origin: *`. This is a native Android app; it talks to the shop API directly with a bearer token. A wildcard CORS header is unnecessary and unsafe.
 

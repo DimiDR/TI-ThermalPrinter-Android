@@ -149,14 +149,14 @@ public JSONObject addInformation(){
 
     private void printDocketCustomerReceipt() {
         try {
-                String orderID = orders.getString("id");
+                isGoogleMaps = true;
                 JSONObject orderAttributes = orders.getJSONObject("attributes");
-                String payment = orderAttributes.getString("payment");//stripe, cod, paypalexpress
-                String order_type = orderAttributes.getString("order_type");
-                String order_time_is_asap = orderAttributes.getString("order_time_is_asap");
-                String order_date_time = FormatDate(orderAttributes.getString("order_date_time"));
-                String orderId = String.valueOf(orderAttributes.getInt("order_id"));
-                String orderTotal = String.valueOf(orderAttributes.getDouble("order_total"));
+                String payment = orderAttributes.optString("payment", "");
+                String order_type = orderAttributes.optString("order_type", "collection");
+                String order_time_is_asap = orderAttributes.optString("order_time_is_asap", "false");
+                String order_date_time = FormatDate(orderAttributes.optString("order_date_time", ""));
+                String orderId = resolveOrderId(orders, orderAttributes);
+                String orderTotal = String.format(Locale.US, "%.2f", orderAttributes.optDouble("order_total", 0.0));
                 //payment translation
                 if (payment.equals("cod")) {
                     payment = "Barzahlung";
@@ -192,58 +192,69 @@ public JSONObject addInformation(){
                 String category_id_help = "";
                 for (int j = 0; j < order_menus_array.length(); j++) {
                     JSONObject order_menus_object = order_menus_array.getJSONObject(j);
-                    String menusName = order_menus_object.getString("name");
-                    String menusSubtotal = FormatStringValue(order_menus_object.getString("subtotal"));
-                    String menusQuantity = order_menus_object.getString("quantity");
-                    String menusComment = order_menus_object.getString("comment");
-                    String category_id = order_menus_object.getString("category_id");
-                    String category_name = order_menus_object.getString("category_name");
+                    String menusName = order_menus_object.optString("name", "");
+                    String menusSubtotal = FormatMoneyValue(order_menus_object.opt("subtotal"));
+                    String menusQuantity = resolveQuantity(order_menus_object);
+                    String menusComment = normalizeNullable(order_menus_object.optString("comment", ""));
+                    String category_id = order_menus_object.optString("category_id", "");
+                    String category_name = order_menus_object.optString("category_name", "");
                     if (!category_id.equals(category_id_help)) {
                         printOrder += "[L]__________________ \n";
-                        printOrder += "[L]<b>" + category_name + "</b> \n";
+                        if (!category_name.isEmpty()) {
+                            printOrder += "[L]<b>" + category_name + "</b> \n";
+                        }
                         category_id_help = category_id;
                     }
 
                     printOrder += "[L]<b> " + menusQuantity + "x - " + menusName + ", [R]"
                             + menusSubtotal + "€</b> \n";
-                    if (!"null".equals(menusComment) && !menusComment.isEmpty()) {
+                    if (!menusComment.isEmpty()) {
                         printOrder += "[L]  Kommentar: " + menusComment + "\n";
                     }
                     // menu options
-                    JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
-                    for (int k = 0; k < menu_options_array.length(); k++) {
-                         JSONObject menu_option_object = menu_options_array.getJSONObject(k);
-                        String order_option_name = menu_option_object.getString("order_option_name");
-                        String order_option_price = FormatStringValue(menu_option_object.getString("order_option_price"));
-                        printOrder += "[L]  Option: " + order_option_name + ", [R]" + order_option_price + "€\n";
+                    JSONArray menu_options_array = order_menus_object.optJSONArray("menu_options");
+                    if (menu_options_array != null) {
+                        for (int k = 0; k < menu_options_array.length(); k++) {
+                             JSONObject menu_option_object = menu_options_array.getJSONObject(k);
+                            String order_option_name = menu_option_object.optString("order_option_name",
+                                    menu_option_object.optString("name", ""));
+                            String order_option_price = FormatMoneyValue(menu_option_object.opt("order_option_price"));
+                            printOrder += "[L]  Option: " + order_option_name + ", [R]" + order_option_price + "€\n";
+                        }
                     }
                 }
                 //all costs
-                JSONArray order_totals_array = orderAttributes.getJSONArray("order_totals");
+                JSONArray order_totals_array = orderAttributes.optJSONArray("order_totals");
                 printAllCosts += "[L]====================================\n";
-                for (int j = 0; j < order_totals_array.length(); j++) {
-                    JSONObject order_totals_object = order_totals_array.getJSONObject(j);
-                    // assumption, that the JSON is already sorted by priority. The same sequence will be taken
-                    String title = order_totals_object.getString("title");
-                    String value = FormatStringValue(order_totals_object.getString("value"));
-                    printAllCosts += "[L]" + title + "[R]" + value + "€\n";
+                if (order_totals_array != null) {
+                    for (int j = 0; j < order_totals_array.length(); j++) {
+                        JSONObject order_totals_object = order_totals_array.getJSONObject(j);
+                        // assumption, that the JSON is already sorted by priority. The same sequence will be taken
+                        String title = order_totals_object.optString("title", "");
+                        String value = FormatMoneyValue(order_totals_object.opt("value"));
+                        printAllCosts += "[L]" + title + "[R]" + value + "€\n";
+                    }
                 }
                 //customer information
-                String customer_name = orderAttributes.getString("customer_name");
-                String telephone = orderAttributes.getString("telephone");
-                String comment = orderAttributes.getString("comment");
-                String formatted_address = orderAttributes.getString("formatted_address")
+                String customer_name = resolveCustomerName(orderAttributes);
+                if (customer_name.isEmpty()) {
+                    customer_name = "nicht angegeben";
+                }
+                String telephone = normalizeNullable(orderAttributes.optString("telephone", ""));
+                String comment = normalizeNullable(orderAttributes.optString("comment", ""));
+                String formatted_address = normalizeNullable(orderAttributes.optString("formatted_address", ""))
                         .replaceAll("\\s+", " ").replaceAll(",\\s*,", ",");
                 String google_api_url = "https://www.google.com/maps?q=" +
-                        orderAttributes.getString("formatted_address").replaceAll("[,\\s]+", "+");
-                if (formatted_address == "null" || formatted_address.isEmpty()) {
+                        formatted_address.replaceAll("[,\\s]+", "+");
+                String rawOrderType = orderAttributes.optString("order_type", "collection");
+                if (!"delivery".equals(rawOrderType) || formatted_address.isEmpty()) {
                     formatted_address = "nicht angegeben";
                     isGoogleMaps = false;
                 }
-                if (telephone == "null" || telephone.isEmpty()) {
+                if (telephone.isEmpty()) {
                     telephone = "nicht angegeben";
                 }
-                if (comment == "null" || comment.isEmpty()) {
+                if (comment.isEmpty()) {
                     comment = "nicht angegeben";
                 }
 
@@ -280,14 +291,10 @@ public JSONObject addInformation(){
 
     private void printDocketKitchenReceipt() {
         try {
-            String orderID = orders.getString("id");
             JSONObject orderAttributes = orders.getJSONObject("attributes");
-            String payment = orderAttributes.getString("payment");//stripe, cod, paypalexpress
-            String order_type = orderAttributes.getString("order_type");
-            String order_time_is_asap = orderAttributes.getString("order_time_is_asap");
-            String order_date_time = FormatDate(orderAttributes.getString("order_date_time"));
-            String orderId = String.valueOf(orderAttributes.getInt("order_id"));
-            String orderTotal = String.valueOf(orderAttributes.getDouble("order_total"));
+            String order_time_is_asap = orderAttributes.optString("order_time_is_asap", "false");
+            String order_date_time = FormatDate(orderAttributes.optString("order_date_time", ""));
+            String orderId = resolveOrderId(orders, orderAttributes);
             // check if delivery is later, print bigger if delivery later
             String order_type_time = "";
             if (order_time_is_asap.equals("false")) {
@@ -304,77 +311,38 @@ public JSONObject addInformation(){
             String category_id_help = "";
             for (int j = 0; j < order_menus_array.length(); j++) {
                 JSONObject order_menus_object = order_menus_array.getJSONObject(j);
-                String menusName = order_menus_object.getString("name");
-                String menusSubtotal = FormatStringValue(order_menus_object.getString("subtotal"));
-                String menusQuantity = order_menus_object.getString("quantity");
-                String menusComment = order_menus_object.getString("comment");
-                String category_id = order_menus_object.getString("category_id");
-                String category_name = order_menus_object.getString("category_name");
+                String menusName = order_menus_object.optString("name", "");
+                String menusQuantity = resolveQuantity(order_menus_object);
+                String menusComment = normalizeNullable(order_menus_object.optString("comment", ""));
+                String category_id = order_menus_object.optString("category_id", "");
+                String category_name = order_menus_object.optString("category_name", "");
                 if (!category_id.equals(category_id_help)) {
                     printOrder += "[L]__________________ \n";
-                    printOrder += "[L]<font size='big'>" + category_name + "</font> \n";
+                    if (!category_name.isEmpty()) {
+                        printOrder += "[L]<font size='big'>" + category_name + "</font> \n";
+                    }
                     category_id_help = category_id;
                 }
 
                 printOrder += "[L]<font size='big'>" + menusQuantity + "x - " + menusName + "</font>\n";
-                if (!"null".equals(menusComment) && !menusComment.isEmpty()) {
+                if (!menusComment.isEmpty()) {
                     printOrder += "[L]<font size='big'>  Kommentar: " + menusComment + "</font>\n";
                 }
                 // menu options
-                JSONArray menu_options_array = order_menus_object.getJSONArray("menu_options");
-                for (int k = 0; k < menu_options_array.length(); k++) {
-                    JSONObject menu_option_object = menu_options_array.getJSONObject(k);
-                    String order_option_name = menu_option_object.getString("order_option_name");
-                    String order_option_price = FormatStringValue(menu_option_object.getString("order_option_price"));
-                    printOrder += "[L]<font size='big'>  Option: " + order_option_name + "</font>\n";
+                JSONArray menu_options_array = order_menus_object.optJSONArray("menu_options");
+                if (menu_options_array != null) {
+                    for (int k = 0; k < menu_options_array.length(); k++) {
+                        JSONObject menu_option_object = menu_options_array.getJSONObject(k);
+                        String order_option_name = menu_option_object.optString("order_option_name",
+                                menu_option_object.optString("name", ""));
+                        printOrder += "[L]<font size='big'>  Option: " + order_option_name + "</font>\n";
+                    }
                 }
             }
-//            //all costs
-//            JSONArray order_totals_array = orderAttributes.getJSONArray("order_totals");
-//            printAllCosts += "[L]====================================\n";
-//            for (int j = 0; j < order_totals_array.length(); j++) {
-//                JSONObject order_totals_object = order_totals_array.getJSONObject(j);
-//                // assumption, that the JSON is already sorted by priority. The same sequence will be taken
-//                String title = order_totals_object.getString("title");
-//                String value = FormatStringValue(order_totals_object.getString("value"));
-//                printAllCosts += "[L]" + title + "[R]" + value + "€\n";
-//            }
-//            //customer information
-//            String customer_name = orderAttributes.getString("customer_name");
-//            String telephone = orderAttributes.getString("telephone");
-//            String comment = orderAttributes.getString("comment");
-//            String formatted_address = orderAttributes.getString("formatted_address")
-//                    .replaceAll("\\s+", " ").replaceAll(",\\s*,", ",");
-//            String google_api_url = "https://www.google.com/maps?q=" +
-//                    orderAttributes.getString("formatted_address").replaceAll("[,\\s]+", "+");
-//            if (formatted_address == "null" || formatted_address.isEmpty()) {
-//                formatted_address = "nicht angegeben";
-//                isGoogleMaps = false;
-//            }
-//            if (telephone == "null" || telephone.isEmpty()) {
-//                telephone = "nicht angegeben";
-//            }
-//            if (comment == "null" || comment.isEmpty()) {
-//                comment = "nicht angegeben";
-//            }
-//
-//            printCustomer += "[L]Name: " + customer_name + "\n" +
-//                    "[L]Telefon: " + telephone + "\n" +
-//                    "[L]Adresse: " + formatted_address + "\n" +
-//                    "[L]Kommentar: " + comment + "\n";
-//            if (isGoogleMaps) {
-//                printCustomer += "[C]Google Adresse Scannen \n" +
-//                        "[C]<qrcode size='20'>" + google_api_url + "</qrcode> \n";
-//            }
             // create full print String
             printOutput = printHeader +
                     printOrder +
                     printAllCosts;
-//                    printPayment +
-//                    "[L]====================================\n" +
-//                    "[L]Kundeninformation\n" +
-//                    printCustomer +
-//                    "[C]<b>Dies ist keine Rechnung</b>";
             this.customerReceipt = printOutput;
             printOutput = "";
             printHeader = "";
@@ -382,16 +350,68 @@ public JSONObject addInformation(){
             printAllCosts = "";
             printCustomer = "";
             printPayment = "";
-//            }
         } catch (JSONException e) {
             e.printStackTrace();
         }
-//        return printOutput;
     }
 
-    private String FormatStringValue(String value) {
-        String output = value.substring(0, value.length() - 2);
-        return output;
+    private static String resolveOrderId(JSONObject order, JSONObject orderAttributes) {
+        String id = order.optString("id", "");
+        if (!id.isEmpty() && !"null".equals(id)) {
+            return id;
+        }
+        if (orderAttributes.has("order_id") && !orderAttributes.isNull("order_id")) {
+            return String.valueOf(orderAttributes.opt("order_id"));
+        }
+        return "";
+    }
+
+    private static String resolveCustomerName(JSONObject orderAttributes) {
+        String customerName = normalizeNullable(orderAttributes.optString("customer_name", ""));
+        if (!customerName.isEmpty()) {
+            return customerName;
+        }
+        String firstName = normalizeNullable(orderAttributes.optString("first_name", ""));
+        String lastName = normalizeNullable(orderAttributes.optString("last_name", ""));
+        return (firstName + " " + lastName).trim();
+    }
+
+    private static String resolveQuantity(JSONObject orderMenuObject) {
+        if (orderMenuObject.has("qty") && !orderMenuObject.isNull("qty")) {
+            return String.valueOf(orderMenuObject.opt("qty"));
+        }
+        String quantity = normalizeNullable(orderMenuObject.optString("quantity", ""));
+        return quantity.isEmpty() ? "1" : quantity;
+    }
+
+    private static String normalizeNullable(String value) {
+        if (value == null || value.isEmpty() || "null".equals(value)) {
+            return "";
+        }
+        return value;
+    }
+
+    private String FormatMoneyValue(Object rawValue) {
+        if (rawValue == null || rawValue == JSONObject.NULL) {
+            return "0.00";
+        }
+        if (rawValue instanceof Number) {
+            return String.format(Locale.US, "%.2f", ((Number) rawValue).doubleValue());
+        }
+
+        String value = String.valueOf(rawValue).trim();
+        if (value.isEmpty() || "null".equals(value)) {
+            return "0.00";
+        }
+
+        try {
+            return String.format(Locale.US, "%.2f", Double.parseDouble(value));
+        } catch (NumberFormatException e) {
+            if (value.length() > 2 && !value.contains(".")) {
+                return value.substring(0, value.length() - 2) + "." + value.substring(value.length() - 2);
+            }
+            return value;
+        }
     }
 
     public static JSONArray filterPrintableOrders(JSONArray dataArray, Set<String> printedOrders) throws JSONException {

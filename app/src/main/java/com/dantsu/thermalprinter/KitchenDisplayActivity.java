@@ -56,6 +56,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements ShopCat
     private ImageButton buttonCloseKitchen;
     private TextView textOrderCount;
     private NetworkHelperViewModel networkHelperViewModel;
+    private NetworkHelper paginationHelper;
     private BroadcastReceiver orderHookReceiver;
     private boolean orderHookReceiverRegistered;
     
@@ -184,6 +185,8 @@ public class KitchenDisplayActivity extends AppCompatActivity implements ShopCat
         
         // Initialize ViewModel
         networkHelperViewModel = new ViewModelProvider(this).get(NetworkHelperViewModel.class);
+        // Separate helper so page loads never cancel the shared catalog fetch.
+        paginationHelper = new NetworkHelper(this);
         
         // Initialize printing components
         docketStringModeler = new DocketStringModeler();
@@ -202,27 +205,23 @@ public class KitchenDisplayActivity extends AppCompatActivity implements ShopCat
     private void loadShopConfiguration() {
         SharedPreferences sharedPreferences = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
         domain_shop = sharedPreferences.getString("domain_shop", "");
-        location_id = sharedPreferences.getInt("location_id", 1);
-        
+
         if (domain_shop.isEmpty()) {
             Toast.makeText(this, R.string.no_shop_configuration, Toast.LENGTH_LONG).show();
             finish();
             return;
         }
-        
+
+        ShopConfigUtils.applyShopPreferences(this, domain_shop);
+        location_id = ShopConfigUtils.resolveLocationId(this, domain_shop);
+
         // Set API endpoints
-        tiOrdersEndpointURL = domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
-        tiMenusEndpointURL = domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
-        tiCategoriesEndpointURL = domain_shop + "/api/categories?location=" + location_id;
-        
-        // Get shop name
-        List<ShopConfigUtils.Shop> shops = ShopConfigUtils.getShops(this);
-        for (ShopConfigUtils.Shop shop : shops) {
-            if (shop.domain_shop.equals(domain_shop)) {
-                shop_name = shop.shop_name;
-                break;
-            }
-        }
+        String[] catalogUrls = ShopCatalogRepository.catalogUrls(domain_shop, location_id);
+        tiOrdersEndpointURL = catalogUrls[0];
+        tiMenusEndpointURL = catalogUrls[1];
+        tiCategoriesEndpointURL = catalogUrls[2];
+
+        shop_name = ShopConfigUtils.resolveShopName(this, domain_shop);
     }
     
     private void loadPrinterConfiguration() {
@@ -372,13 +371,19 @@ public class KitchenDisplayActivity extends AppCompatActivity implements ShopCat
     }
 
     private void refreshOrders(boolean force) {
-        if (isRefreshing) return;
-        
+        // Non-force refreshes skip while busy; pull-to-refresh (force) must always run
+        // so a stuck isRefreshing / cancelled catalog latch cannot block the UI forever.
+        if (isRefreshing && !force) {
+            return;
+        }
+
         isRefreshing = true;
         currentPage = 1;
         hasMoreData = true;
-        progressBar.setVisibility(View.VISIBLE);
-        
+        if (progressBar != null) {
+            progressBar.setVisibility(View.VISIBLE);
+        }
+
         ShopCatalogRepository.fetch(
                 networkHelperViewModel.getNetworkHelper(),
                 domain_shop,
@@ -503,7 +508,7 @@ public class KitchenDisplayActivity extends AppCompatActivity implements ShopCat
             }
         };
         
-        networkHelperViewModel.getNetworkHelper().fetchData(urls, domain_shop, paginationCallback);
+        paginationHelper.fetchData(urls, domain_shop, paginationCallback);
     }
     
     private void registerOrderHookReceiver() {
@@ -685,9 +690,18 @@ public class KitchenDisplayActivity extends AppCompatActivity implements ShopCat
     @Override
     public void onError(Exception exception) {
         isRefreshing = false;
-        progressBar.setVisibility(View.GONE);
-        swipeRefreshLayout.setRefreshing(false);
-        
+        if (progressBar != null) {
+            progressBar.setVisibility(View.GONE);
+        }
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setRefreshing(false);
+        }
+
+        if (exception != null && "Request cancelled".equals(exception.getMessage())) {
+            Log.d("KitchenDisplay", "Catalog request cancelled (superseded)");
+            return;
+        }
+
         Log.e("KitchenDisplay", "Error fetching orders", exception);
         Toast.makeText(this, getString(R.string.error_message, exception.getMessage()), Toast.LENGTH_SHORT).show();
     }
@@ -697,6 +711,10 @@ public class KitchenDisplayActivity extends AppCompatActivity implements ShopCat
         super.onDestroy();
         ShopCatalogRepository.unobserve(this);
         unregisterOrderHookReceiver();
+        if (paginationHelper != null) {
+            paginationHelper.shutdown();
+            paginationHelper = null;
+        }
         
         // Release MediaPlayer when activity is destroyed
         if (mediaPlayer != null) {

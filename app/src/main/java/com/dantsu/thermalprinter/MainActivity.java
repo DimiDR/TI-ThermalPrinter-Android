@@ -8,7 +8,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.Configuration;
 import android.graphics.drawable.GradientDrawable;
 import android.media.MediaPlayer;
 import android.os.Build;
@@ -51,6 +50,7 @@ import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
 import com.dantsu.thermalprinter.helpClasses.PrinterSettings;
 import com.dantsu.thermalprinter.helpClasses.ShopCatalogRepository;
 import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
+import com.dantsu.thermalprinter.helpClasses.StaffProfileResolver;
 import com.dantsu.thermalprinter.helpClasses.UpdateVerifier;
 import com.dantsu.thermalprinter.helpClasses.WebViewDialogFragment;
 import com.dantsu.thermalprinter.model.NetworkHelperViewModel;
@@ -88,6 +88,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private Button button_ti_login;
     private Button button_ti_logout;
     private static TextView textview_ti_header;
+    private TextView textview_logged_in_user;
+    private TextView textview_staff_role;
     private TextView orderCountBadge;
     private int openOrdersCount = 0;
     private boolean isKitchenDisplayOpen = false;
@@ -107,8 +109,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     private Chip chipReceipt, chipKitchen;
     MediaPlayer mediaPlayer;
     String resultJson;
-    long period = 6 * 10000; // set to 60000 for 1 minute
-    long delayPeriod = 0;
     private boolean isLongerConnectionTime = false;
     DocketStringModeler docketStringModeler;
     private NetworkHelperViewModel networkHelperViewModel;
@@ -188,6 +188,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             button_ti_print.setOnClickListener(view -> tiPrintMonitoring());
         }
         textview_ti_header = this.findViewById(R.id.textview_ti_header);
+        textview_logged_in_user = this.findViewById(R.id.textview_logged_in_user);
+        textview_staff_role = this.findViewById(R.id.textview_staff_role);
         button_ti_clear_ids = this.findViewById(R.id.button_ti_clear_ids);
         if (button_ti_clear_ids != null) {
             button_ti_clear_ids.setOnClickListener(view -> tiClearIds());
@@ -203,6 +205,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 startActivity(intent);
             });
         }
+        Button buttonNativeKitchen = this.findViewById(R.id.button_ti_native_kitchen);
+        if (buttonNativeKitchen != null) {
+            buttonNativeKitchen.setOnClickListener(view -> {
+                Intent intent = new Intent(this, KitchenDisplayActivity.class);
+                startActivity(intent);
+            });
+        }
         button_ti_testprint = this.findViewById(R.id.button_ti_testprint);
         if (button_ti_testprint != null) {
             button_ti_testprint.setOnClickListener(view -> TITestPrinter(true));
@@ -215,6 +224,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         button_ti_logout = this.findViewById(R.id.button_ti_logout);
         if (button_ti_logout != null) {
             button_ti_logout.setOnClickListener(view -> LogoutUser());
+        }
+        Button buttonReprint = this.findViewById(R.id.button_reprint);
+        if (buttonReprint != null) {
+            buttonReprint.setOnClickListener(view -> handleReprintOrders());
         }
         bindOrderHookCard();
         orderCountBadge = this.findViewById(R.id.order_count_badge);
@@ -322,16 +335,12 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 runOnUiThread(() -> {
                     // Configure from stored domain and location
                     domain_shop = savedDomain;
-                    location_id = sharedPreferences.getInt("location_id", 1);
-                    
-                    // Try to get shop name from configuration
-                    String configShopName = getShopNameFromConfiguration(MainActivity.this, savedDomain);
-                    if (configShopName != null && !configShopName.isEmpty()) {
-                        shop_name = configShopName;
-                    } else {
-                        shop_name = savedDomain; // fallback to domain
-                    }
+                    ShopConfigUtils.applyShopPreferences(MainActivity.this, savedDomain);
+                    location_id = ShopConfigUtils.resolveLocationId(MainActivity.this, savedDomain);
+                    shop_name = ShopConfigUtils.resolveShopName(MainActivity.this, savedDomain);
                     if (textview_ti_header != null) textview_ti_header.setText(shop_name);
+                    showCachedStaffProfile(sharedPreferences);
+                    refreshStaffProfile(savedDomain, sharedPreferences.getString("username", ""));
                     String[] urls = ShopCatalogRepository.catalogUrls(domain_shop, location_id);
                     tiOrdersEndpointURL = urls[0];
                     tiMenusEndpointURL = urls[1];
@@ -376,22 +385,13 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 textview_ti_header.setText(shop.shop_name);
                 
                 // Set API endpoints
-                tiOrdersEndpointURL = shop.domain_shop + "/api/orders?sort=order_id desc&pageLimit=50&location=" + location_id;
-                tiMenusEndpointURL = shop.domain_shop + "/api/menus?include=categories&pageLimit=5000&location=" + location_id;
-                tiCategoriesEndpointURL = shop.domain_shop + "/api/categories?location=" + location_id;
+                String[] catalogUrls = ShopCatalogRepository.catalogUrls(shop.domain_shop, location_id);
+                tiOrdersEndpointURL = catalogUrls[0];
+                tiMenusEndpointURL = catalogUrls[1];
+                tiCategoriesEndpointURL = catalogUrls[2];
                 break;
             }
         }
-    }
-    
-    private static String getShopNameFromConfiguration(Context context, String domain) {
-        List<ShopConfigUtils.Shop> shops = ShopConfigUtils.getShops(context);
-        for (ShopConfigUtils.Shop shop : shops) {
-            if (shop.domain_shop.equals(domain)) {
-                return shop.shop_name;
-            }
-        }
-        return null;
     }
 
     private void bindOrderHookCard() {
@@ -450,6 +450,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (button_ti_clear_ids != null) button_ti_clear_ids.setEnabled(true);
         updateTestPrintButtonState();
         if (button_dashboard != null) button_dashboard.setEnabled(true);
+        Button buttonReprint = findViewById(R.id.button_reprint);
+        if (buttonReprint != null) buttonReprint.setEnabled(true);
+        Button buttonNativeKitchen = findViewById(R.id.button_ti_native_kitchen);
+        if (buttonNativeKitchen != null) buttonNativeKitchen.setEnabled(true);
         
         // Show logout button and hide login button
         if (button_ti_login != null) button_ti_login.setVisibility(View.GONE);
@@ -578,13 +582,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         selectedDevice = device;
         isPrinterSelected = selected;
         updateTestPrintButtonState();
-    }
-
-    @Override
-    public void onConfigurationChanged(@NonNull Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-        // changing orientation overwrites the UI settings to initial values
-        updateUIBasedOnServiceStatus(); //TODO check if needed
     }
 
     @Override
@@ -770,10 +767,11 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 Log.d("ReprintOrders", "Cached orders for reprint: " + cachedOrdersList.size());
 
                 // Show popup automatically if requested (e.g., from DashboardActivity)
-                if (shouldShowReprintPopup && !ordersList.isEmpty()) {
+                if (shouldShowReprintPopup) {
                     shouldShowReprintPopup = false;
-                    // Only show popup if Activity is still valid
-                    if (!isFinishing() && !isDestroyed() && getWindow() != null && 
+                    if (ordersList.isEmpty()) {
+                        Toast.makeText(this, R.string.no_reprintable_orders, Toast.LENGTH_SHORT).show();
+                    } else if (!isFinishing() && !isDestroyed() && getWindow() != null &&
                         getWindow().getDecorView() != null && getWindow().getDecorView().getWindowToken() != null) {
                         showOrdersPopup(ordersList, jsonObjectMenus, jsonObjectCategories);
                     } else {
@@ -793,6 +791,10 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
 
     @Override
     public void onError(Exception exception) {
+        if (exception != null && "Request cancelled".equals(exception.getMessage())) {
+            Log.d("MainActivity", "Catalog request cancelled (superseded)");
+            return;
+        }
         if (exception != null) {
             if (exception instanceof SSLException) {
                 showError("SSL Error: " + exception.getMessage());
@@ -852,7 +854,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         if (networkHelperViewModel.getNetworkHelper().isNetworkTaskRunning()) {
             networkHelperViewModel.getNetworkHelper().cancelNetworkTask();
         }
-        networkHelperViewModel.cancelTimer();
         int buttonColor = ContextCompat.getColor(this, R.color.colorAccent);
         if (button_ti_print != null) {
             setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
@@ -1068,6 +1069,7 @@ private void restartWebservice(int buttonColor){
         
         // Reset UI
         if (textview_ti_header != null) textview_ti_header.setText(R.string.login_text);
+        clearStaffProfileUi();
         if (button_ti_login != null) button_ti_login.setVisibility(View.VISIBLE);
         if (button_ti_logout != null) button_ti_logout.setVisibility(View.GONE);
         
@@ -1102,23 +1104,25 @@ private void restartWebservice(int buttonColor){
         }
 
         SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putInt("shop_id", 1);
         editor.putString("domain_shop", domain);
         editor.putString("username", username);
         editor.remove("password");
         editor.remove("token");
-        if (!sharedPreferences.contains("location_id")) {
-            editor.putInt("location_id", 1);
-        }
+        editor.remove("staff_display_name");
+        editor.remove("staff_role");
         editor.apply();
 
+        ShopConfigUtils.applyShopPreferences(this, domain);
+
         domain_shop = domain;
-        location_id = sharedPreferences.getInt("location_id", 1);
-        String configShopName = getShopNameFromConfiguration(this, domain);
-        shop_name = (configShopName != null && !configShopName.isEmpty()) ? configShopName : domain;
+        MainActivity.username = username;
+        location_id = ShopConfigUtils.resolveLocationId(this, domain);
+        shop_name = ShopConfigUtils.resolveShopName(this, domain);
         if (textview_ti_header != null) {
             textview_ti_header.setText(shop_name);
         }
+        updateStaffProfileUi(username, "");
+        refreshStaffProfile(domain, username);
         String[] urls = ShopCatalogRepository.catalogUrls(domain_shop, location_id);
         tiOrdersEndpointURL = urls[0];
         tiMenusEndpointURL = urls[1];
@@ -1179,5 +1183,110 @@ private void restartWebservice(int buttonColor){
             }
         });
         return true;
+    }
+
+    private void refreshStaffProfile(String domain, String loginIdentifier) {
+        if (domain == null || domain.isEmpty()) {
+            return;
+        }
+        String login = loginIdentifier != null ? loginIdentifier : "";
+        NetworkHelper networkHelper = new NetworkHelper(this);
+        networkHelper.fetchStaffProfileAsync(domain, login, new NetworkHelper.StaffProfileCallback() {
+            @Override
+            public void onStaffProfileLoaded(StaffProfileResolver.StaffProfile profile) {
+                if (isFinishing()) {
+                    // Still persist so Settings shows correct data next open
+                    SharedPreferences.Editor editor = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE).edit();
+                    editor.putString("staff_display_name", profile.primaryIdentity());
+                    editor.putString("staff_role", profile.roleLabel());
+                    if (profile.username != null && !profile.username.isEmpty()) {
+                        editor.putString("staff_username", profile.username);
+                    }
+                    if (profile.email != null && !profile.email.isEmpty()) {
+                        editor.putString("staff_email", profile.email);
+                    }
+                    editor.apply();
+                    return;
+                }
+                SharedPreferences.Editor editor = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE).edit();
+                editor.putString("staff_display_name", profile.primaryIdentity());
+                editor.putString("staff_role", profile.roleLabel());
+                if (profile.username != null && !profile.username.isEmpty()) {
+                    editor.putString("staff_username", profile.username);
+                }
+                if (profile.email != null && !profile.email.isEmpty()) {
+                    editor.putString("staff_email", profile.email);
+                }
+                editor.apply();
+
+                String identity = profile.primaryIdentity();
+                if (!profile.email.isEmpty() && !identity.equalsIgnoreCase(profile.email)) {
+                    identity = identity + " (" + profile.email + ")";
+                } else if (!profile.username.isEmpty() && !identity.equalsIgnoreCase(profile.username)
+                        && !identity.equalsIgnoreCase(login)) {
+                    identity = identity + " (" + profile.username + ")";
+                }
+                updateStaffProfileUi(identity, profile.roleLabel());
+            }
+
+            @Override
+            public void onStaffProfileError(Exception exception) {
+                Log.w("MainActivity", "Could not load staff role", exception);
+                if (isFinishing()) {
+                    return;
+                }
+                SharedPreferences prefs = getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
+                String fallbackUser = prefs.getString("staff_display_name", login);
+                if (fallbackUser == null || fallbackUser.isEmpty()) {
+                    fallbackUser = login;
+                }
+                updateStaffProfileUi(fallbackUser, prefs.getString("staff_role", ""));
+            }
+        });
+    }
+
+    private void showCachedStaffProfile(SharedPreferences prefs) {
+        String displayName = prefs.getString("staff_display_name", "");
+        String login = prefs.getString("username", "");
+        String role = prefs.getString("staff_role", "");
+        String identity = !displayName.isEmpty() ? displayName : login;
+        String email = prefs.getString("staff_email", "");
+        if (!email.isEmpty() && !identity.equalsIgnoreCase(email)) {
+            identity = identity + " (" + email + ")";
+        }
+        updateStaffProfileUi(identity, role);
+    }
+
+    private void updateStaffProfileUi(String identity, String role) {
+        if (textview_logged_in_user != null) {
+            if (identity != null && !identity.isEmpty()) {
+                textview_logged_in_user.setText(getString(R.string.logged_in_as, identity));
+                textview_logged_in_user.setVisibility(View.VISIBLE);
+            } else {
+                textview_logged_in_user.setVisibility(View.GONE);
+            }
+        }
+        if (textview_staff_role != null) {
+            if (role != null && !role.isEmpty()) {
+                textview_staff_role.setText(getString(R.string.staff_role, role));
+            } else if (identity != null && !identity.isEmpty()) {
+                textview_staff_role.setText(R.string.staff_role_unknown);
+            } else {
+                textview_staff_role.setVisibility(View.GONE);
+                return;
+            }
+            textview_staff_role.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void clearStaffProfileUi() {
+        if (textview_logged_in_user != null) {
+            textview_logged_in_user.setText("");
+            textview_logged_in_user.setVisibility(View.GONE);
+        }
+        if (textview_staff_role != null) {
+            textview_staff_role.setText("");
+            textview_staff_role.setVisibility(View.GONE);
+        }
     }
 }

@@ -79,6 +79,30 @@ public class LoginUserDialogFragment extends DialogFragment {
 
         Dialog dialog = builder.setView(view).create();
         dialog.setOnDismissListener(this::onLoginDismissed);
+        dialog.setOnShowListener(d -> {
+            android.view.Window window = dialog.getWindow();
+            if (window == null) {
+                return;
+            }
+            android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+            requireActivity().getWindowManager().getDefaultDisplay().getMetrics(metrics);
+            int maxHeight = (int) (metrics.heightPixels * 0.85f);
+            android.view.View scroll = view.findViewById(R.id.login_scroll);
+            if (scroll != null) {
+                scroll.post(() -> {
+                    int buttonsHeight = view.findViewById(R.id.button_ok).getHeight()
+                            + view.findViewById(R.id.popup_header).getHeight()
+                            + view.findViewById(R.id.popup_description).getHeight()
+                            + (int) (80 * metrics.density);
+                    int scrollMax = Math.max((int) (200 * metrics.density), maxHeight - buttonsHeight);
+                    android.view.ViewGroup.LayoutParams lp = scroll.getLayoutParams();
+                    if (scroll.getHeight() > scrollMax) {
+                        lp.height = scrollMax;
+                        scroll.setLayoutParams(lp);
+                    }
+                });
+            }
+        });
         return dialog;
     }
 
@@ -135,6 +159,7 @@ public class LoginUserDialogFragment extends DialogFragment {
 
             @Override
             public void onTokenError(Exception exception) {
+                Log.e("LoginUserDialogFragment", "Login failed", exception);
                 requireActivity().runOnUiThread(() -> {
                     String errorMsg = exception.getMessage();
                     if (errorMsg != null && (errorMsg.contains("No internet connection")
@@ -161,9 +186,18 @@ public class LoginUserDialogFragment extends DialogFragment {
     }
 
     private void showError(String message) {
+        Log.e("LoginUserDialogFragment", "UI error: " + message);
         etError.setVisibility(View.VISIBLE);
-        etError.setText(message);
+        String shortMessage = message == null ? getString(R.string.unknown_error) : message.trim();
+        if (shortMessage.length() > 180) {
+            shortMessage = shortMessage.substring(0, 177) + "…";
+        }
+        etError.setText(shortMessage);
         okButton.setEnabled(true);
         okButton.setText(getString(R.string.login_button));
+        View scroll = getDialog() != null ? getDialog().findViewById(R.id.login_scroll) : null;
+        if (scroll instanceof android.widget.ScrollView) {
+            scroll.post(() -> ((android.widget.ScrollView) scroll).fullScroll(View.FOCUS_DOWN));
+        }
     }
 }

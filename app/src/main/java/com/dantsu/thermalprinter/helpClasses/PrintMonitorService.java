@@ -47,7 +47,7 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
     private NetworkHelper networkHelper;
     private NtfySubscriber ntfySubscriber;
     private LocalHookServer localHookServer;
-    private final AtomicBoolean pollInFlight = new AtomicBoolean(false);
+    private final AtomicBoolean fetchInFlight = new AtomicBoolean(false);
     private final AtomicBoolean hookWhileBusy = new AtomicBoolean(false);
     private volatile boolean printerError;
     private DocketStringModeler docketStringModeler;
@@ -135,7 +135,7 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
         }
         Constants.isServiceActive = isEnabled(this);
         startHookListeners();
-        if (initialLoad && pollInFlight.compareAndSet(false, true)) {
+        if (initialLoad && fetchInFlight.compareAndSet(false, true)) {
             fetchOrders();
         }
         return START_STICKY;
@@ -176,7 +176,7 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
 
     private void onHook() {
         Log.d(TAG, "Order hook received");
-        if (!pollInFlight.compareAndSet(false, true)) {
+        if (!fetchInFlight.compareAndSet(false, true)) {
             hookWhileBusy.set(true);
             return;
         }
@@ -186,17 +186,17 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
     private void fetchOrders() {
         SharedPreferences loginPrefs = getSharedPreferences("loginPrefs", MODE_PRIVATE);
         String domain = loginPrefs.getString("domain_shop", "");
-        int locationId = loginPrefs.getInt("location_id", 1);
         if (domain.isEmpty() || !new AuthStore(this).hasToken()) {
             Log.w(TAG, "Skipping fetch: missing shop domain or token");
             finishFetch();
             return;
         }
+        int locationId = ShopConfigUtils.resolveLocationId(this, domain);
         ShopCatalogRepository.fetchAsCallback(networkHelper, domain, locationId, true, this);
     }
 
     private void finishFetch() {
-        pollInFlight.set(false);
+        fetchInFlight.set(false);
         sendOrdersChanged();
         if (hookWhileBusy.compareAndSet(true, false)) {
             onHook();
@@ -308,8 +308,8 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
     private String resolveShopName() {
         SharedPreferences loginPrefs = getSharedPreferences("loginPrefs", MODE_PRIVATE);
         String domain = loginPrefs.getString("domain_shop", "");
-        ShopConfigUtils.Shop shop = ShopConfigUtils.getShopByDomain(this, domain);
-        return shop != null ? shop.shop_name : domain;
+        ShopConfigUtils.applyShopPreferences(this, domain);
+        return ShopConfigUtils.resolveShopName(this, domain);
     }
 
     private void playNewOrderSound() {
@@ -347,10 +347,29 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
                 .setSilent(true)
                 .build();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE);
+            // connectedDevice requires a granted runtime BT/USB permission; fall back to dataSync
+            // (webhook / order fetch) when those are missing — e.g. emulator without Bluetooth.
+            int type = hasConnectedDevicePermission()
+                    ? ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                    : ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
+            try {
+                startForeground(NOTIFICATION_ID, notification, type);
+            } catch (SecurityException e) {
+                Log.w(TAG, "FGS type " + type + " rejected, falling back to dataSync", e);
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            }
         } else {
             startForeground(NOTIFICATION_ID, notification);
         }
+    }
+
+    private boolean hasConnectedDevicePermission() {
+        return ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_SCAN)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED;
     }
 
     private void createChannel() {

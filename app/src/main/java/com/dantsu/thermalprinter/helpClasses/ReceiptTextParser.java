@@ -84,171 +84,235 @@ public class ReceiptTextParser {
     }
     
     // Main method to build receipt data from JSON
-    public static ReceiptData buildReceiptData(JSONObject order, JSONObject menusData, 
+    public static ReceiptData buildReceiptData(JSONObject order, JSONObject menusData,
                                              JSONObject categoriesData, String shopName) {
         ReceiptData receiptData = new ReceiptData();
-        
+
+        // Build each section independently so one bad field does not wipe the whole receipt
         try {
-            // Build header
             buildReceiptHeader(receiptData, order, shopName);
-            
-            // Build order items
-            buildOrderItems(receiptData, order, menusData, categoriesData);
-            
-            // Build order totals
-            buildOrderTotals(receiptData, order);
-            
-            // Build customer info
-            buildCustomerInfo(receiptData, order);
-            
         } catch (JSONException e) {
-            Log.e("ReceiptTextParser", "Error building receipt data", e);
+            Log.e("ReceiptTextParser", "Error building receipt header", e);
         }
-        
+
+        try {
+            buildOrderItems(receiptData, order, menusData, categoriesData);
+        } catch (JSONException e) {
+            Log.e("ReceiptTextParser", "Error building order items", e);
+        }
+
+        try {
+            buildOrderTotals(receiptData, order);
+        } catch (JSONException e) {
+            Log.e("ReceiptTextParser", "Error building order totals", e);
+        }
+
+        try {
+            buildCustomerInfo(receiptData, order);
+        } catch (JSONException e) {
+            Log.e("ReceiptTextParser", "Error building customer info", e);
+        }
+
         return receiptData;
     }
-    
+
+    private static JSONObject getOrderAttributes(JSONObject order) {
+        JSONObject attributes = order.optJSONObject("attributes");
+        return attributes != null ? attributes : order;
+    }
+
+    private static String resolveOrderId(JSONObject order, JSONObject orderAttributes) {
+        String id = order.optString("id", "");
+        if (!id.isEmpty() && !"null".equals(id)) {
+            return id;
+        }
+        if (orderAttributes.has("order_id") && !orderAttributes.isNull("order_id")) {
+            return String.valueOf(orderAttributes.opt("order_id"));
+        }
+        return "";
+    }
+
+    private static String resolveCustomerName(JSONObject orderAttributes) {
+        String customerName = normalizeNullable(orderAttributes.optString("customer_name", ""));
+        if (!customerName.isEmpty()) {
+            return customerName;
+        }
+        String firstName = normalizeNullable(orderAttributes.optString("first_name", ""));
+        String lastName = normalizeNullable(orderAttributes.optString("last_name", ""));
+        return (firstName + " " + lastName).trim();
+    }
+
+    private static String resolveQuantity(JSONObject orderMenuObject) {
+        if (orderMenuObject.has("qty") && !orderMenuObject.isNull("qty")) {
+            return String.valueOf(orderMenuObject.opt("qty"));
+        }
+        String quantity = normalizeNullable(orderMenuObject.optString("quantity", ""));
+        return quantity.isEmpty() ? "1" : quantity;
+    }
+
+    private static String normalizeNullable(String value) {
+        if (value == null || value.isEmpty() || "null".equals(value)) {
+            return "";
+        }
+        return value;
+    }
+
+    private static String translatePayment(String payment) {
+        if ("cod".equals(payment)) {
+            return "Barzahlung";
+        } else if ("stripe".equals(payment)) {
+            return "Bezahlt mit Kreditkarte";
+        } else if ("paypalexpress".equals(payment)) {
+            return "Bezahlt mit PayPal";
+        }
+        return payment;
+    }
+
     private static void buildReceiptHeader(ReceiptData receiptData, JSONObject order, String shopName) throws JSONException {
         ReceiptHeader header = receiptData.header;
         header.shopName = shopName;
-        
-        JSONObject orderAttributes = order.getJSONObject("attributes");
-        String orderId = String.valueOf(orderAttributes.getInt("order_id"));
-        header.orderNumber = "Bestellung Nr." + orderId;
-        
-        // Payment translation
-        String payment = orderAttributes.getString("payment");
-        if (payment.equals("cod")) {
-            header.payment = "Barzahlung";
-        } else if (payment.equals("stripe")) {
-            header.payment = "Bezahlt mit Kreditkarte";
-        } else if (payment.equals("paypalexpress")) {
-            header.payment = "Bezahlt mit PayPal";
-        } else {
-            header.payment = payment;
-        }
-        
-        // Order type translation
-        String orderType = orderAttributes.getString("order_type");
-        if (orderType.equals("delivery")) {
+
+        JSONObject orderAttributes = getOrderAttributes(order);
+        header.orderNumber = "Bestellung Nr." + resolveOrderId(order, orderAttributes);
+
+        header.payment = translatePayment(orderAttributes.optString("payment", ""));
+
+        String orderType = orderAttributes.optString("order_type", "collection");
+        if ("delivery".equals(orderType)) {
             header.orderType = "Lieferung";
         } else {
             header.orderType = "Abholung";
         }
-        
-        // Order total
-        header.orderTotal = String.valueOf(orderAttributes.getDouble("order_total"));
-        
-        // Order time
-        String orderTimeIsASAP = orderAttributes.getString("order_time_is_asap");
-        String orderDateTime = formatDate(orderAttributes.getString("order_date_time"));
-        header.isASAP = orderTimeIsASAP.equals("true");
-        
+
+        header.orderTotal = String.format(Locale.US, "%.2f", orderAttributes.optDouble("order_total", 0.0));
+
+        String orderTimeIsASAP = orderAttributes.optString("order_time_is_asap", "false");
+        String orderDateTime = formatDate(orderAttributes.optString("order_date_time", ""));
+        header.isASAP = "true".equals(orderTimeIsASAP);
+
         if (header.isASAP) {
             header.orderTime = "Sofort: am " + orderDateTime;
         } else {
             header.orderTime = "Gewünschte Zeit: am " + orderDateTime;
         }
     }
-    
-    private static void buildOrderItems(ReceiptData receiptData, JSONObject order, 
+
+    private static void buildOrderItems(ReceiptData receiptData, JSONObject order,
                                       JSONObject menusData, JSONObject categoriesData) throws JSONException {
-        JSONObject orderAttributes = order.getJSONObject("attributes");
-        JSONArray orderMenusArray = orderAttributes.getJSONArray("order_menus");
-        JSONArray menusArray = menusData.getJSONArray("data");
-        JSONArray categoriesArray = categoriesData.getJSONArray("data");
-        
-        // Add category information to order items
-        for (int i = 0; i < orderMenusArray.length(); i++) {
-            JSONObject orderMenuObject = orderMenusArray.getJSONObject(i);
-            String menuId = orderMenuObject.getString("menu_id");
-            JSONObject menu = filterById(menusArray, menuId);
-            
-            if (menu != null) {
-                String categoryId = menu.getJSONObject("relationships")
-                        .getJSONObject("categories")
-                        .getJSONArray("data")
-                        .getJSONObject(0)
-                        .getString("id");
-                JSONObject category = filterById(categoriesArray, categoryId);
-                
-                if (category != null) {
-                    String categoryName = category.getJSONObject("attributes").getString("name");
-                    orderMenuObject.put("category_id", categoryId);
-                    orderMenuObject.put("category_name", categoryName);
+        JSONObject orderAttributes = getOrderAttributes(order);
+        JSONArray orderMenusArray = orderAttributes.optJSONArray("order_menus");
+        if (orderMenusArray == null) {
+            return;
+        }
+
+        JSONArray menusArray = menusData != null ? menusData.optJSONArray("data") : null;
+        JSONArray categoriesArray = categoriesData != null ? categoriesData.optJSONArray("data") : null;
+
+        // Add category information to order items when catalog data is available
+        if (menusArray != null && categoriesArray != null) {
+            for (int i = 0; i < orderMenusArray.length(); i++) {
+                JSONObject orderMenuObject = orderMenusArray.getJSONObject(i);
+                String menuId = orderMenuObject.optString("menu_id", "");
+                JSONObject menu = filterById(menusArray, menuId);
+
+                if (menu != null) {
+                    try {
+                        String categoryId = menu.getJSONObject("relationships")
+                                .getJSONObject("categories")
+                                .getJSONArray("data")
+                                .getJSONObject(0)
+                                .getString("id");
+                        JSONObject category = filterById(categoriesArray, categoryId);
+
+                        if (category != null) {
+                            String categoryName = category.getJSONObject("attributes").getString("name");
+                            orderMenuObject.put("category_id", categoryId);
+                            orderMenuObject.put("category_name", categoryName);
+                        }
+                    } catch (JSONException e) {
+                        Log.w("ReceiptTextParser", "Could not resolve category for menu " + menuId);
+                    }
                 }
             }
         }
-        
-        // Sort by category
+
         JSONArray sortedOrderMenus = sortJSONArray(orderMenusArray);
-        
-        // Build order items
+
         for (int i = 0; i < sortedOrderMenus.length(); i++) {
             JSONObject orderMenuObject = sortedOrderMenus.getJSONObject(i);
-            
+
             OrderItem item = new OrderItem();
-            item.name = orderMenuObject.getString("name");
-            item.quantity = orderMenuObject.getString("quantity");
-            item.subtotal = formatStringValue(orderMenuObject.getString("subtotal"));
-            item.comment = orderMenuObject.getString("comment");
-            item.categoryId = orderMenuObject.getString("category_id");
-            item.categoryName = orderMenuObject.getString("category_name");
-            
-            // Add menu options
-            JSONArray menuOptionsArray = orderMenuObject.getJSONArray("menu_options");
-            for (int j = 0; j < menuOptionsArray.length(); j++) {
-                JSONObject menuOptionObject = menuOptionsArray.getJSONObject(j);
-                OrderOption option = new OrderOption();
-                option.name = menuOptionObject.getString("order_option_name");
-                option.price = formatStringValue(menuOptionObject.getString("order_option_price"));
-                item.options.add(option);
+            item.name = orderMenuObject.optString("name", "");
+            item.quantity = resolveQuantity(orderMenuObject);
+            item.subtotal = formatMoneyValue(orderMenuObject.opt("subtotal"));
+            item.comment = normalizeNullable(orderMenuObject.optString("comment", ""));
+            item.categoryId = orderMenuObject.optString("category_id", "");
+            item.categoryName = orderMenuObject.optString("category_name", "");
+
+            JSONArray menuOptionsArray = orderMenuObject.optJSONArray("menu_options");
+            if (menuOptionsArray != null) {
+                for (int j = 0; j < menuOptionsArray.length(); j++) {
+                    JSONObject menuOptionObject = menuOptionsArray.getJSONObject(j);
+                    OrderOption option = new OrderOption();
+                    option.name = menuOptionObject.optString("order_option_name",
+                            menuOptionObject.optString("name", ""));
+                    option.price = formatMoneyValue(menuOptionObject.opt("order_option_price"));
+                    item.options.add(option);
+                }
             }
-            
+
             receiptData.items.add(item);
         }
     }
-    
+
     private static void buildOrderTotals(ReceiptData receiptData, JSONObject order) throws JSONException {
-        JSONObject orderAttributes = order.getJSONObject("attributes");
-        JSONArray orderTotalsArray = orderAttributes.getJSONArray("order_totals");
-        
+        JSONObject orderAttributes = getOrderAttributes(order);
+        JSONArray orderTotalsArray = orderAttributes.optJSONArray("order_totals");
+        if (orderTotalsArray == null) {
+            return;
+        }
+
         for (int i = 0; i < orderTotalsArray.length(); i++) {
             JSONObject orderTotalObject = orderTotalsArray.getJSONObject(i);
             OrderTotal total = new OrderTotal();
-            total.title = orderTotalObject.getString("title");
-            total.value = formatStringValue(orderTotalObject.getString("value"));
+            total.title = orderTotalObject.optString("title", "");
+            total.value = formatMoneyValue(orderTotalObject.opt("value"));
             receiptData.totals.add(total);
         }
     }
-    
+
     private static void buildCustomerInfo(ReceiptData receiptData, JSONObject order) throws JSONException {
         CustomerInfo customerInfo = receiptData.customerInfo;
-        JSONObject orderAttributes = order.getJSONObject("attributes");
-        
-        customerInfo.name = orderAttributes.getString("customer_name");
-        customerInfo.telephone = orderAttributes.getString("telephone");
-        customerInfo.comment = orderAttributes.getString("comment");
-        
-        String formattedAddress = orderAttributes.getString("formatted_address")
+        JSONObject orderAttributes = getOrderAttributes(order);
+
+        customerInfo.name = resolveCustomerName(orderAttributes);
+        if (customerInfo.name.isEmpty()) {
+            customerInfo.name = "nicht angegeben";
+        }
+
+        customerInfo.telephone = normalizeNullable(orderAttributes.optString("telephone", ""));
+        customerInfo.comment = normalizeNullable(orderAttributes.optString("comment", ""));
+
+        String formattedAddress = normalizeNullable(orderAttributes.optString("formatted_address", ""))
                 .replaceAll("\\s+", " ")
                 .replaceAll(",\\s*,", ",");
-        
-        if ("null".equals(formattedAddress) || formattedAddress.isEmpty()) {
+
+        String orderType = orderAttributes.optString("order_type", "collection");
+        if (!"delivery".equals(orderType) || formattedAddress.isEmpty()) {
             customerInfo.address = "nicht angegeben";
             customerInfo.hasGoogleMaps = false;
         } else {
             customerInfo.address = formattedAddress;
             customerInfo.googleMapsUrl = "https://www.google.com/maps?q=" +
-                    orderAttributes.getString("formatted_address").replaceAll("[,\\s]+", "+");
+                    formattedAddress.replaceAll("[,\\s]+", "+");
             customerInfo.hasGoogleMaps = true;
         }
-        
-        if ("null".equals(customerInfo.telephone) || customerInfo.telephone.isEmpty()) {
+
+        if (customerInfo.telephone.isEmpty()) {
             customerInfo.telephone = "nicht angegeben";
         }
-        
-        if ("null".equals(customerInfo.comment) || customerInfo.comment.isEmpty()) {
+
+        if (customerInfo.comment.isEmpty()) {
             customerInfo.comment = "nicht angegeben";
         }
     }
@@ -283,10 +347,10 @@ public class ReceiptTextParser {
             @Override
             public int compare(JSONObject jsonObjectA, JSONObject jsonObjectB) {
                 try {
-                    String valA = jsonObjectA.getString("category_id");
-                    String valB = jsonObjectB.getString("category_id");
+                    String valA = jsonObjectA.optString("category_id", "");
+                    String valB = jsonObjectB.optString("category_id", "");
                     return valA.compareTo(valB);
-                } catch (JSONException e) {
+                } catch (Exception e) {
                     return 0;
                 }
             }
@@ -295,14 +359,34 @@ public class ReceiptTextParser {
         return new JSONArray(jsonList);
     }
     
-    private static String formatStringValue(String value) {
-        if (value.length() > 2) {
-            return value.substring(0, value.length() - 2);
+    private static String formatMoneyValue(Object rawValue) {
+        if (rawValue == null || rawValue == JSONObject.NULL) {
+            return "0.00";
         }
-        return value;
+        if (rawValue instanceof Number) {
+            return String.format(Locale.US, "%.2f", ((Number) rawValue).doubleValue());
+        }
+
+        String value = String.valueOf(rawValue).trim();
+        if (value.isEmpty() || "null".equals(value)) {
+            return "0.00";
+        }
+
+        try {
+            return String.format(Locale.US, "%.2f", Double.parseDouble(value));
+        } catch (NumberFormatException e) {
+            // Legacy format: integer cents as string without decimal point
+            if (value.length() > 2 && !value.contains(".")) {
+                return value.substring(0, value.length() - 2) + "." + value.substring(value.length() - 2);
+            }
+            return value;
+        }
     }
-    
+
     private static String formatDate(String inputDateString) {
+        if (inputDateString == null || inputDateString.isEmpty() || "null".equals(inputDateString)) {
+            return "";
+        }
         try {
             SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US);
             inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));

@@ -12,7 +12,7 @@
     <string name="login_description">Enter your TastyIgniter credentials to access the restaurant management system.</string>
     <string name="authenticating">Authenticating...</string>
     <string name="select_shop">Select Shop</string>
-    <string name="username">Username</string>
+    <string name="username">Email</string>
     <string name="password">Password</string>
     <string name="cancel">Cancel</string>
     
@@ -47,6 +47,9 @@
     <!-- Settings & Configuration -->
     <string name="settings_title">Settings &amp; Configuration</string>
     <string name="shop_information">Shop Information</string>
+    <string name="logged_in_as">User: %1$s</string>
+    <string name="staff_role">Role: %1$s</string>
+    <string name="staff_role_unknown">Role: unknown</string>
     <string name="printer_configuration">Printer Configuration</string>
     <string name="select_bluetooth_printer">Select Bluetooth Printer</string>
     <string name="service_control">Service Control</string>

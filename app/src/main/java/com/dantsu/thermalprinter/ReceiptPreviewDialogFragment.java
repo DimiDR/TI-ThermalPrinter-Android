@@ -175,7 +175,12 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
         TextView textOrderDetails = view.findViewById(R.id.textOrderDetails);
         TextView textOrderTime = view.findViewById(R.id.textOrderTime);
         
-        textShopName.setText(header.shopName);
+        if (header.shopName != null && !header.shopName.isEmpty() && !"null".equals(header.shopName)) {
+            textShopName.setText(header.shopName);
+            textShopName.setVisibility(View.VISIBLE);
+        } else {
+            textShopName.setVisibility(View.GONE);
+        }
         textOrderNumber.setText(header.orderNumber);
         textOrderDetails.setText(header.orderType + " - " + header.payment + " - " + header.orderTotal + "€");
         textOrderTime.setText(header.orderTime);
@@ -188,7 +193,8 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
         
         for (ReceiptTextParser.OrderItem item : items) {
             // Add category header if category changed
-            if (!item.categoryId.equals(currentCategoryId)) {
+            String itemCategoryId = item.categoryId != null ? item.categoryId : "";
+            if (!itemCategoryId.equals(currentCategoryId)) {
                 // Add category divider
                 View divider = new View(getContext());
                 divider.setLayoutParams(new LinearLayout.LayoutParams(
@@ -197,14 +203,16 @@ public class ReceiptPreviewDialogFragment extends DialogFragment {
                 container.addView(divider);
                 
                 // Add category header
-                TextView categoryHeader = new TextView(getContext());
-                categoryHeader.setText(item.categoryName);
-                categoryHeader.setTextSize(16);
-                categoryHeader.setTypeface(null, Typeface.BOLD);
-                categoryHeader.setPadding(0, 16, 0, 8);
-                container.addView(categoryHeader);
+                if (item.categoryName != null && !item.categoryName.isEmpty()) {
+                    TextView categoryHeader = new TextView(getContext());
+                    categoryHeader.setText(item.categoryName);
+                    categoryHeader.setTextSize(16);
+                    categoryHeader.setTypeface(null, Typeface.BOLD);
+                    categoryHeader.setPadding(0, 16, 0, 8);
+                    container.addView(categoryHeader);
+                }
                 
-                currentCategoryId = item.categoryId;
+                currentCategoryId = itemCategoryId;
             }
             
             // Add item name and quantity
