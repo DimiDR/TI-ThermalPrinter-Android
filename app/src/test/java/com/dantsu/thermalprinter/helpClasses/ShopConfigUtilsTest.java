@@ -34,12 +34,12 @@ public class ShopConfigUtilsTest {
 
     @Test
     public void resolvesLocalEmulatorShopNameAndLocation() {
-        ShopConfigUtils.Shop shop = ShopConfigUtils.findShopByDomain(shops, "http://10.0.2.2:8080");
+        ShopConfigUtils.Shop shop = ShopConfigUtils.findShopByDomain(shops, "http://127.0.0.1:8080");
         assertNotNull(shop);
         assertEquals("Harbour View", shop.shop_name);
         assertEquals(Integer.valueOf(1), shop.location_id);
         assertEquals(Integer.valueOf(6), shop.shop_id);
-        assertEquals("Harbour View", ShopConfigUtils.resolveShopName(shops, "http://10.0.2.2:8080"));
+        assertEquals("Harbour View", ShopConfigUtils.resolveShopName(shops, "http://127.0.0.1:8080"));
     }
 
     @Test
@@ -65,5 +65,59 @@ public class ShopConfigUtilsTest {
                 ShopConfigUtils.resolveShopName(shops, "https://bestellen.mevlana-walsum.de"));
         assertEquals("Tandoori Love",
                 ShopConfigUtils.resolveShopName(shops, "https://bestellen.tandoori-love.de"));
+    }
+
+    @Test
+    public void parsesPlatformUrlAndDirectoryPayload() throws Exception {
+        ShopConfigUtils.ShopFile file = ShopConfigUtils.parseShopFile(
+                "{\"platform_url\":\"https://foodninja.app\",\"shops\":["
+                        + "{\"shop_id\":9,\"shop_name\":\"Pizza Roma\","
+                        + "\"domain\":\"pizza-roma.de\",\"location_id\":12}]}");
+        assertEquals("https://foodninja.app", file.platformUrl);
+        assertEquals(1, file.shops.size());
+        ShopConfigUtils.Shop shop = file.shops.get(0);
+        assertEquals("Pizza Roma", shop.shop_name);
+        assertEquals("https://pizza-roma.de", shop.domain_shop);
+        assertEquals(Integer.valueOf(12), shop.location_id);
+        assertEquals(
+                "https://pizza-roma.de/admin/thoughtco/kitchendisplay/summary/view/12",
+                shop.kitchen_view);
+    }
+
+    @Test
+    public void matchesShopsByHostIgnoringWwwAndSlash() {
+        ShopConfigUtils.Shop shop = ShopConfigUtils.findShopByDomain(
+                shops, "https://www.foodninja.app/");
+        assertNotNull(shop);
+        assertEquals("Harbour View", shop.shop_name);
+    }
+
+    @Test
+    public void mergePrefersRemoteLocationButKeepsLocalOnlyShops() {
+        List<ShopConfigUtils.Shop> remote = new java.util.ArrayList<>();
+        remote.add(new ShopConfigUtils.Shop(5, "Harbour View Live",
+                "https://foodninja.app", "https://foodninja.app",
+                "https://foodninja.app/admin/kds", 42));
+        List<ShopConfigUtils.Shop> merged = ShopConfigUtils.mergeShops(shops, remote);
+        ShopConfigUtils.Shop harbour = ShopConfigUtils.findShopByDomain(merged, "https://foodninja.app");
+        assertNotNull(harbour);
+        assertEquals(Integer.valueOf(42), harbour.location_id);
+        assertEquals("Harbour View Live", harbour.shop_name);
+        assertNotNull(ShopConfigUtils.findShopByDomain(merged, "http://127.0.0.1:8080"));
+        assertEquals(6, merged.size());
+    }
+
+    @Test
+    public void labelsDisambiguateDuplicateShopNames() {
+        assertEquals("Harbour View (foodninja.app)",
+                ShopConfigUtils.shopLabel(
+                        ShopConfigUtils.findShopByDomain(shops, "https://foodninja.app"), shops));
+        assertEquals("Harbour View (127.0.0.1)",
+                ShopConfigUtils.shopLabel(
+                        ShopConfigUtils.findShopByDomain(shops, "http://127.0.0.1:8080"), shops));
+        assertEquals("Primavera",
+                ShopConfigUtils.shopLabel(
+                        ShopConfigUtils.findShopByDomain(shops, "https://bestellen.primavera-pizza-wickede.de"),
+                        shops));
     }
 }

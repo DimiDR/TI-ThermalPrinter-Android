@@ -1,8 +1,6 @@
 package com.dantsu.thermalprinter.helpClasses;
 
 import android.content.Context;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -37,6 +35,7 @@ public class NetworkHelper {
     private Future<?> networkTask;
     private NetworkCallback activeCallback;
     private String token;
+    private String lastResolvedDomain;
 
     public interface NetworkCallback {
         void onSuccess(String[] results);
@@ -50,16 +49,7 @@ public class NetworkHelper {
     }
 
     private boolean isNetworkAvailable() {
-        try {
-            ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-            if (connectivityManager != null) {
-                NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-                return activeNetworkInfo != null && activeNetworkInfo.isConnected();
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error checking network connectivity", e);
-        }
-        return false;
+        return ConnectivityUtils.isNetworkAvailable(context);
     }
 
     private String extractHostname(String domain) {
@@ -122,7 +112,17 @@ public class NetworkHelper {
 
         if (errorMessage.contains("Network is unreachable") ||
             errorMessage.contains("No route to host")) {
+            if (ConnectivityUtils.isLocalDevHost(domain)) {
+                return context.getString(R.string.local_dev_connection_failed);
+            }
             return context.getString(R.string.network_unreachable);
+        }
+
+        if (errorMessage.contains("Failed to connect")) {
+            if (ConnectivityUtils.isLocalDevHost(domain)) {
+                return context.getString(R.string.local_dev_connection_failed);
+            }
+            return context.getString(R.string.connection_refused);
         }
 
         return errorMessage;
@@ -176,17 +176,39 @@ public class NetworkHelper {
     }
 
     private void generateToken(String username, String password, String domain_shop) throws IOException {
-        if (!isNetworkAvailable()) {
-            throw new IOException(context.getString(R.string.no_internet_error));
-        }
-
         String normalizedDomain = domain_shop.trim().replaceAll("\\s+", "");
         normalizedDomain = normalizedDomain.replaceAll("/+$", "");
+
+        if (ConnectivityUtils.requiresInternetCheck(normalizedDomain) && !isNetworkAvailable()) {
+            throw new IOException(context.getString(R.string.no_internet_error));
+        }
 
         if (normalizedDomain.isEmpty()) {
             throw new IOException(context.getString(R.string.invalid_domain_spaces));
         }
 
+        try {
+            generateTokenOnce(username, password, normalizedDomain);
+            lastResolvedDomain = normalizedDomain;
+        } catch (IOException primaryError) {
+            String alternate = ConnectivityUtils.alternateEmulatorHostUrl(normalizedDomain);
+            if (alternate == null || !ConnectivityUtils.isConnectFailure(primaryError)) {
+                throw primaryError;
+            }
+            Log.w(TAG, "Local host unreachable at " + normalizedDomain + ", retrying " + alternate);
+            try {
+                generateTokenOnce(username, password, alternate);
+                lastResolvedDomain = alternate;
+            } catch (IOException alternateError) {
+                if (ConnectivityUtils.isConnectFailure(alternateError)) {
+                    throw new IOException(context.getString(R.string.local_dev_connection_failed), alternateError);
+                }
+                throw alternateError;
+            }
+        }
+    }
+
+    private void generateTokenOnce(String username, String password, String normalizedDomain) throws IOException {
         String tokenUrl = normalizedDomain + "/api/token";
         String hostname = extractHostname(normalizedDomain);
 
@@ -320,6 +342,25 @@ public class NetworkHelper {
     }
 
     private String getWithAuth(String requestUrl, String username, String password, String domain_shop) throws IOException {
+        try {
+            return getWithAuthOnce(requestUrl, username, password, domain_shop);
+        } catch (IOException primaryError) {
+            String alternateUrl = ConnectivityUtils.alternateEmulatorHostUrl(requestUrl);
+            String alternateDomain = ConnectivityUtils.alternateEmulatorHostUrl(domain_shop);
+            if (alternateUrl == null || !ConnectivityUtils.isConnectFailure(primaryError)) {
+                throw primaryError;
+            }
+            Log.w(TAG, "Retrying request via alternate local host: " + alternateUrl);
+            String body = getWithAuthOnce(alternateUrl, username, password,
+                    alternateDomain != null ? alternateDomain : domain_shop);
+            if (alternateDomain != null) {
+                lastResolvedDomain = alternateDomain;
+            }
+            return body;
+        }
+    }
+
+    private String getWithAuthOnce(String requestUrl, String username, String password, String domain_shop) throws IOException {
         HttpURLConnection urlConnection = null;
         try {
             urlConnection = openGet(requestUrl);
@@ -438,6 +479,11 @@ public class NetworkHelper {
     public interface TokenCallback {
         void onTokenGenerated(String token);
         void onTokenError(Exception exception);
+
+        /** Optional: domain that actually worked (e.g. after 10.0.2.2 → 127.0.0.1 fallback). */
+        default void onTokenGenerated(String token, String resolvedDomain) {
+            onTokenGenerated(token);
+        }
     }
 
     public interface LocationCallback {
@@ -445,12 +491,71 @@ public class NetworkHelper {
         void onLocationError(Exception exception);
     }
 
+    public interface PublicCallback {
+        void onSuccess(String body);
+        void onError(Exception exception);
+    }
+
+    /** Unauthenticated GET. Used for the public tenant directory. */
+    public void fetchFirstPublicAsync(java.util.List<String> urls, PublicCallback callback) {
+        executor.submit(() -> {
+            Exception last = null;
+            if (urls != null) {
+                for (String requestUrl : urls) {
+                    if (requestUrl == null || requestUrl.trim().isEmpty()) {
+                        continue;
+                    }
+                    try {
+                        String body = getPublic(requestUrl);
+                        if (body != null && body.contains("\"shops\"")) {
+                            final String ok = body;
+                            mainHandler.post(() -> callback.onSuccess(ok));
+                            return;
+                        }
+                    } catch (Exception e) {
+                        last = e;
+                        Log.d(TAG, "Public fetch failed for " + requestUrl + ": " + e.getMessage());
+                    }
+                }
+            }
+            Exception fail = last != null ? last : new IOException("No shop directory");
+            mainHandler.post(() -> callback.onError(fail));
+        });
+    }
+
+    private String getPublic(String requestUrl) throws IOException {
+        HttpURLConnection urlConnection = null;
+        try {
+            URL url = new URL(requestUrl);
+            urlConnection = (HttpURLConnection) url.openConnection();
+            urlConnection.setRequestMethod("GET");
+            urlConnection.setRequestProperty("Accept", "application/json");
+            urlConnection.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            urlConnection.setReadTimeout(READ_TIMEOUT_MS);
+            int responseCode = urlConnection.getResponseCode();
+            if (responseCode >= 400) {
+                throw new IOException("HTTP " + responseCode + " for " + requestUrl);
+            }
+            String body = readStreamQuietly(urlConnection.getInputStream());
+            if (body == null) {
+                throw new IOException("Empty response for " + requestUrl);
+            }
+            return body;
+        } finally {
+            if (urlConnection != null) {
+                urlConnection.disconnect();
+            }
+        }
+    }
+
     public void generateTokenAsync(String username, String password, String domain_shop, TokenCallback callback) {
         executor.submit(() -> {
             try {
+                lastResolvedDomain = domain_shop;
                 generateToken(username, password, domain_shop);
                 final String result = token;
-                mainHandler.post(() -> callback.onTokenGenerated(result));
+                final String resolved = lastResolvedDomain != null ? lastResolvedDomain : domain_shop;
+                mainHandler.post(() -> callback.onTokenGenerated(result, resolved));
             } catch (IOException e) {
                 Log.e(TAG, "Token generation failed: " + e.getMessage(), e);
                 mainHandler.post(() -> callback.onTokenError(e));
@@ -468,19 +573,40 @@ public class NetworkHelper {
                     throw new IOException(context.getString(R.string.session_expired));
                 }
 
+                String workingDomain = domain_shop;
                 String testUrl = domain_shop + "/api/locations";
-                HttpURLConnection urlConnection = openGet(testUrl);
-                int responseCode = urlConnection.getResponseCode();
-                urlConnection.disconnect();
-                if (responseCode == 401) {
-                    authStore.clearToken();
-                    token = null;
-                    throw new IOException(context.getString(R.string.session_expired));
-                } else if (responseCode != 200) {
-                    throw new IOException("Token validation failed. Response code: " + responseCode);
+                try {
+                    HttpURLConnection urlConnection = openGet(testUrl);
+                    int responseCode = urlConnection.getResponseCode();
+                    urlConnection.disconnect();
+                    if (responseCode == 401) {
+                        authStore.clearToken();
+                        token = null;
+                        throw new IOException(context.getString(R.string.session_expired));
+                    } else if (responseCode != 200) {
+                        throw new IOException("Token validation failed. Response code: " + responseCode);
+                    }
+                } catch (IOException primaryError) {
+                    String alternateDomain = ConnectivityUtils.alternateEmulatorHostUrl(domain_shop);
+                    if (alternateDomain == null || !ConnectivityUtils.isConnectFailure(primaryError)) {
+                        throw primaryError;
+                    }
+                    workingDomain = alternateDomain;
+                    HttpURLConnection urlConnection = openGet(alternateDomain + "/api/locations");
+                    int responseCode = urlConnection.getResponseCode();
+                    urlConnection.disconnect();
+                    if (responseCode == 401) {
+                        authStore.clearToken();
+                        token = null;
+                        throw new IOException(context.getString(R.string.session_expired));
+                    } else if (responseCode != 200) {
+                        throw new IOException("Token validation failed. Response code: " + responseCode);
+                    }
+                    lastResolvedDomain = alternateDomain;
                 }
                 final String result = token;
-                mainHandler.post(() -> callback.onTokenGenerated(result));
+                final String resolved = workingDomain;
+                mainHandler.post(() -> callback.onTokenGenerated(result, resolved));
             } catch (Exception e) {
                 Exception wrapped = (e instanceof IOException) ? e : new IOException(getFriendlyErrorMessage(e, domain_shop), e);
                 mainHandler.post(() -> callback.onTokenError(wrapped));
