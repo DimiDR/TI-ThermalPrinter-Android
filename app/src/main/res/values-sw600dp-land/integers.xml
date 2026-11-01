@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Two order cards side by side on tablet landscape -->
+    <integer name="kitchen_display_span_count">2</integer>
+</resources>

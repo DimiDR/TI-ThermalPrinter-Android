@@ -5,12 +5,12 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -19,12 +19,21 @@ import androidx.annotation.NonNull;
 import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.DialogFragment;
 
+import com.dantsu.thermalprinter.helpClasses.ConnectivityUtils;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
+import com.dantsu.thermalprinter.helpClasses.ShopConfigUtils;
+import com.dantsu.thermalprinter.helpClasses.ShopDirectoryRepository;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class LoginUserDialogFragment extends DialogFragment {
     private Button okButton;
     private TextView etError;
     private EditText etDomain;
+    private AutoCompleteTextView etShop;
+    private List<ShopConfigUtils.Shop> shops = new ArrayList<>();
+    private String customShopLabel;
     private EditText etUsername;
     private EditText etPassword;
 
@@ -32,17 +41,11 @@ public class LoginUserDialogFragment extends DialogFragment {
         void onLoginSuccess(String domain, String username);
     }
 
-    private boolean isInternetAvailable() {
-        try {
-            ConnectivityManager connectivityManager = (ConnectivityManager) requireActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
-            if (connectivityManager != null) {
-                NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-                return activeNetworkInfo != null && activeNetworkInfo.isConnected();
-            }
-        } catch (Exception e) {
-            Log.e("LoginUserDialogFragment", "Error checking internet connectivity", e);
+    private boolean isInternetAvailable(String domain) {
+        if (ConnectivityUtils.isLocalDevHost(domain)) {
+            return true;
         }
-        return false;
+        return ConnectivityUtils.isNetworkAvailable(requireContext());
     }
 
     @NonNull
@@ -55,17 +58,21 @@ public class LoginUserDialogFragment extends DialogFragment {
         okButton = view.findViewById(R.id.button_ok);
         Button cancelButton = view.findViewById(R.id.button_cancel);
         etDomain = view.findViewById(R.id.etDomain);
+        etShop = view.findViewById(R.id.etShop);
         etUsername = view.findViewById(R.id.etUsername);
         etPassword = view.findViewById(R.id.etPassword);
         etError = view.findViewById(R.id.popup_error);
+        customShopLabel = getString(R.string.custom_shop_url);
 
         SharedPreferences sharedPreferences = requireActivity().getSharedPreferences("loginPrefs", Context.MODE_PRIVATE);
         String lastDomain = sharedPreferences.getString("domain_shop", "");
         if (!lastDomain.isEmpty()) {
             etDomain.setText(lastDomain);
         }
+        bindShopPicker(lastDomain);
+        refreshShopDirectory(lastDomain);
 
-        if (!isInternetAvailable()) {
+        if (!isInternetAvailable(lastDomain)) {
             etError.setVisibility(View.VISIBLE);
             etError.setText(getString(R.string.no_internet_warning));
         }
@@ -106,6 +113,99 @@ public class LoginUserDialogFragment extends DialogFragment {
         return dialog;
     }
 
+    private void bindShopPicker(String lastDomain) {
+        if (getContext() == null) {
+            return;
+        }
+        bindShopPicker(lastDomain, ShopConfigUtils.getShops(requireContext()));
+    }
+
+    private void bindShopPicker(String lastDomain, List<ShopConfigUtils.Shop> loaded) {
+        if (etShop == null || getContext() == null || loaded == null) {
+            return;
+        }
+        shops = loaded;
+        List<String> labels = shopLabels();
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                requireContext(),
+                android.R.layout.simple_list_item_1,
+                labels);
+        etShop.setAdapter(adapter);
+        etShop.setThreshold(1);
+        etShop.setOnClickListener(v -> etShop.showDropDown());
+        etShop.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                etShop.showDropDown();
+            }
+        });
+        etShop.setOnItemClickListener((parent, view, position, id) -> {
+            String selected = adapter.getItem(position);
+            if (selected == null || customShopLabel.equals(selected)) {
+                if (etDomain != null) {
+                    etDomain.requestFocus();
+                }
+                return;
+            }
+            ShopConfigUtils.Shop shop = shopForLabel(selected);
+            if (shop != null && etDomain != null) {
+                etDomain.setText(shop.domain_shop);
+            }
+        });
+        selectShopForDomain(lastDomain, labels);
+    }
+
+    private void refreshShopDirectory(String lastDomain) {
+        if (getContext() == null) {
+            return;
+        }
+        NetworkHelper networkHelper = new NetworkHelper(requireContext());
+        ShopDirectoryRepository.fetch(requireContext(), networkHelper, new ShopDirectoryRepository.Callback() {
+            @Override
+            public void onShopsLoaded(List<ShopConfigUtils.Shop> loaded) {
+                if (!isAdded() || etShop == null) {
+                    return;
+                }
+                shops = loaded;
+                bindShopPicker(etDomain != null ? etDomain.getText().toString() : lastDomain, loaded);
+            }
+
+            @Override
+            public void onShopsError(Exception exception) {
+                Log.w("LoginUserDialogFragment", "Using bundled shops", exception);
+            }
+        });
+    }
+
+    private List<String> shopLabels() {
+        List<String> labels = new ArrayList<>();
+        for (ShopConfigUtils.Shop shop : shops) {
+            labels.add(ShopConfigUtils.shopLabel(shop, shops));
+        }
+        labels.add(customShopLabel);
+        return labels;
+    }
+
+    private ShopConfigUtils.Shop shopForLabel(String label) {
+        for (ShopConfigUtils.Shop shop : shops) {
+            if (ShopConfigUtils.shopLabel(shop, shops).equals(label)) {
+                return shop;
+            }
+        }
+        return null;
+    }
+
+    private void selectShopForDomain(String domain, List<String> labels) {
+        if (etShop == null || labels == null || labels.isEmpty()) {
+            return;
+        }
+        ShopConfigUtils.Shop match = ShopConfigUtils.findShopByDomain(shops, domain);
+        String label = match != null ? ShopConfigUtils.shopLabel(match, shops) : customShopLabel;
+        if (!labels.contains(label)) {
+            label = customShopLabel;
+        }
+        etShop.setText(label, false);
+    }
+
     private void onLoginDismissed(DialogInterface dialogInterface) {
         if (!(getActivity() instanceof MainActivity)) {
             return;
@@ -126,10 +226,6 @@ public class LoginUserDialogFragment extends DialogFragment {
         okButton.setEnabled(false);
         okButton.setText(getString(R.string.authenticating));
 
-        if (!isInternetAvailable()) {
-            showError(getString(R.string.no_internet_error));
-            return;
-        }
         if (domainInput == null || domainInput.trim().isEmpty()) {
             showError(getString(R.string.domain_required));
             return;
@@ -145,13 +241,27 @@ public class LoginUserDialogFragment extends DialogFragment {
         }
         final String finalDomain = domainNormalized;
 
+        if (!isInternetAvailable(finalDomain)) {
+            showError(getString(R.string.no_internet_error));
+            return;
+        }
+
         NetworkHelper networkHelper = new NetworkHelper(getActivity());
         networkHelper.generateTokenAsync(username, password, finalDomain, new NetworkHelper.TokenCallback() {
             @Override
             public void onTokenGenerated(String token) {
+                // unused — resolved-domain overload is preferred
+            }
+
+            @Override
+            public void onTokenGenerated(String token, String resolvedDomain) {
                 requireActivity().runOnUiThread(() -> {
+                    String domainToUse = resolvedDomain != null ? resolvedDomain : finalDomain;
+                    if (etDomain != null && domainToUse != null && !domainToUse.equals(etDomain.getText().toString())) {
+                        etDomain.setText(domainToUse);
+                    }
                     if (getActivity() instanceof Host) {
-                        ((Host) getActivity()).onLoginSuccess(finalDomain, username);
+                        ((Host) getActivity()).onLoginSuccess(domainToUse, username);
                     }
                     dismiss();
                 });
@@ -166,6 +276,8 @@ public class LoginUserDialogFragment extends DialogFragment {
                             || errorMsg.contains("Keine Internetverbindung"))) {
                         showError(getString(R.string.no_internet_error));
                     } else if (errorMsg != null && (errorMsg.contains("Cannot connect")
+                            || errorMsg.contains("Failed to connect")
+                            || errorMsg.contains("Cannot reach your local server")
                             || errorMsg.contains("Connection timeout")
                             || errorMsg.contains("Connection refused")
                             || errorMsg.contains("SSL/TLS")

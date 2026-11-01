@@ -22,7 +22,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
@@ -112,8 +112,9 @@ public class KitchenDisplayActivity extends AppCompatActivity implements ShopCat
         // Load chip preferences from SharedPreferences (will override Intent values if available)
         loadChipPreferences();
         
-        // Setup RecyclerView
-        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        // Setup RecyclerView — two columns on tablet landscape
+        int spanCount = getResources().getInteger(R.integer.kitchen_display_span_count);
+        GridLayoutManager layoutManager = new GridLayoutManager(this, spanCount);
         recyclerViewOrders.setLayoutManager(layoutManager);
         
         // Load printer configuration first to determine printer availability

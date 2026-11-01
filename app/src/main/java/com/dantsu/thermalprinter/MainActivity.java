@@ -41,6 +41,7 @@ import com.dantsu.thermalprinter.helpClasses.AuthStore;
 import com.dantsu.thermalprinter.helpClasses.BluetoothPrinterHelper;
 import com.dantsu.thermalprinter.helpClasses.DocketStringModeler;
 import com.dantsu.thermalprinter.helpClasses.IdManager;
+import com.dantsu.thermalprinter.helpClasses.LocationIdResolver;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 import com.dantsu.thermalprinter.helpClasses.OrderHookConfig;
 import com.dantsu.thermalprinter.helpClasses.OrderStatusMapper;
@@ -1116,13 +1117,39 @@ private void restartWebservice(int buttonColor){
 
         domain_shop = domain;
         MainActivity.username = username;
-        location_id = ShopConfigUtils.resolveLocationId(this, domain);
         shop_name = ShopConfigUtils.resolveShopName(this, domain);
         if (textview_ti_header != null) {
             textview_ti_header.setText(shop_name);
         }
         updateStaffProfileUi(username, "");
         refreshStaffProfile(domain, username);
+
+        NetworkHelper locationHelper = new NetworkHelper(this);
+        int fallbackLocation = ShopConfigUtils.resolveLocationId(this, domain);
+        locationHelper.fetchLocationsAsync(domain, new NetworkHelper.LocationCallback() {
+            @Override
+            public void onLocationsFetched(String locationsJson) {
+                if (isFinishing()) {
+                    return;
+                }
+                int resolved = LocationIdResolver.resolve(locationsJson, fallbackLocation);
+                ShopConfigUtils.saveLocationId(MainActivity.this, resolved);
+                finishLoginWithLocation(resolved);
+            }
+
+            @Override
+            public void onLocationError(Exception exception) {
+                if (isFinishing()) {
+                    return;
+                }
+                Log.w("MainActivity", "Location lookup failed, using catalog id " + fallbackLocation, exception);
+                finishLoginWithLocation(fallbackLocation);
+            }
+        });
+    }
+
+    private void finishLoginWithLocation(int resolvedLocationId) {
+        location_id = resolvedLocationId;
         String[] urls = ShopCatalogRepository.catalogUrls(domain_shop, location_id);
         tiOrdersEndpointURL = urls[0];
         tiMenusEndpointURL = urls[1];

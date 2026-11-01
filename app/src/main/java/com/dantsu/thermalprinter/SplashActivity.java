@@ -6,8 +6,6 @@ import static com.dantsu.thermalprinter.Constants.currentAppVersion;
 
 import android.content.Context;
 import android.content.Intent;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -15,6 +13,7 @@ import android.os.Looper;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.dantsu.thermalprinter.helpClasses.AuthStore;
+import com.dantsu.thermalprinter.helpClasses.ConnectivityUtils;
 import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
 import com.dantsu.thermalprinter.helpClasses.UpdateVerifier;
 
@@ -48,10 +47,7 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private boolean isNetworkAvailable() {
-        ConnectivityManager connectivityManager
-                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetworkInfo = connectivityManager != null ? connectivityManager.getActiveNetworkInfo() : null;
-        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+        return ConnectivityUtils.isNetworkAvailable(this);
     }
 
     private void checkForUpdates() {
