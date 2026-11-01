@@ -1,0 +1,8 @@
+{
+    "app_version": "1.1.0",
+    "update_title": "Jandiweb Installer",
+    "update_description": "Fixed communication to Printer",
+    "date": "2024-12-04T18:25:43.511Z",
+    "apk_file": "https://app-version.jandiweb.de/printer-app/jandiweb_printer_1.1.0.apk",
+    "apk_sha256": "22cb6036c720512890afcab08246cad40a0e6b261e7edd76107d3e18df5a03f1"
+}

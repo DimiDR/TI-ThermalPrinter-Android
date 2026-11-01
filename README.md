@@ -54,10 +54,16 @@ Short setup:
 
 
 # Shop catalog
-Shop display names and domains live in `app/src/main/assets/users.json` (gitignored when it contains live shops). The file has a `shops` array and **must not contain passwords**. Staff log in with their TastyIgniter username and password; the app exchanges them for a token and never stores the password.
+Shop display names can come from two places:
+
+1. **Platform directory** — `GET {platform_url}/api/tenancy/shops` (Tasty Multitenant). The login screen lists every active tenant. New restaurants appear without a new APK.
+2. **Bundled fallback** — `app/src/main/assets/users.json` for local/emulator shops and for installs that are not on the platform yet.
+
+`users.json` **must not contain passwords**. Staff log in with their TastyIgniter username and password against **that shop’s URL**; the app exchanges them for a token and never stores the password.
 
 ```
 {
+  "platform_url": "https://foodninja.app",
   "shops": [
     {
       "shop_id": 1,
@@ -71,12 +77,15 @@ Shop display names and domains live in `app/src/main/assets/users.json` (gitigno
 }
 ```
 
+- `platform_url` – host used to fetch `/api/tenancy/shops` (platform or any tenant on the same install)
 - `shop_id` – unique ID used only inside the app
 - `shop_name` – display name
-- `domain_shop` – TastyIgniter shop URL
+- `domain_shop` – TastyIgniter shop URL (login and API)
 - `domain_website` – public restaurant website
 - `kitchen_view` – kitchen display URL
-- `location_id` – TastyIgniter location id
+- `location_id` – fallback TastyIgniter location id; after login the app prefers `GET /api/locations`
+
+This is **not** a Lieferando-style marketplace. Each tenant still has its own domain. The web storefront shows one shop; the printer app shows all hosted tenants so you do not need a separate APK per restaurant.
 
 # Version updater (optional)
 The app can install sideloaded updates from a JSON file at `APP_DETAILS_URL` in `Constants.java`. Bump `currentAppVersion` when you ship a new APK.
