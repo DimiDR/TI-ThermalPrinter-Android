@@ -142,6 +142,8 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Tablet runs as a kiosk: keep the display on regardless of print monitor state
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
         networkHelperViewModel = new ViewModelProvider(this).get(NetworkHelperViewModel.class);
         
@@ -860,7 +862,6 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
             setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
             button_ti_print.setText(R.string.printer_inactive);
         }
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     private void startService() {
@@ -914,7 +915,6 @@ private void restartWebservice(int buttonColor){
                 setButtonBackgroundWithRoundedCorners(button_ti_print, buttonColor);
                 button_ti_print.setText(R.string.printer_inactive);
             }
-            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
     }
 

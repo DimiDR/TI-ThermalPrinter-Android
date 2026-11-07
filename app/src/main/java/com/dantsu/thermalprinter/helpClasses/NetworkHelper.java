@@ -208,6 +208,10 @@ public class NetworkHelper {
         }
     }
 
+    static String loginFieldFor(String loginId) {
+        return loginId != null && loginId.contains("@") ? "email" : "username";
+    }
+
     private void generateTokenOnce(String username, String password, String normalizedDomain) throws IOException {
         String tokenUrl = normalizedDomain + "/api/token";
         String hostname = extractHostname(normalizedDomain);
@@ -237,9 +241,11 @@ public class NetworkHelper {
             urlConnection.setDoOutput(true);
 
             JSONObject jsonParam = new JSONObject();
-            // Staff/printer app needs an admin token (customer lookup fails with admin email)
-            jsonParam.put("email", username);
-            jsonParam.put("username", username);
+            // Staff/printer app needs an admin token (customer lookup fails with admin email).
+            // Send only one identifier: the API validates `email` as an e-mail address and
+            // `username` as alpha-dash, so sending the same value in both always fails.
+            String loginId = username != null ? username.trim() : "";
+            jsonParam.put(loginFieldFor(loginId), loginId);
             jsonParam.put("password", password);
             jsonParam.put("device_name", "thermal_printer_app");
             jsonParam.put("is_admin", 1);
