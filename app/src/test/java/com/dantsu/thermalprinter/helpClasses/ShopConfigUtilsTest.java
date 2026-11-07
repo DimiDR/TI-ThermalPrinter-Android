@@ -10,36 +10,54 @@ import java.nio.file.Paths;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 public class ShopConfigUtilsTest {
 
+    /** Shops as a release build sees them (main assets only). */
+    private List<ShopConfigUtils.Shop> releaseShops;
+    /** Shops as a debug build sees them (main + debug-only dev shops). */
     private List<ShopConfigUtils.Shop> shops;
+
+    private static String readAsset(String sourceSet, String name) throws Exception {
+        Path path = Paths.get("src", sourceSet, "assets", name);
+        if (!Files.exists(path)) {
+            path = Paths.get("app", "src", sourceSet, "assets", name);
+        }
+        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+    }
 
     @Before
     public void setUp() throws Exception {
-        Path assets = Paths.get("src", "main", "assets", "users.json");
-        if (!Files.exists(assets)) {
-            assets = Paths.get("app", "src", "main", "assets", "users.json");
-        }
-        String json = new String(Files.readAllBytes(assets), StandardCharsets.UTF_8);
-        shops = ShopConfigUtils.parseShops(json);
+        releaseShops = ShopConfigUtils.parseShops(readAsset("main", "users.json"));
+        shops = new java.util.ArrayList<>(releaseShops);
+        shops.addAll(ShopConfigUtils.parseShops(readAsset("debug", "users_dev.json")));
     }
 
     @Test
     public void parsesAllConfiguredShops() {
+        assertEquals(5, releaseShops.size());
         assertEquals(6, shops.size());
+    }
+
+    @Test
+    public void releaseDirectoryHasNoLocalDevShops() {
+        for (ShopConfigUtils.Shop shop : releaseShops) {
+            assertFalse(shop.domain_shop, shop.domain_shop.startsWith("http://"));
+        }
+        assertNull(ShopConfigUtils.findShopByDomain(releaseShops, "http://127.0.0.1:8080"));
     }
 
     @Test
     public void resolvesLocalEmulatorShopNameAndLocation() {
         ShopConfigUtils.Shop shop = ShopConfigUtils.findShopByDomain(shops, "http://127.0.0.1:8080");
         assertNotNull(shop);
-        assertEquals("Harbour View", shop.shop_name);
+        assertEquals("Harbour View (local dev)", shop.shop_name);
         assertEquals(Integer.valueOf(1), shop.location_id);
         assertEquals(Integer.valueOf(6), shop.shop_id);
-        assertEquals("Harbour View", ShopConfigUtils.resolveShopName(shops, "http://127.0.0.1:8080"));
+        assertEquals("Harbour View (local dev)", ShopConfigUtils.resolveShopName(shops, "http://127.0.0.1:8080"));
     }
 
     @Test
@@ -109,12 +127,18 @@ public class ShopConfigUtilsTest {
 
     @Test
     public void labelsDisambiguateDuplicateShopNames() {
+        List<ShopConfigUtils.Shop> withDuplicate = new java.util.ArrayList<>(releaseShops);
+        withDuplicate.add(new ShopConfigUtils.Shop(7, "Harbour View",
+                "http://127.0.0.1:8080", "http://127.0.0.1:8080", "", 1));
         assertEquals("Harbour View (foodninja.app)",
                 ShopConfigUtils.shopLabel(
-                        ShopConfigUtils.findShopByDomain(shops, "https://foodninja.app"), shops));
+                        ShopConfigUtils.findShopByDomain(withDuplicate, "https://foodninja.app"), withDuplicate));
         assertEquals("Harbour View (127.0.0.1)",
                 ShopConfigUtils.shopLabel(
-                        ShopConfigUtils.findShopByDomain(shops, "http://127.0.0.1:8080"), shops));
+                        ShopConfigUtils.findShopByDomain(withDuplicate, "http://127.0.0.1:8080"), withDuplicate));
+        assertEquals("Harbour View",
+                ShopConfigUtils.shopLabel(
+                        ShopConfigUtils.findShopByDomain(releaseShops, "https://foodninja.app"), releaseShops));
         assertEquals("Primavera",
                 ShopConfigUtils.shopLabel(
                         ShopConfigUtils.findShopByDomain(shops, "https://bestellen.primavera-pizza-wickede.de"),

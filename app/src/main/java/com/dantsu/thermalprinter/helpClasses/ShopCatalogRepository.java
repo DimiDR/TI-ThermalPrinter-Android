@@ -146,7 +146,10 @@ public final class ShopCatalogRepository {
                 boolean inFlight = IN_FLIGHT.get();
                 long flightAge = System.currentTimeMillis() - IN_FLIGHT_SINCE.get();
                 boolean staleFlight = inFlight && IN_FLIGHT_SINCE.get() > 0 && flightAge > IN_FLIGHT_STALE_MS;
-                if (inFlight && !staleFlight) {
+                // A forced fetch (e.g. after an order webhook) must not reuse a request that was
+                // started before the new order existed: it supersedes the running one instead,
+                // and the waiting callbacks receive the newer result.
+                if (inFlight && !staleFlight && !force) {
                     enqueuePending(callback);
                     return;
                 }

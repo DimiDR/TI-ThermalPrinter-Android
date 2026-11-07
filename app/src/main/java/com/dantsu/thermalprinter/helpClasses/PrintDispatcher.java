@@ -47,7 +47,12 @@ public final class PrintDispatcher {
         }
     }
 
-    public static AsyncEscPosPrinter createJob(Context context, DeviceConnection connection, String text) {
+    /**
+     * Builds a print job. Several texts are printed (each followed by a cut) in one job, so
+     * e.g. receipt + kitchen ticket of an order succeed or fail together.
+     * The connection is not touched here; the print worker disconnects it after the job.
+     */
+    public static AsyncEscPosPrinter createJob(Context context, DeviceConnection connection, String... texts) {
         PrinterSettings settings = new PrinterSettings(context);
         PrinterSettings.PaperSize paper = settings.getPaperSize();
         PrinterSettings.Charset charset = settings.getCharset();
@@ -58,15 +63,18 @@ public final class PrintDispatcher {
                 paper.charsPerLine,
                 charset.toEncoding()
         );
-        printer.addTextToPrint(charset.sanitize(text));
-        if (connection != null) {
-            connection.disconnect();
+        for (String text : texts) {
+            printer.addTextToPrint(charset.sanitize(text));
         }
         return printer;
     }
 
     public static void print(Context context, DeviceConnection connection, String text, AsyncEscPosPrint.OnPrintFinished callback) {
-        AsyncEscPosPrinter job = createJob(context, connection, text);
+        printAll(context, connection, new String[]{text}, callback);
+    }
+
+    public static void printAll(Context context, DeviceConnection connection, String[] texts, AsyncEscPosPrint.OnPrintFinished callback) {
+        AsyncEscPosPrinter job = createJob(context, connection, texts);
         createAsync(context, new PrinterSettings(context).getConnectionType(), callback).execute(job);
     }
 

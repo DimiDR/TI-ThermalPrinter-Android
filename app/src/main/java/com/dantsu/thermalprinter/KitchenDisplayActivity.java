@@ -87,7 +87,6 @@ public class KitchenDisplayActivity extends AppCompatActivity implements ShopCat
     private boolean chipKitchenChecked = false; // default to not kitchen
     
     // Flag to track if we've done the initial load for this activity
-    private boolean isInitialLoad = true;
     
     // Flag to track printer connection issues
     private boolean isLongerConnectionTime = false;
@@ -564,60 +563,12 @@ public class KitchenDisplayActivity extends AppCompatActivity implements ShopCat
                 JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
                 List<JSONObject> ordersList = new ArrayList<>();
                 
-                // Get static sets from MainActivity for tracking printed orders and sound played orders
-                java.util.Set<String> printedOrders = IdManager.getIds(this);
-                MainActivity.getPrintedOrders().addAll(printedOrders);
-                java.util.Set<String> soundPlayedOrders = MainActivity.getSoundPlayedOrders();
-                
-                // Check for new unprinted orders and play sound
-                boolean hasNewUnprintedOrder = false;
-                List<String> newOrderIds = new ArrayList<>();
-                
-                // On initial load, populate soundPlayedOrders with all existing unprinted orders
-                // to avoid playing sound for orders that were already there when activity started
-                if (isInitialLoad) {
-                    Log.d("KitchenDisplay", "Initial load - marking all existing orders as 'sound played'");
-                    for (int i = 0; i < dataArrayOrders.length(); i++) {
-                        try {
-                            JSONObject order = dataArrayOrders.getJSONObject(i);
-                            String orderId = order.getString("id");
-                            if (!printedOrders.contains(orderId)) {
-                                soundPlayedOrders.add(orderId);
-                            }
-                        } catch (Exception e) {
-                            Log.e("KitchenDisplay", "Error processing order during initial load", e);
-                        }
-                    }
-                    isInitialLoad = false;
-                    Log.d("KitchenDisplay", "Initial load complete. Marked " + soundPlayedOrders.size() + " orders as 'sound played'");
-                }
-                
+                MainActivity.getPrintedOrders().addAll(IdManager.getIds(this));
+                // New-order detection and sound live in PrintMonitorService (NewOrderTracker).
                 for (int i = 0; i < dataArrayOrders.length(); i++) {
-                    JSONObject order = dataArrayOrders.getJSONObject(i);
-                    ordersList.add(order);
-                    
-                    try {
-                        String orderId = order.getString("id");
-                        
-                        // Check if this is a new unprinted order that we haven't played sound for yet
-                        boolean isNotPrinted = !printedOrders.contains(orderId);
-                        boolean hasNotPlayedSound = !soundPlayedOrders.contains(orderId);
-                        
-                        if (isNotPrinted && hasNotPlayedSound) {
-                            hasNewUnprintedOrder = true;
-                            newOrderIds.add(orderId);
-                            soundPlayedOrders.add(orderId); // Mark that we've played sound for this order
-                            Log.d("KitchenDisplay", "New unprinted order detected: " + orderId);
-                        }
-                    } catch (Exception e) {
-                        Log.e("KitchenDisplay", "Error processing order for sound notification", e);
-                    }
+                    ordersList.add(dataArrayOrders.getJSONObject(i));
                 }
-                
-                if (hasNewUnprintedOrder) {
-                    Log.d("KitchenDisplay", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
-                }
-                
+
                 // Check if we have more data based on the number of orders returned
                 if (ordersList.size() < 50) {
                     hasMoreData = false;

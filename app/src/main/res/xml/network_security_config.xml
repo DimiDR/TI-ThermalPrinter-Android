@@ -5,7 +5,8 @@
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-    <!-- Allow HTTP to host machine from emulator / local debug -->
+    <!-- Allow HTTP to host machine from emulator / local debug.
+         Keep in sync with ConnectivityUtils.CLEARTEXT_HOSTS. -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>

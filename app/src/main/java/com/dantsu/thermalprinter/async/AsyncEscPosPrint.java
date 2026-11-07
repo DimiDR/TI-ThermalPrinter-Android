@@ -33,7 +33,11 @@ public abstract class AsyncEscPosPrint {
     protected final static int PROGRESS_PRINTING = 3;
     protected final static int PROGRESS_PRINTED = 4;
 
-    private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
+    /**
+     * One worker thread for all print jobs: jobs share DeviceConnection objects (and the
+     * physical printer), so they must never run concurrently.
+     */
+    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
 
     protected ProgressDialog dialog;
     protected WeakReference<Context> weakContext;
@@ -67,9 +71,9 @@ public abstract class AsyncEscPosPrint {
         this.publishProgress(AsyncEscPosPrint.PROGRESS_CONNECTING);
 
         AsyncEscPosPrinter printerData = printersData[0];
+        DeviceConnection deviceConnection = printerData.getPrinterConnection();
 
         try {
-            DeviceConnection deviceConnection = printerData.getPrinterConnection();
 
             if (deviceConnection == null) {
                 return new PrinterStatus(null, AsyncEscPosPrint.FINISH_NO_PRINTER);
@@ -113,6 +117,12 @@ public abstract class AsyncEscPosPrint {
         } catch (InterruptedException e) {
             e.printStackTrace();
             Thread.currentThread().interrupt();
+        } finally {
+            // Release the connection on the worker thread, after this job is done, so the
+            // next queued job starts from a clean connect().
+            if (deviceConnection != null) {
+                deviceConnection.disconnect();
+            }
         }
         return new PrinterStatus(printerData, AsyncEscPosPrint.FINISH_SUCCESS);
     }

@@ -39,6 +39,7 @@
     <string name="dns_resolution_failed_no_network">DNS-Auflösung fehlgeschlagen\n\nHostname kann nicht aufgelöst werden: %1$s\n\n⚠️ Keine Netzwerkverbindung erkannt!\n\nBitte überprüfen Sie:\n• Ihre Internetverbindung ist aktiv\n• Die Domain ist korrekt: %2$s\n• Versuchen Sie, die Domain in einem Webbrowser zu öffnen\n• Überprüfen Sie, ob Sie hinter einer Firewall oder einem VPN sind\n• Versuchen Sie, zwischen WiFi und mobilen Daten zu wechseln</string>
     <string name="connection_timeout">Verbindungszeitüberschreitung. Der Server hat zu lange benötigt, um zu antworten. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.</string>
     <string name="connection_refused">Verbindung abgelehnt. Der Server ist möglicherweise nicht erreichbar oder akzeptiert keine Verbindungen.</string>
+    <string name="cleartext_not_permitted">Unverschlüsseltes HTTP ist nur für Emulator/localhost erlaubt. Bitte eine https://-Adresse für den Shop verwenden (auch für Shops im lokalen Netz).</string>
     <string name="ssl_tls_error">SSL/TLS-Fehler. Bitte überprüfen Sie, ob das Sicherheitszertifikat des Servers gültig ist.</string>
     <string name="network_unreachable">Netzwerk nicht erreichbar. Bitte überprüfen Sie Ihre Internetverbindung.</string>
     <string name="invalid_url_format">Ungültiges URL-Format: %1$s. Bitte überprüfen Sie die Domain auf Tippfehler oder zusätzliche Leerzeichen.</string>

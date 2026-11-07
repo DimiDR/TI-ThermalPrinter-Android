@@ -29,6 +29,9 @@ import com.dantsu.thermalprinter.async.AsyncEscPosPrinter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayDeque;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -49,9 +52,26 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
     private LocalHookServer localHookServer;
     private final AtomicBoolean fetchInFlight = new AtomicBoolean(false);
     private final AtomicBoolean hookWhileBusy = new AtomicBoolean(false);
-    private volatile boolean printerError;
     private DocketStringModeler docketStringModeler;
-    private boolean initialLoad = true;
+    private boolean firstFetchDone;
+
+    /** Orders queued or currently printing; excluded from later fetches to avoid double prints. Main thread only. */
+    private final Set<String> ordersInProgress = new HashSet<>();
+    /** Pending auto-print jobs, printed strictly one after another. Main thread only. */
+    private final ArrayDeque<PrintJob> printQueue = new ArrayDeque<>();
+    private boolean printing;
+
+    private static final class PrintJob {
+        final String orderId;
+        final DeviceConnection printer;
+        final String[] texts;
+
+        PrintJob(String orderId, DeviceConnection printer, String[] texts) {
+            this.orderId = orderId;
+            this.printer = printer;
+            this.texts = texts;
+        }
+    }
 
     public static boolean isEnabled(Context context) {
         return context.getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(PREF_AUTO_PRINT, false);
@@ -135,7 +155,7 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
         }
         Constants.isServiceActive = isEnabled(this);
         startHookListeners();
-        if (initialLoad && fetchInFlight.compareAndSet(false, true)) {
+        if (!firstFetchDone && fetchInFlight.compareAndSet(false, true)) {
             fetchOrders();
         }
         return START_STICKY;
@@ -150,6 +170,8 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
     @Override
     public void onDestroy() {
         stopHookListeners();
+        printQueue.clear();
+        ordersInProgress.clear();
         if (networkHelper != null) {
             networkHelper.shutdown();
         }
@@ -220,29 +242,11 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
             JSONObject jsonCategories = new JSONObject(results[2]);
             JSONArray data = jsonOrders.getJSONArray("data");
 
+            firstFetchDone = true;
             Set<String> printedOrders = IdManager.getIds(this);
             MainActivity.getPrintedOrders().addAll(printedOrders);
-            Set<String> soundPlayed = MainActivity.getSoundPlayedOrders();
 
-            if (initialLoad) {
-                for (int i = 0; i < data.length(); i++) {
-                    String orderId = data.getJSONObject(i).optString("id", "");
-                    if (!orderId.isEmpty() && !printedOrders.contains(orderId)) {
-                        soundPlayed.add(orderId);
-                    }
-                }
-                initialLoad = false;
-            }
-
-            boolean hasNew = false;
-            for (int i = 0; i < data.length(); i++) {
-                String orderId = data.getJSONObject(i).optString("id", "");
-                if (!orderId.isEmpty() && !printedOrders.contains(orderId) && !soundPlayed.contains(orderId)) {
-                    hasNew = true;
-                    soundPlayed.add(orderId);
-                }
-            }
-            if (hasNew) {
+            if (!NewOrderTracker.detectNew(data, printedOrders).isEmpty()) {
                 playNewOrderSound();
             }
 
@@ -250,7 +254,12 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
                 return;
             }
 
-            JSONArray printable = DocketStringModeler.filterPrintableOrders(data, printedOrders);
+            Set<String> excluded = new HashSet<>(printedOrders);
+            excluded.addAll(ordersInProgress);
+            JSONArray printable = DocketStringModeler.filterPrintableOrders(data, excluded);
+            if (printable.length() == 0) {
+                return;
+            }
             DeviceConnection printer = PrintDispatcher.resolve(this);
             if (printer == null) {
                 Log.w(TAG, "Auto-print running but no printer is selected");
@@ -260,25 +269,30 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
             SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
             boolean printReceipt = prefs.getBoolean("chip_receipt_checked", true);
             boolean printKitchen = prefs.getBoolean("chip_kitchen_checked", false);
+            if (!printReceipt && !printKitchen) {
+                return;
+            }
             String shopName = resolveShopName();
 
-            printerError = false;
             for (int i = 0; i < printable.length(); i++) {
                 JSONObject order = printable.getJSONObject(i);
                 String orderId = order.getString("id");
+                List<String> texts = new java.util.ArrayList<>(2);
                 if (printReceipt) {
-                    printOrder(printer, docketStringModeler.startPrintingReceipt(order, jsonMenus, jsonCategories, null, shopName), orderId);
+                    texts.add(docketStringModeler.startPrintingReceipt(order, jsonMenus, jsonCategories, null, shopName));
                 }
                 if (printKitchen) {
-                    printOrder(printer, docketStringModeler.startPrintingKitchen(order, jsonMenus, jsonCategories, null, shopName), orderId);
+                    texts.add(docketStringModeler.startPrintingKitchen(order, jsonMenus, jsonCategories, null, shopName));
                 }
-                if (printerError) {
-                    break;
-                }
+                // Mark before printing so a hook arriving mid-print does not queue the order again.
+                ordersInProgress.add(orderId);
+                printQueue.add(new PrintJob(orderId, printer, texts.toArray(new String[0])));
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to process orders", e);
         } finally {
+            // Also starts jobs queued before a parse error, so no order stays "in progress" forever.
+            printNext();
             finishFetch();
         }
     }
@@ -289,18 +303,38 @@ public class PrintMonitorService extends Service implements NetworkHelper.Networ
         finishFetch();
     }
 
-    private void printOrder(DeviceConnection device, String printInfo, String orderId) {
-        PrintDispatcher.print(this, device, printInfo, new AsyncEscPosPrint.OnPrintFinished() {
+    /** Starts the next queued job unless one is already printing. Runs on the main thread. */
+    private void printNext() {
+        if (printing) {
+            return;
+        }
+        PrintJob job = printQueue.poll();
+        if (job == null) {
+            return;
+        }
+        printing = true;
+        PrintDispatcher.printAll(this, job.printer, job.texts, new AsyncEscPosPrint.OnPrintFinished() {
             @Override
             public void onError(AsyncEscPosPrinter asyncEscPosPrinter, int codeException) {
-                printerError = true;
-                Log.e(TAG, "Print failed for order " + orderId + " code=" + codeException);
+                Log.e(TAG, "Print failed for order " + job.orderId + " code=" + codeException
+                        + "; dropping " + printQueue.size() + " queued job(s) until the next hook");
+                // Printer is unusable: stop here instead of hammering it with the rest of the queue.
+                // The orders stay unprinted, so the next fetch picks them up again.
+                ordersInProgress.remove(job.orderId);
+                for (PrintJob pending : printQueue) {
+                    ordersInProgress.remove(pending.orderId);
+                }
+                printQueue.clear();
+                printing = false;
             }
 
             @Override
             public void onSuccess(AsyncEscPosPrinter asyncEscPosPrinter) {
-                IdManager.addId(PrintMonitorService.this, orderId);
-                MainActivity.getPrintedOrders().add(orderId);
+                IdManager.addId(PrintMonitorService.this, job.orderId);
+                MainActivity.getPrintedOrders().add(job.orderId);
+                ordersInProgress.remove(job.orderId);
+                printing = false;
+                printNext();
             }
         });
     }

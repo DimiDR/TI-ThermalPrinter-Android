@@ -5,6 +5,7 @@ import android.util.Log;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -33,7 +34,9 @@ public class LocalHookServer {
     }
 
     private final AtomicBoolean running = new AtomicBoolean(false);
-    private ServerSocket serverSocket;
+    private final Object socketLock = new Object();
+    private ServerSocket serverSocket; // guarded by socketLock
+    private long runId; // guarded by socketLock; bumped by start() and stop()
     private Thread acceptThread;
     private ExecutorService handlers;
 
@@ -42,16 +45,19 @@ public class LocalHookServer {
             return;
         }
         handlers = Executors.newCachedThreadPool();
-        acceptThread = new Thread(() -> acceptLoop(listener), "LocalHookServer");
+        final long myRun;
+        synchronized (socketLock) {
+            myRun = ++runId;
+        }
+        acceptThread = new Thread(() -> acceptLoop(listener, myRun), "LocalHookServer");
         acceptThread.start();
     }
 
     public void stop() {
         running.set(false);
-        if (serverSocket != null) {
-            try {
-                serverSocket.close();
-            } catch (Exception ignored) { }
+        synchronized (socketLock) {
+            runId++;
+            closeQuietly(serverSocket);
             serverSocket = null;
         }
         if (acceptThread != null) {
@@ -73,14 +79,30 @@ public class LocalHookServer {
                 || line.startsWith("POST / ") || line.startsWith("POST / HTTP");
     }
 
-    private void acceptLoop(Listener listener) {
+    private boolean isCurrentRun(long myRun) {
+        synchronized (socketLock) {
+            return running.get() && runId == myRun;
+        }
+    }
+
+    private void acceptLoop(Listener listener, long myRun) {
+        ServerSocket socket = null;
         try {
-            serverSocket = new ServerSocket(PORT);
-            serverSocket.setSoTimeout(ACCEPT_TIMEOUT_MS);
+            socket = new ServerSocket();
+            socket.setReuseAddress(true);
+            socket.bind(new InetSocketAddress(PORT));
+            socket.setSoTimeout(ACCEPT_TIMEOUT_MS);
+            synchronized (socketLock) {
+                if (!running.get() || runId != myRun) {
+                    // stop() ran while we were binding; it could not see this socket.
+                    return;
+                }
+                serverSocket = socket;
+            }
             Log.d(TAG, "Listening for local order hooks on port " + PORT);
-            while (running.get()) {
+            while (isCurrentRun(myRun)) {
                 try {
-                    Socket client = serverSocket.accept();
+                    Socket client = socket.accept();
                     ExecutorService pool = handlers;
                     if (pool != null && !pool.isShutdown()) {
                         pool.execute(() -> handleClient(client, listener));
@@ -94,9 +116,25 @@ public class LocalHookServer {
                 }
             }
         } catch (Exception e) {
-            if (running.get()) {
+            if (isCurrentRun(myRun)) {
                 Log.e(TAG, "Local hook server failed", e);
             }
+        } finally {
+            // Always release the port, whatever ended the loop.
+            closeQuietly(socket);
+            synchronized (socketLock) {
+                if (serverSocket == socket) {
+                    serverSocket = null;
+                }
+            }
+        }
+    }
+
+    private static void closeQuietly(ServerSocket socket) {
+        if (socket != null) {
+            try {
+                socket.close();
+            } catch (Exception ignored) { }
         }
     }
 

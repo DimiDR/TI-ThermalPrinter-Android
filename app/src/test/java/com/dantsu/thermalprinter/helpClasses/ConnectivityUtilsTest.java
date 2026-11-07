@@ -27,6 +27,15 @@ public class ConnectivityUtilsTest {
     @Test
     public void requiresInternetCheckOnlyForPublicHosts() {
         assertFalse(ConnectivityUtils.requiresInternetCheck("http://10.0.2.2:8080"));
+    }
+
+    @Test
+    public void cleartextOnlyForEmulatorHosts() {
+        assertTrue(ConnectivityUtils.isCleartextPermitted("https://192.168.1.20"));
+        assertTrue(ConnectivityUtils.isCleartextPermitted("http://10.0.2.2:8080"));
+        assertTrue(ConnectivityUtils.isCleartextPermitted("http://127.0.0.1:8080"));
+        assertFalse(ConnectivityUtils.isCleartextPermitted("http://192.168.1.20"));
+        assertFalse(ConnectivityUtils.isCleartextPermitted("http://10.0.0.5:3000"));
         assertTrue(ConnectivityUtils.requiresInternetCheck("https://demo.tastyigniter.com"));
     }
 

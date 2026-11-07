@@ -45,6 +45,7 @@ import com.dantsu.thermalprinter.helpClasses.LocationIdResolver;
 import com.dantsu.thermalprinter.helpClasses.NetworkHelper;
 import com.dantsu.thermalprinter.helpClasses.OrderHookConfig;
 import com.dantsu.thermalprinter.helpClasses.OrderStatusMapper;
+import com.dantsu.thermalprinter.helpClasses.NewOrderTracker;
 import com.dantsu.thermalprinter.helpClasses.PrintDispatcher;
 import com.dantsu.thermalprinter.helpClasses.PrinterConfigController;
 import com.dantsu.thermalprinter.helpClasses.PrintMonitorService;
@@ -67,10 +68,6 @@ import javax.net.ssl.SSLException;
 public class MainActivity extends AppCompatActivity implements NetworkHelper.NetworkCallback, LoginUserDialogFragment.Host, PrinterConfigController.Listener, ReprintOrdersHelper.Host  {
     //set of orders IDs, which already been printed
     private static Set<String> printedOrders = new HashSet<>();
-    //set of orders IDs for which we've already played the new order sound
-    private static Set<String> soundPlayedOrders = new HashSet<>();
-    // Flag to track if we've done the initial load (to avoid playing sound for all existing orders)
-    private static boolean isInitialLoad = true;
     
     // Getter methods to access static sets from other activities
     public static Set<String> getPrintedOrders() {
@@ -78,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
     }
     
     public static Set<String> getSoundPlayedOrders() {
-        return soundPlayedOrders;
+        return NewOrderTracker.announcedOrders();
     }
     private static Context context;
     private static Button button_ti_print;
@@ -265,7 +262,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
         }
         //get the already printed IDs or orders
         context = this;
-        printedOrders = IdManager.getIds(context);
+        printedOrders.addAll(IdManager.getIds(context));
         // play new order sound
         mediaPlayer = MediaPlayer.create(context, R.raw.newordersound);
         // create string for docket
@@ -490,8 +487,7 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
      */
     private static void clearShopSpecificData() {
         printedOrders.clear();
-        soundPlayedOrders.clear();
-        isInitialLoad = true;
+        NewOrderTracker.reset();
         ShopCatalogRepository.invalidate();
         
         // Clear persisted order IDs from storage
@@ -697,66 +693,27 @@ public class MainActivity extends AppCompatActivity implements NetworkHelper.Net
                 jsonObjectMenus = new JSONObject(results[1]);
                 jsonObjectCategories = new JSONObject(results[2]);
 
-                printedOrders = IdManager.getIds(this);
+                printedOrders.addAll(IdManager.getIds(this));
                 JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
                 Log.d("ReprintOrders", "API returned " + dataArrayOrders.length() + " orders");
                 
-                // Count open orders (not completed - status_id != 5) and check for new unprinted orders
+                // Count open orders (not completed). New-order detection and sound live in
+                // PrintMonitorService (NewOrderTracker).
                 int openOrderCount = 0;
-                boolean hasNewUnprintedOrder = false;
-                List<String> newOrderIds = new ArrayList<>();
-                
-                // On initial load, populate soundPlayedOrders with all existing unprinted orders
-                // to avoid playing sound for orders that were already there when app started
-                if (isInitialLoad) {
-                    Log.d("MainActivity", "Initial load - marking all existing orders as 'sound played'");
-                    for (int i = 0; i < dataArrayOrders.length(); i++) {
-                        try {
-                            JSONObject order = dataArrayOrders.getJSONObject(i);
-                            String orderId = order.getString("id");
-                            if (!printedOrders.contains(orderId)) {
-                                soundPlayedOrders.add(orderId);
-                            }
-                        } catch (Exception e) {
-                            Log.e("MainActivity", "Error processing order during initial load", e);
-                        }
-                    }
-                    isInitialLoad = false;
-                    Log.d("MainActivity", "Initial load complete. Marked " + soundPlayedOrders.size() + " orders as 'sound played'");
-                }
-                
                 for (int i = 0; i < dataArrayOrders.length(); i++) {
                     dataObjectOrders = dataArrayOrders.getJSONObject(i);
-                    ordersList.add(dataObjectOrders); // Add to orders list
-                    
+                    ordersList.add(dataObjectOrders);
                     try {
-                        String orderId = dataObjectOrders.getString("id");
                         if (!OrderStatusMapper.isCompleted(dataObjectOrders)) {
                             openOrderCount++;
                         }
-                        
-                        boolean isNotPrinted = !printedOrders.contains(orderId);
-                        boolean hasNotPlayedSound = !soundPlayedOrders.contains(orderId);
-                        
-                        if (isNotPrinted && hasNotPlayedSound) {
-                            hasNewUnprintedOrder = true;
-                            newOrderIds.add(orderId);
-                            soundPlayedOrders.add(orderId);
-                            Log.d("MainActivity", "New unprinted order detected: " + orderId);
-                        }
                     } catch (Exception e) {
-                        // If there's an error checking status, include the order
+                        // If the status cannot be read, count the order as open
                         openOrderCount++;
-                        Log.e("MainActivity", "Error processing order for sound notification", e);
+                        Log.e("MainActivity", "Error reading order status", e);
                     }
                 }
-                
-                if (hasNewUnprintedOrder) {
-                    Log.d("MainActivity", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
-                } else {
-                    Log.d("MainActivity", "No new unprinted orders found. Printed orders: " + printedOrders.size() + ", Sound played: " + soundPlayedOrders.size());
-                }
-                
+
                 // Update the order count badge
                 updateOrderCountBadge(openOrderCount);
 
@@ -965,7 +922,7 @@ private void restartWebservice(int buttonColor){
                     }
                 }
                 printedOrders.add(orderId);
-                soundPlayedOrders.remove(orderId);
+                NewOrderTracker.announcedOrders().remove(orderId);
                 IdManager.addId(context, orderId);
             }
         });
@@ -1090,8 +1047,7 @@ private void restartWebservice(int buttonColor){
             IdManager.clearIds(ctx);
         }
         printedOrders.clear();
-        soundPlayedOrders.clear();
-        isInitialLoad = true;
+        NewOrderTracker.reset();
         ShopCatalogRepository.invalidate();
     }
 

@@ -74,6 +74,10 @@ public class NetworkHelper {
             return context.getString(R.string.network_error_occurred);
         }
 
+        if (errorMessage.contains("Cleartext HTTP traffic")) {
+            return context.getString(R.string.cleartext_not_permitted);
+        }
+
         if (errorMessage.contains("Unable to resolve host") ||
             errorMessage.contains("No address associated with hostname") ||
             errorMessage.contains("UnknownHostException") ||

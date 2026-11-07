@@ -1,0 +1,12 @@
+{
+  "shops": [
+    {
+      "shop_id": 6,
+      "shop_name": "Harbour View (local dev)",
+      "domain_shop": "http://127.0.0.1:8080",
+      "domain_website": "http://127.0.0.1:8080",
+      "kitchen_view": "http://127.0.0.1:8080/admin/thoughtco/kitchendisplay/summary/view/1",
+      "location_id": "1"
+    }
+  ]
+}

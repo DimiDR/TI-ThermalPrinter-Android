@@ -55,20 +55,40 @@ public class ShopConfigUtils {
                 .commit();
     }
 
+    /** Debug-only shops (local dev server); the file only exists in src/debug/assets. */
+    private static final String DEV_SHOPS_ASSET = "users_dev.json";
+
     static ShopFile readBundledShopFile(Context context) {
+        ShopFile file;
         try {
-            InputStream is = context.getAssets().open("users.json");
-            int size = is.available();
-            byte[] buffer = new byte[size];
-            int read = is.read(buffer);
-            is.close();
-            if (read <= 0) {
-                return new ShopFile("", new ArrayList<>());
-            }
-            return parseShopFile(new String(buffer, StandardCharsets.UTF_8));
+            String json = readAsset(context, "users.json");
+            file = json.isEmpty() ? new ShopFile("", new ArrayList<>()) : parseShopFile(json);
         } catch (IOException | JSONException e) {
             e.printStackTrace();
-            return new ShopFile("", new ArrayList<>());
+            file = new ShopFile("", new ArrayList<>());
+        }
+        try {
+            String devJson = readAsset(context, DEV_SHOPS_ASSET);
+            if (!devJson.isEmpty()) {
+                file.shops.addAll(parseShopFile(devJson).shops);
+            }
+        } catch (IOException ignored) {
+            // Release builds ship without the dev file.
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return file;
+    }
+
+    private static String readAsset(Context context, String name) throws IOException {
+        try (InputStream is = context.getAssets().open(name)) {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            int read;
+            while ((read = is.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
+            return new String(out.toByteArray(), StandardCharsets.UTF_8);
         }
     }
 

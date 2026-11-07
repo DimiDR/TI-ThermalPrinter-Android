@@ -19,14 +19,28 @@ public final class AuthStore {
     private static final String LEGACY_TOKEN = "api_token";
     private static final String KEY_TOKEN = "token";
 
+    /** Shared across instances: creating EncryptedSharedPreferences costs a Keystore round-trip. */
+    private static final Object INIT_LOCK = new Object();
+    private static boolean initialized;
+    private static SharedPreferences sharedSecurePrefs;
+
     private final Context appContext;
     private final SharedPreferences securePrefs;
 
     public AuthStore(Context context) {
         this.appContext = context.getApplicationContext();
-        this.securePrefs = createSecurePrefs();
-        appContext.getSharedPreferences(FALLBACK_PREFS, Context.MODE_PRIVATE).edit().clear().apply();
-        migrateAndScrub();
+        synchronized (INIT_LOCK) {
+            if (!initialized) {
+                sharedSecurePrefs = createSecurePrefs();
+                appContext.getSharedPreferences(FALLBACK_PREFS, Context.MODE_PRIVATE).edit().clear().apply();
+                initialized = true;
+                this.securePrefs = sharedSecurePrefs;
+                // One-time migration of tokens from the old plain-text prefs.
+                migrateAndScrub();
+            } else {
+                this.securePrefs = sharedSecurePrefs;
+            }
+        }
     }
 
     private SharedPreferences createSecurePrefs() {
@@ -49,7 +63,7 @@ public final class AuthStore {
         return securePrefs != null;
     }
 
-    public synchronized String getToken() {
+    public String getToken() {
         if (securePrefs == null) {
             return null;
         }
@@ -57,7 +71,7 @@ public final class AuthStore {
         return token == null || token.isEmpty() ? null : token;
     }
 
-    public synchronized void setToken(String token) {
+    public void setToken(String token) {
         if (securePrefs == null) {
             Log.e(TAG, "Refusing to store token without encryption");
             return;
@@ -66,14 +80,14 @@ public final class AuthStore {
         scrubLegacySecrets();
     }
 
-    public synchronized void clearToken() {
+    public void clearToken() {
         if (securePrefs != null) {
             securePrefs.edit().remove(KEY_TOKEN).apply();
         }
         scrubLegacySecrets();
     }
 
-    public synchronized boolean hasToken() {
+    public boolean hasToken() {
         return getToken() != null;
     }
 

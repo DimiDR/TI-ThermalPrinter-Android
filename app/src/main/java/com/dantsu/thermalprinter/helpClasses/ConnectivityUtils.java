@@ -73,6 +73,37 @@ public final class ConnectivityUtils {
         }
     }
 
+    /**
+     * Hosts for which res/xml/network_security_config.xml allows plain HTTP. Keep in sync.
+     */
+    private static final String[] CLEARTEXT_HOSTS = {"localhost", "127.0.0.1", "10.0.2.2"};
+
+    /**
+     * Whether Android will let the app talk to this shop URL. Plain {@code http://} is blocked
+     * for every host except the emulator/loopback ones above, so LAN shops (192.168.x / 10.x)
+     * must use HTTPS.
+     */
+    public static boolean isCleartextPermitted(String domain) {
+        if (domain == null) {
+            return false;
+        }
+        String normalized = domain.trim().toLowerCase();
+        if (!normalized.startsWith("http://")) {
+            return true;
+        }
+        try {
+            String host = new URL(normalized).getHost();
+            for (String allowed : CLEARTEXT_HOSTS) {
+                if (allowed.equals(host)) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {
+            // fall through
+        }
+        return false;
+    }
+
     public static boolean requiresInternetCheck(String domain) {
         return !isLocalDevHost(domain);
     }

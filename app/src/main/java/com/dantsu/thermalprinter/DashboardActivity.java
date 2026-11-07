@@ -84,7 +84,6 @@ public class DashboardActivity extends AppCompatActivity implements ShopCatalogR
     
     // Sound notification
     private MediaPlayer mediaPlayer;
-    private boolean isInitialLoad = true;
     
     // Track current shop domain to detect changes
     private String currentShopDomain = "";
@@ -204,7 +203,6 @@ public class DashboardActivity extends AppCompatActivity implements ShopCatalogR
             textInProgressOrders.setText("0");
             textCompletedOrders.setText("0");
             // Reset initial load flag so we don't play sound for all existing orders
-            isInitialLoad = true;
         }
         
         // Update current shop domain
@@ -508,61 +506,12 @@ public class DashboardActivity extends AppCompatActivity implements ShopCatalogR
                 JSONArray dataArrayOrders = jsonObjectOrders.getJSONArray("data");
                 List<JSONObject> ordersList = new ArrayList<>();
                 
-                // Get static sets from MainActivity for tracking printed orders and sound played orders
-                java.util.Set<String> printedOrders = IdManager.getIds(this);
-                MainActivity.getPrintedOrders().addAll(printedOrders);
-                java.util.Set<String> soundPlayedOrders = MainActivity.getSoundPlayedOrders();
-                
-                // Check for new unprinted orders and play sound
-                boolean hasNewUnprintedOrder = false;
-                List<String> newOrderIds = new ArrayList<>();
-                
-                // On initial load, populate soundPlayedOrders with all existing unprinted orders
-                // to avoid playing sound for orders that were already there when activity started
-                if (isInitialLoad) {
-                    Log.d("Dashboard", "Initial load - marking all existing orders as 'sound played'");
-                    for (int i = 0; i < dataArrayOrders.length(); i++) {
-                        try {
-                            JSONObject order = dataArrayOrders.getJSONObject(i);
-                            String orderId = order.getString("id");
-                            if (!printedOrders.contains(orderId)) {
-                                soundPlayedOrders.add(orderId);
-                            }
-                        } catch (Exception e) {
-                            Log.e("Dashboard", "Error processing order during initial load", e);
-                        }
-                    }
-                    isInitialLoad = false;
-                    Log.d("Dashboard", "Initial load complete. Marked " + soundPlayedOrders.size() + " orders as 'sound played'");
-                }
-                
+                MainActivity.getPrintedOrders().addAll(IdManager.getIds(this));
+                // New-order detection and sound live in PrintMonitorService (NewOrderTracker).
                 for (int i = 0; i < dataArrayOrders.length(); i++) {
-                    JSONObject order = dataArrayOrders.getJSONObject(i);
-                    ordersList.add(order);
-                    
-                    try {
-                        String orderId = order.getString("id");
-                        
-                        // Check if this is a new unprinted order that we haven't played sound for yet
-                        boolean isNotPrinted = !printedOrders.contains(orderId);
-                        boolean hasNotPlayedSound = !soundPlayedOrders.contains(orderId);
-                        
-                        if (isNotPrinted && hasNotPlayedSound) {
-                            hasNewUnprintedOrder = true;
-                            newOrderIds.add(orderId);
-                            soundPlayedOrders.add(orderId); // Mark that we've played sound for this order
-                            Log.d("Dashboard", "New unprinted order detected: " + orderId);
-                        }
-                    } catch (Exception e) {
-                        Log.e("Dashboard", "Error processing order for sound notification", e);
-                    }
+                    ordersList.add(dataArrayOrders.getJSONObject(i));
                 }
-                
-                // Play sound for new unprinted orders
-                if (hasNewUnprintedOrder) {
-                    Log.d("Dashboard", "New unprinted orders found: " + newOrderIds.size() + " orders - " + newOrderIds.toString());
-                }
-                
+
                 updateStatistics(ordersList);
                 updateSystemStatus();
                 

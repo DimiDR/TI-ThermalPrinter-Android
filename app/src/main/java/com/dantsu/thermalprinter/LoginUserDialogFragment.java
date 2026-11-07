@@ -241,6 +241,11 @@ public class LoginUserDialogFragment extends DialogFragment {
         }
         final String finalDomain = domainNormalized;
 
+        if (!ConnectivityUtils.isCleartextPermitted(finalDomain)) {
+            showError(getString(R.string.cleartext_not_permitted));
+            return;
+        }
+
         if (!isInternetAvailable(finalDomain)) {
             showError(getString(R.string.no_internet_error));
             return;
